@@ -4,3 +4,6 @@ target/
 .DS_Store
 *.log
 .env*
+test-results/
+playwright-report/
+apps/desktop/src-tauri/gen/
