@@ -1,0 +1,322 @@
+import { useState } from 'react';
+import { findNode, rgbaToCss, sampleStops, type GradientStop, type Paint } from '@poulpe/core';
+import { addSwatch, removeSwatch, setPaint } from '../actions';
+import { NumberField, paintPreview } from '../components/fields';
+import { Icon } from '../components/Icon';
+import { useT } from '../i18n';
+import { editor, pushRecentColor, ui, useEditor, useUi } from '../store';
+import { ColorPicker, type Phase } from './ColorPicker';
+
+const DEFAULT_STOPS = (c: string): GradientStop[] => [
+  { offset: 0, color: c },
+  { offset: 1, color: '#ffffff' },
+];
+
+/** Peinture courante de la cible (remplissage ou contour) : sélection, ou réglage des nouveaux objets. */
+export function useCurrentPaint(): { paint: Paint; target: 'fill' | 'stroke'; hasSelection: boolean } {
+  const { doc, selection } = useEditor();
+  const target = useUi((s) => s.colorTarget);
+  const defaults = useUi((s) => s.defaults);
+  let node = selection.length ? findNode(doc, selection[0])?.node : null;
+  while (node?.type === 'group') node = node.children[node.children.length - 1];
+  if (node && node.type !== 'image') {
+    return { paint: target === 'fill' ? node.fill : node.stroke.paint, target, hasSelection: true };
+  }
+  return { paint: target === 'fill' ? defaults.fill : defaults.stroke.paint, target, hasSelection: false };
+}
+
+/** Applique une peinture ; pendant un glissement, un seul pas d'historique pour tout le geste. */
+export function applyPaint(target: 'fill' | 'stroke', paint: Paint, phase: Phase): void {
+  const live = editor.selection.length > 0;
+  if (live && phase === 'start') editor.begin();
+  setPaint(target, paint, live && (phase === 'start' || phase === 'move' || phase === 'end'));
+  if (live && phase === 'end') editor.commit('history.style');
+  if (phase === 'end' || phase === 'set') {
+    const c = paint.type === 'solid' ? paint.color : null;
+    if (c) pushRecentColor(c);
+  }
+}
+
+function firstColor(p: Paint): string {
+  if (p.type === 'solid') return p.color;
+  if (p.type === 'linear' || p.type === 'radial') return p.stops[0]?.color ?? '#000000';
+  return '#2ba59a';
+}
+
+export function ColorPanel() {
+  const t = useT();
+  const { paint, target, hasSelection } = useCurrentPaint();
+  const recent = useUi((s) => s.recentColors);
+  const { doc } = useEditor();
+  const [stopIndex, setStopIndex] = useState(0);
+
+  const switchType = (type: Paint['type']) => {
+    const base = firstColor(paint);
+    const stops = paint.type === 'linear' || paint.type === 'radial' ? paint.stops : DEFAULT_STOPS(base);
+    const next: Paint =
+      type === 'none'
+        ? { type: 'none' }
+        : type === 'solid'
+          ? { type: 'solid', color: base }
+          : type === 'linear'
+            ? { type: 'linear', angle: paint.type === 'linear' ? paint.angle : 90, stops }
+            : { type: 'radial', cx: 0.5, cy: 0.5, r: 0.5, stops };
+    applyPaint(target, next, 'set');
+  };
+
+  const gradient = paint.type === 'linear' || paint.type === 'radial' ? paint : null;
+  const stops = gradient?.stops ?? [];
+  const si = Math.min(stopIndex, Math.max(0, stops.length - 1));
+  const editColor = gradient ? (stops[si]?.color ?? '#000000') : paint.type === 'solid' ? paint.color : null;
+
+  const onColor = (c: string, phase: Phase) => {
+    if (paint.type === 'solid' || paint.type === 'none')
+      applyPaint(target, { type: 'solid', color: c }, phase);
+    else if (gradient) {
+      const next = stops.map((s, i) => (i === si ? { ...s, color: c } : s));
+      applyPaint(target, { ...gradient, stops: next }, phase);
+    }
+  };
+
+  const useSwatch = (c: string) => {
+    if (gradient) onColor(c, 'set');
+    else applyPaint(target, { type: 'solid', color: c }, 'set');
+  };
+
+  return (
+    <div className="panel-body color-panel">
+      <div className="picker-row">
+        <div className="seg" role="group" aria-label={t('studio.color')}>
+          <button aria-pressed={target === 'fill'} onClick={() => ui.set({ colorTarget: 'fill' })}>
+            {t('color.fill')}
+          </button>
+          <button aria-pressed={target === 'stroke'} onClick={() => ui.set({ colorTarget: 'stroke' })}>
+            {t('color.stroke')}
+          </button>
+        </div>
+        <span className="chip big" style={{ background: paintPreview(paint) }} aria-hidden="true" />
+      </div>
+      <div className="seg full" role="group" aria-label="Type">
+        {(['solid', 'linear', 'radial', 'none'] as const).map((type) => (
+          <button
+            key={type}
+            aria-pressed={paint.type === type}
+            data-testid={`paint-${type}`}
+            onClick={() => switchType(type)}
+          >
+            {t(`color.${type}`)}
+          </button>
+        ))}
+      </div>
+      {gradient && (
+        <GradientBar
+          paint={gradient}
+          selected={si}
+          onSelect={setStopIndex}
+          onChange={(stops2, phase) => applyPaint(target, { ...gradient, stops: stops2 }, phase)}
+        />
+      )}
+      {gradient?.type === 'linear' && (
+        <div className="picker-row">
+          <NumberField
+            label={t('color.angle')}
+            value={gradient.angle}
+            min={-360}
+            max={360}
+            unit="°"
+            width={90}
+            onChange={(v) => applyPaint(target, { ...gradient, angle: v }, 'set')}
+          />
+        </div>
+      )}
+      {gradient?.type === 'radial' && (
+        <div className="picker-row">
+          <NumberField
+            label={t('color.centerX')}
+            value={Math.round(gradient.cx * 100)}
+            unit="%"
+            width={84}
+            onChange={(v) => applyPaint(target, { ...gradient, cx: v / 100 }, 'set')}
+          />
+          <NumberField
+            label={t('color.centerY')}
+            value={Math.round(gradient.cy * 100)}
+            unit="%"
+            width={84}
+            onChange={(v) => applyPaint(target, { ...gradient, cy: v / 100 }, 'set')}
+          />
+          <NumberField
+            label={t('color.radius')}
+            value={Math.round(gradient.r * 100)}
+            min={1}
+            unit="%"
+            width={84}
+            onChange={(v) => applyPaint(target, { ...gradient, r: v / 100 }, 'set')}
+          />
+        </div>
+      )}
+      {editColor !== null ? (
+        <ColorPicker color={editColor} onChange={onColor} />
+      ) : (
+        <p className="empty">{hasSelection ? '' : t('color.nothing')}</p>
+      )}
+      {recent.length > 0 && (
+        <>
+          <h4 className="sub">{t('color.recent')}</h4>
+          <div className="swatches">
+            {recent.map((c) => (
+              <button
+                key={c}
+                className="swatch"
+                style={{ background: rgbaToCss(c) }}
+                title={c}
+                aria-label={c}
+                onClick={() => useSwatch(c)}
+              />
+            ))}
+          </div>
+        </>
+      )}
+      <h4 className="sub">{t('color.document')}</h4>
+      <div className="swatches">
+        {doc.swatches.map((c) => (
+          <button
+            key={c}
+            className="swatch"
+            style={{ background: rgbaToCss(c) }}
+            title={`${c} · ${t('color.removeSwatch')}`}
+            aria-label={c}
+            onClick={() => useSwatch(c)}
+            onContextMenu={(e) => {
+              e.preventDefault();
+              removeSwatch(c);
+            }}
+          />
+        ))}
+        {editColor && (
+          <button
+            className="swatch add"
+            title={t('color.addSwatch')}
+            aria-label={t('color.addSwatch')}
+            onClick={() => addSwatch(editColor)}
+          >
+            <Icon name="plus" size={12} />
+          </button>
+        )}
+      </div>
+    </div>
+  );
+}
+
+/** Barre d'arrêts d'un dégradé. */
+function GradientBar({
+  paint,
+  selected,
+  onSelect,
+  onChange,
+}: {
+  paint: Extract<Paint, { stops: GradientStop[] }>;
+  selected: number;
+  onSelect: (i: number) => void;
+  onChange: (stops: GradientStop[], phase: Phase) => void;
+}) {
+  const t = useT();
+  const stops = paint.stops;
+  const preview = `linear-gradient(90deg, ${[...stops]
+    .sort((a, b) => a.offset - b.offset)
+    .map((s) => `${rgbaToCss(s.color)} ${s.offset * 100}%`)
+    .join(', ')}), var(--checker)`;
+
+  const onBarDown = (e: React.PointerEvent<HTMLDivElement>) => {
+    if ((e.target as HTMLElement).closest('.stop')) return;
+    const rect = e.currentTarget.getBoundingClientRect();
+    const offset = Math.min(1, Math.max(0, (e.clientX - rect.left) / rect.width));
+    const next = [...stops, { offset, color: sampleStops(stops, offset) }];
+    onChange(next, 'set');
+    onSelect(next.length - 1);
+  };
+
+  const onStopDown = (i: number, e: React.PointerEvent<HTMLButtonElement>) => {
+    e.stopPropagation();
+    onSelect(i);
+    const bar = e.currentTarget.parentElement!;
+    const rect = bar.getBoundingClientRect();
+    const el = e.currentTarget;
+    el.setPointerCapture(e.pointerId);
+    let started = false;
+    const move = (ev: PointerEvent) => {
+      const offset =
+        Math.round(Math.min(1, Math.max(0, (ev.clientX - rect.left) / rect.width)) * 1000) / 1000;
+      onChange(
+        stops.map((s, j) => (j === i ? { ...s, offset } : s)),
+        started ? 'move' : 'start',
+      );
+      started = true;
+    };
+    const up = (ev: PointerEvent) => {
+      if (started) {
+        const offset =
+          Math.round(Math.min(1, Math.max(0, (ev.clientX - rect.left) / rect.width)) * 1000) / 1000;
+        onChange(
+          stops.map((s, j) => (j === i ? { ...s, offset } : s)),
+          'end',
+        );
+      }
+      el.removeEventListener('pointermove', move);
+      el.removeEventListener('pointerup', up);
+    };
+    el.addEventListener('pointermove', move);
+    el.addEventListener('pointerup', up);
+  };
+
+  const remove = (i: number) => {
+    if (stops.length <= 2) return;
+    onChange(
+      stops.filter((_, j) => j !== i),
+      'set',
+    );
+    onSelect(Math.max(0, i - 1));
+  };
+
+  return (
+    <div className="gradient-editor">
+      <div
+        className="gradient-bar"
+        style={{ background: preview }}
+        onPointerDown={onBarDown}
+        title={t('color.stopHint')}
+      >
+        {stops.map((s, i) => (
+          <button
+            key={i}
+            className={`stop${i === selected ? ' on' : ''}`}
+            style={{ left: `${s.offset * 100}%`, background: rgbaToCss(s.color) }}
+            aria-label={`${Math.round(s.offset * 100)} %`}
+            onPointerDown={(e) => onStopDown(i, e)}
+            onKeyDown={(e) => {
+              if (e.key === 'Delete' || e.key === 'Backspace') remove(i);
+              if (e.key === 'ArrowLeft' || e.key === 'ArrowRight') {
+                const d = (e.key === 'ArrowLeft' ? -1 : 1) * (e.shiftKey ? 0.1 : 0.01);
+                onChange(
+                  stops.map((st, j) =>
+                    j === i ? { ...st, offset: Math.min(1, Math.max(0, st.offset + d)) } : st,
+                  ),
+                  'set',
+                );
+              }
+            }}
+          />
+        ))}
+      </div>
+      <button
+        className="ib"
+        disabled={stops.length <= 2}
+        title={t('color.removeStop')}
+        aria-label={t('color.removeStop')}
+        onClick={() => remove(selected)}
+      >
+        <Icon name="trash" />
+      </button>
+    </div>
+  );
+}

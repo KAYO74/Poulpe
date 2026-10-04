@@ -1,0 +1,14 @@
+{
+  "name": "@poulpe/desktop",
+  "version": "0.1.0",
+  "private": true,
+  "license": "MPL-2.0",
+  "scripts": {
+    "tauri": "tauri",
+    "typecheck": "echo \"(appli de bureau : cargo check dans src-tauri)\"",
+    "test": "echo \"(appli de bureau : cargo test dans src-tauri)\""
+  },
+  "devDependencies": {
+    "@tauri-apps/cli": "^2"
+  }
+}

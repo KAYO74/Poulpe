@@ -1,0 +1,51 @@
+{
+  "$schema": "https://schema.tauri.app/config/2",
+  "productName": "Poulpe",
+  "version": "0.1.0",
+  "identifier": "org.poulpe.app",
+  "build": {
+    "beforeDevCommand": "pnpm --filter @poulpe/editor dev",
+    "devUrl": "http://localhost:5173",
+    "beforeBuildCommand": "pnpm --filter @poulpe/editor build",
+    "frontendDist": "../../editor/dist"
+  },
+  "app": {
+    "windows": [
+      {
+        "label": "main",
+        "title": "Poulpe",
+        "width": 1440,
+        "height": 900,
+        "minWidth": 960,
+        "minHeight": 600,
+        "center": true,
+        "dragDropEnabled": false
+      }
+    ],
+    "security": {
+      "csp": "default-src 'self'; img-src 'self' data: blob:; style-src 'self' 'unsafe-inline'; font-src 'self' data:; connect-src 'self' ipc: http://ipc.localhost; script-src 'self'"
+    }
+  },
+  "bundle": {
+    "active": true,
+    "targets": ["deb", "appimage", "msi", "nsis", "dmg", "app"],
+    "category": "GraphicsAndDesign",
+    "shortDescription": "Création graphique libre",
+    "longDescription": "Poulpe est une application libre de création graphique : vectoriel, texte, calques, dégradés, export PNG, JPEG, SVG et PDF.",
+    "copyright": "Contributeurs de Poulpe, MPL-2.0",
+    "license": "MPL-2.0",
+    "icon": ["icons/32x32.png", "icons/128x128.png", "icons/128x128@2x.png", "icons/icon.icns", "icons/icon.ico"],
+    "fileAssociations": [
+      {
+        "ext": ["poulpe"],
+        "name": "Document Poulpe",
+        "description": "Document Poulpe",
+        "mimeType": "application/x-poulpe",
+        "role": "Editor"
+      }
+    ],
+    "linux": {
+      "deb": { "section": "graphics" }
+    }
+  }
+}

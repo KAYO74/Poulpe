@@ -1,0 +1,22 @@
+{
+  "name": "poulpe",
+  "private": true,
+  "version": "0.1.0",
+  "license": "MPL-2.0",
+  "packageManager": "pnpm@10.28.0",
+  "engines": { "node": ">=20" },
+  "scripts": {
+    "dev": "pnpm --filter @poulpe/editor dev",
+    "build": "pnpm --filter @poulpe/editor build",
+    "typecheck": "pnpm -r typecheck",
+    "test": "pnpm -r test",
+    "e2e": "pnpm --filter @poulpe/editor e2e",
+    "desktop:dev": "pnpm --filter @poulpe/desktop tauri dev",
+    "desktop:build": "pnpm --filter @poulpe/desktop tauri build",
+    "format": "prettier --write ."
+  },
+  "devDependencies": {
+    "typescript": "^5.9.3",
+    "prettier": "^3.6.2"
+  }
+}

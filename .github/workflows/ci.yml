@@ -1,0 +1,58 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  web:
+    name: Moteur et éditeur
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - name: Vérification des types
+        run: pnpm typecheck
+      - name: Tests du moteur
+        run: pnpm test
+      - name: Compilation de l'éditeur
+        run: pnpm build
+      - name: Navigateur pour les tests de bout en bout
+        run: pnpm --filter @poulpe/editor exec playwright install --with-deps chromium
+      - name: Tests de bout en bout
+        run: pnpm e2e
+      - uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: playwright-results
+          path: apps/editor/test-results
+          retention-days: 7
+
+  desktop:
+    name: Appli de bureau (Rust)
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@v4
+      - name: Dépendances système de Tauri
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libwebkit2gtk-4.1-dev libappindicator3-dev librsvg2-dev patchelf
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: apps/desktop/src-tauri
+      - name: Tests Rust
+        working-directory: apps/desktop/src-tauri
+        run: |
+          mkdir -p ../../editor/dist
+          cargo test --locked
