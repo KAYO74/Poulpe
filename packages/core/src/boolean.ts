@@ -1,6 +1,7 @@
 import paper from 'paper';
 import { PaperOffset } from 'paperjs-offset';
-import { pathToSvg, type PathCommand } from './geometry';
+import { pathToSvg, type PathCommand, type Vec } from './geometry';
+import { hasClosedSubpath, knifeOpenPath } from './pathCut';
 import { exactBounds } from './bezier';
 import { parseSvgPath } from './path';
 import { findNode, isStyled, topLevelIds, walkDocument } from './tree';
@@ -149,6 +150,75 @@ export function applyBoolean(
   };
   doc.artboards.forEach(strip);
   return created.map((n) => n.id);
+}
+
+/**
+ * Cutter : coupe les formes pleines sélectionnées le long de la ligne `a`–`b` (en coordonnées du
+ * monde). Chaque forme traversée donne deux objets, un de chaque côté de la ligne, comme le
+ * cutter d'Affinity. Les tracés ouverts sont simplement séparés en morceaux. Renvoie les ids
+ * créés, ou null si la ligne ne coupe rien.
+ */
+export function applyKnife(
+  doc: PoulpeDocument,
+  ids: string[],
+  a: Vec,
+  b: Vec,
+  name: string,
+): string[] | null {
+  const created: string[] = [];
+  const dx = b.x - a.x,
+    dy = b.y - a.y;
+  const len = Math.hypot(dx, dy);
+  if (len < 1e-6) return null;
+  // Deux demi-plans, bien plus grands que le document, de chaque côté de la ligne.
+  const ux = dx / len,
+    uy = dy / len;
+  const nx = -uy,
+    ny = ux;
+  const FAR = 1e5;
+  const halfPlane = (sign: 1 | -1): PathCommand[] => {
+    const p = (k: number, m: number) => ({
+      x: a.x + ux * k + nx * m * sign,
+      y: a.y + uy * k + ny * m * sign,
+    });
+    const c = [p(-FAR, 0), p(FAR, 0), p(FAR, FAR), p(-FAR, FAR)];
+    return [
+      { op: 'M', x: c[0].x, y: c[0].y },
+      { op: 'L', x: c[1].x, y: c[1].y },
+      { op: 'L', x: c[2].x, y: c[2].y },
+      { op: 'L', x: c[3].x, y: c[3].y },
+      { op: 'Z' },
+    ];
+  };
+  for (const id of topLevelIds(doc, ids)) {
+    const loc = findNode(doc, id);
+    if (!loc || loc.node.locked) continue;
+    const outline = worldOutline(loc.node);
+    if (!outline?.length) continue;
+    const fillRule = loc.node.type === 'path' ? loc.node.fillRule : undefined;
+    const pieces: PathCommand[][] = [];
+    if (hasClosedSubpath(outline)) {
+      for (const sign of [1, -1] as const) {
+        const part = booleanCommands([{ cmds: outline, fillRule }, { cmds: halfPlane(sign) }], 'intersect');
+        if (part.length) pieces.push(part[0].cmds);
+      }
+      if (pieces.length < 2) continue;
+    } else {
+      const cut = knifeOpenPath(outline, a, b);
+      if (!cut) continue;
+      pieces.push(cut);
+    }
+    const nodes = pieces.map((cmds) => pathNodeFromWorld(cmds, loc.node, name));
+    loc.parent.children.splice(loc.index + 1, 0, ...nodes);
+    const gone = loc.node.id;
+    const strip = (p: Parent) => {
+      p.children = p.children.filter((n) => n.id !== gone);
+      p.children.forEach((c) => c.type === 'group' && strip(c));
+    };
+    doc.artboards.forEach(strip);
+    created.push(...nodes.map((n) => n.id));
+  }
+  return created.length ? created : null;
 }
 
 /**

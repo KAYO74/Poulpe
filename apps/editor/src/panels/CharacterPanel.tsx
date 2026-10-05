@@ -1,4 +1,4 @@
-import { findNode, type TextNode, type TextStyle } from '@poulpe/core';
+import { CANVAS_FEATURES, OPENTYPE_FEATURES, findNode, type TextNode, type TextStyle } from '@poulpe/core';
 import { setTextStyle, updateSelected } from '../actions';
 import { NumberField, Select } from '../components/fields';
 import { Icon, type IconName } from '../components/Icon';
@@ -109,6 +109,62 @@ export function CharacterPanel() {
         {align('right', 'textRight', t('char.alignRight'))}
         {align('justify', 'textJustify', t('char.justify'))}
       </div>
+      <div className="panel-sub">
+        <span className="panel-sub-title">{t('char.features')}</span>
+      </div>
+      <div className="chips">
+        {OPENTYPE_FEATURES.map((f) => {
+          const on = st.features?.includes(f) ?? false;
+          return (
+            <button
+              key={f}
+              className="chip-btn"
+              aria-pressed={on}
+              data-testid={`feature-${f}`}
+              title={t(`char.feature.${f}`)}
+              onClick={() =>
+                setTextStyle({
+                  features: on ? (st.features ?? []).filter((x) => x !== f) : [...(st.features ?? []), f],
+                })
+              }
+            >
+              {t(`char.feature.${f}`)}
+            </button>
+          );
+        })}
+      </div>
+      {!CANVAS_FEATURES.some((f) => st.features?.includes(f)) && st.features?.length ? (
+        <p className="note small">{t('char.featureExportOnly')}</p>
+      ) : null}
+      <div className="panel-sub">
+        <span className="panel-sub-title">{t('char.columns')}</span>
+      </div>
+      <div className="picker-row">
+        <NumberField
+          label={t('char.columnCount')}
+          value={st.columns?.count ?? 1}
+          min={1}
+          max={12}
+          width={84}
+          testId="column-count"
+          onChange={(count) =>
+            setTextStyle({ columns: count <= 1 ? undefined : { count, gap: st.columns?.gap ?? 16 } })
+          }
+        />
+        <NumberField
+          label={t('char.columnGap')}
+          value={st.columns?.gap ?? 16}
+          min={0}
+          max={400}
+          unit="px"
+          width={84}
+          disabled={(st.columns?.count ?? 1) <= 1}
+          onChange={(gap) => setTextStyle({ columns: { count: st.columns?.count ?? 2, gap } })}
+        />
+      </div>
+      {text?.autoWidth && (st.columns?.count ?? 1) > 1 && (
+        <p className="note small">{t('char.columnsFixed')}</p>
+      )}
       {text && (
         <label className="check">
           <input

@@ -8,10 +8,13 @@ import { getLang } from './i18n';
 import { isDesktop, openPath, openPhotoBytes } from './io';
 import * as library from './libraryActions';
 import * as vector from './vectorActions';
+import * as symbols from './symbolActions';
 import * as layout from './layoutActions';
 import * as photo from './photo/photoActions';
 import * as pixelSelection from './photo/selection';
+import * as retouch from './photo/retouchActions';
 import { normalizeTexts } from './normalize';
+import { artboardToSvg } from '@poulpe/core';
 import { editor, ui } from './store';
 import './styles.css';
 
@@ -48,7 +51,9 @@ if (isDesktop()) {
   ui,
   library,
   vector,
+  symbols,
   layout,
+  core: { artboardToSvg },
   controller: getController,
-  photo: { ...photo, ...pixelSelection, openPhotoBytes },
+  photo: { ...photo, ...pixelSelection, ...retouch, openPhotoBytes },
 };

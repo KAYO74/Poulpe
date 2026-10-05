@@ -22,6 +22,10 @@ export type ToolId =
   | 'line'
   | 'text'
   | 'image'
+  | 'scissors'
+  | 'knife'
+  | 'corner'
+  | 'shapeBuilder'
   | 'hand'
   | 'zoom'
   | 'eyedropper'
@@ -38,7 +42,14 @@ export type ToolId =
   | 'dodge'
   | 'burn'
   | 'blurBrush'
-  | 'sharpenBrush';
+  | 'sharpenBrush'
+  | 'polyLasso'
+  | 'quickSelect'
+  | 'heal'
+  | 'smudge'
+  | 'liquify'
+  | 'straighten'
+  | 'perspective';
 
 /** Espaces de travail, comme les Personas d'Affinity. */
 export type Persona = 'draw' | 'photo' | 'layout';
@@ -69,7 +80,9 @@ export type Dialog =
   | 'filter'
   | 'selectionModify'
   | 'document'
-  | 'batch';
+  | 'batch'
+  | 'imageSize'
+  | 'canvasSize';
 
 export interface Settings {
   theme: Theme;
@@ -106,6 +119,9 @@ export interface UiState {
   cropId: string | null;
   /** Nœuds sélectionnés (« sous-tracé:nœud ») du tracé édité avec l'outil Nœud. */
   nodeSelection: string[];
+  /** Outil Coin : rayon appliqué d'un simple clic, et forme de l'angle. */
+  cornerRadiusTool: number;
+  cornerKind: 'round' | 'chamfer';
   /** Lissage du crayon, de 0 à 100. */
   pencilSmoothing: number;
   /** Réglages des pinceaux, par outil (pinceau, gomme, tampon…). */
@@ -127,6 +143,12 @@ export interface UiState {
   filterKind: import('@poulpe/core').AdjustmentKind | null;
   /** Modification de sélection demandée (adoucir, agrandir, réduire). */
   selectionModify: 'feather' | 'grow' | 'shrink' | null;
+  /** Fluidité : pousser, tourbillon, gonfler ou pincer. */
+  liquifyMode: import('@poulpe/core').LiquifyMode;
+  /** Redressement : agrandir le calque pour cacher les coins vides. */
+  straightenFill: boolean;
+  /** Calque dont on corrige la perspective (outil Perspective). */
+  perspectiveId: string | null;
   /** Calcul long en cours (gomme magique) : avancement de 0 à 1. */
   busy: { label: string; progress: number } | null;
   /** Cadre de texte dont on choisit le cadre suivant (après un clic sur son indicateur de débordement). */
@@ -195,6 +217,8 @@ export const ui = new Store<UiState>({
   editingTextId: null,
   cropId: null,
   nodeSelection: [],
+  cornerRadiusTool: 12,
+  cornerKind: 'round',
   pencilSmoothing: 50,
   brushes: {},
   brushColor: '#1a1a1d',
@@ -207,6 +231,9 @@ export const ui = new Store<UiState>({
   maskEditId: null,
   filterKind: null,
   selectionModify: null,
+  liquifyMode: 'push',
+  straightenFill: true,
+  perspectiveId: null,
   busy: null,
   linkFrom: null,
   softProof: false,
@@ -255,6 +282,10 @@ const BRUSH_DEFAULTS: Partial<Record<ToolId, BrushSettings>> = {
   burn: { size: 60, hardness: 20, opacity: 50, flow: 40 },
   blurBrush: { size: 50, hardness: 30, opacity: 100, flow: 50 },
   sharpenBrush: { size: 50, hardness: 30, opacity: 60, flow: 50 },
+  quickSelect: { size: 30, hardness: 100, opacity: 100, flow: 100 },
+  heal: { size: 40, hardness: 50, opacity: 100, flow: 100 },
+  smudge: { size: 40, hardness: 40, opacity: 60, flow: 100 },
+  liquify: { size: 120, hardness: 0, opacity: 50, flow: 100 },
 };
 
 /** Réglages du pinceau de l'outil (ceux du pinceau par défaut pour les autres outils). */
@@ -272,7 +303,7 @@ export function isBrushTool(tool: ToolId): boolean {
 
 export function setTool(tool: ToolId): void {
   if (ui.get().tool !== tool) window.dispatchEvent(new Event('poulpe:toolchange'));
-  ui.set({ tool, editingTextId: null, cropId: null, nodeSelection: [] });
+  ui.set({ tool, editingTextId: null, cropId: null, nodeSelection: [], perspectiveId: null });
 }
 
 /** Redessine le composant quand la sélection dans le texte édité change. */
