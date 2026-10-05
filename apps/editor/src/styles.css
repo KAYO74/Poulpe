@@ -1694,3 +1694,45 @@ fieldset.tone legend {
   max-height: 180px;
   overflow: auto;
 }
+
+/* ——— v1.0 : vectorisation ——— */
+.trace-previews {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+.trace-previews figure {
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  align-items: center;
+}
+.trace-previews img,
+.trace-wait {
+  width: 100%;
+  height: 240px;
+  object-fit: contain;
+  background: repeating-conic-gradient(var(--input) 0 25%, var(--panel) 0 50%) 0 0 / 16px 16px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+}
+.trace-previews figure.working img {
+  opacity: 0.55;
+}
+.trace-previews figcaption {
+  font-size: 12px;
+  color: var(--muted);
+}
+.trace-sliders {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px 16px;
+}
+.trace-sliders .pslider {
+  display: grid;
+  grid-template-columns: 110px 1fr auto;
+}
+.trace-sliders .pslider input[type='range'] {
+  width: 100%;
+}

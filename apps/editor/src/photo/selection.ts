@@ -321,3 +321,26 @@ export function selectionIn(width: number, height: number, toTarget: DOMMatrix):
   ctx.drawImage(m.canvas, 0, 0);
   return c;
 }
+
+/**
+ * Sélection d'après un masque d'opacité posé sur un calque image (le sujet trouvé par le
+ * détourage automatique). `matte` couvre la partie visible (recadrée) de l'image.
+ */
+export function selectFromMatte(node: ImageNode, matte: HTMLCanvasElement, mode: SelectionMode): void {
+  const keep = mode === 'replace' ? null : current;
+  current = null;
+  const shape = blank();
+  current = keep;
+  if (!shape) return;
+  const ctx = docCtx(shape);
+  ctx.translate(node.x + node.width / 2, node.y + node.height / 2);
+  ctx.rotate((node.rotation * Math.PI) / 180);
+  ctx.translate(-node.width / 2, -node.height / 2);
+  ctx.imageSmoothingQuality = 'high';
+  ctx.drawImage(matte, 0, 0, node.width, node.height);
+  if (mode === 'replace' && isEmpty(shape)) {
+    clearSelection();
+    return;
+  }
+  combine(shape, mode);
+}

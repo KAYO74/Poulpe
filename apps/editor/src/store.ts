@@ -69,7 +69,8 @@ export type Dialog =
   | 'filter'
   | 'selectionModify'
   | 'document'
-  | 'batch';
+  | 'batch'
+  | 'vectorize';
 
 export interface Settings {
   theme: Theme;

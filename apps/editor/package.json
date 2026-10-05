@@ -5,8 +5,8 @@
   "license": "MPL-2.0",
   "type": "module",
   "scripts": {
-    "dev": "vite",
-    "build": "tsc -p tsconfig.json && vite build",
+    "dev": "node scripts/fetch-models.mjs && vite",
+    "build": "node scripts/fetch-models.mjs && tsc -p tsconfig.json && vite build",
     "preview": "vite preview",
     "typecheck": "tsc -p tsconfig.json",
     "test": "echo \"(tests de bout en bout : pnpm e2e)\"",
@@ -30,6 +30,7 @@
     "ag-psd": "^31.0.2",
     "fflate": "^0.8.3",
     "jspdf": "^4.2.1",
+    "onnxruntime-web": "^1.30.0",
     "opentype.js": "^2.0.0",
     "pdfjs-dist": "^6.4.299",
     "react": "^19.3.0",

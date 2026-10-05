@@ -118,6 +118,8 @@ export function MenuBar() {
           <Item id="layer.removeMask" />
         </Sub>
         <Item id="layer.rasterize" />
+        <Item id="image.removeBackground" />
+        <Item id="image.vectorize" />
         <Item id="layer.mergeVisible" />
         <Sep />
         <Item id="layer.group" />
@@ -148,6 +150,7 @@ export function MenuBar() {
         <Item id="select.shrink" />
         <Sep />
         <Item id="select.fromLayer" />
+        <Item id="select.subject" />
       </Top>
       <Top label={t('menu.adjust')}>
         {COLOR_ADJUSTMENTS.map((k) => (
