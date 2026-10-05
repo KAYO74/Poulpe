@@ -1,4 +1,5 @@
 import { migrate, type PoulpeDocument } from '@poulpe/core';
+import { materialize } from '@poulpe/render';
 import { editor, ui } from './store';
 
 /*
@@ -83,7 +84,10 @@ function schedule(): void {
   timer = setTimeout(() => {
     const state = editor.getState();
     if (!state.dirty) return;
-    void writeDraft({ doc: state.doc, filePath: ui.get().filePath, savedAt: Date.now() });
+    // Les pixels modifiés dans l'appli n'existent qu'en mémoire : on écrit leurs vraies données.
+    void materialize(state.doc).then((doc) =>
+      writeDraft({ doc, filePath: ui.get().filePath, savedAt: Date.now() }),
+    );
   }, DELAY);
 }
 

@@ -1,5 +1,7 @@
 import {
   activeEffects,
+  adjustmentReach,
+  applyAdjustment,
   arrowPaths,
   charX,
   dashPattern,
@@ -13,13 +15,16 @@ import {
   radialGradientRadius,
   rgbaToCss,
   shapePath,
+  type AdjustmentNode,
   type Artboard,
   type BlendMode,
+  type Box,
   type MeasureText,
   type Paint,
   type PathCommand,
   type PoulpeDocument,
   type SceneNode,
+  type ShapeNode,
   type Stroke,
   type TextLayout,
   type TextNode,
@@ -34,32 +39,82 @@ import {
 
 export type Ctx = CanvasRenderingContext2D | OffscreenCanvasRenderingContext2D;
 
+import { bitmapSource, isBitmapRef, resolveData } from './bitmaps';
+
+export * from './bitmaps';
+
+/** Image prête à dessiner : décodée depuis le fichier, ou toile modifiée dans l'appli. */
+export type Drawable = HTMLImageElement | HTMLCanvasElement;
+
+export function drawableSize(img: Drawable): { width: number; height: number } {
+  return img instanceof HTMLImageElement
+    ? { width: img.naturalWidth, height: img.naturalHeight }
+    : { width: img.width, height: img.height };
+}
+
+/*
+ * Révision du rendu : augmente quand ce qui est dessiné change sans que le document change
+ * (une image finit de se décoder, un coup de pinceau en cours). Les calques de réglage s'en
+ * servent pour savoir si leur résultat mémorisé est encore bon.
+ */
+let renderRevision = 0;
+export function bumpRenderRevision(): void {
+  renderRevision++;
+}
+
+/** Toiles affichées à la place d'une image pendant qu'on la modifie (pinceau, aperçu d'un filtre). */
+const liveOverrides = new Map<string, HTMLCanvasElement>();
+
+export function setLiveBitmap(assetId: string, canvas: HTMLCanvasElement | null): void {
+  if (canvas) liveOverrides.set(assetId, canvas);
+  else liveOverrides.delete(assetId);
+  renderRevision++;
+}
+
 /** Cache des images du document, décodées à partir de leurs données. */
 export class ImageCache {
-  private images = new Map<string, HTMLImageElement>();
+  private images = new Map<string, { data: string; img: HTMLImageElement }>();
   constructor(private onLoad: () => void = () => {}) {}
 
-  get(doc: PoulpeDocument, assetId: string): HTMLImageElement | null {
+  private loaded = () => {
+    renderRevision++;
+    this.onLoad();
+  };
+
+  get(doc: PoulpeDocument, assetId: string): Drawable | null {
+    const live = liveOverrides.get(assetId);
+    if (live) return live;
     const asset = doc.assets[assetId];
     if (!asset) return null;
-    let img = this.images.get(assetId);
-    if (!img || img.dataset.src !== String(asset.data.length)) {
-      img = new Image();
-      img.dataset.src = String(asset.data.length);
-      img.onload = () => this.onLoad();
+    if (isBitmapRef(asset.data)) return bitmapSource(asset.data, this.loaded);
+    let entry = this.images.get(assetId);
+    if (!entry || entry.data !== asset.data) {
+      const img = new Image();
+      img.onload = this.loaded;
       img.src = asset.data;
-      this.images.set(assetId, img);
+      entry = { data: asset.data, img };
+      this.images.set(assetId, entry);
     }
+    const img = entry.img;
     return img.complete && img.naturalWidth ? img : null;
   }
 
   /** Attend que toutes les images du document soient décodées (avant un export). */
   async ready(doc: PoulpeDocument): Promise<void> {
     await Promise.all(
-      Object.keys(doc.assets).map((id) => {
+      Object.keys(doc.assets).map(async (id) => {
+        const data = doc.assets[id].data;
+        if (isBitmapRef(data)) {
+          if (!bitmapSource(data)) {
+            // Toile libérée : on attend le décodage du PNG.
+            await resolveData(data);
+            for (let i = 0; i < 100 && !bitmapSource(data); i++) await new Promise((r) => setTimeout(r, 20));
+          }
+          return;
+        }
         this.get(doc, id);
-        const img = this.images.get(id);
-        return img && !img.complete ? img.decode().catch(() => {}) : Promise.resolve();
+        const img = this.images.get(id)?.img;
+        if (img && !img.complete) await img.decode().catch(() => {});
       }),
     );
   }
@@ -100,6 +155,7 @@ export function cachedLayout(node: TextNode, measure: MeasureText = measureText)
 /** À appeler quand les mesures changent (une police vient de se charger). */
 export function clearLayoutCache(): void {
   layoutCache = new WeakMap();
+  renderRevision++;
 }
 
 /** Tracé d'un objet dans son repère local, mémorisé tant que l'objet ne change pas. */
@@ -237,9 +293,12 @@ function drawText(ctx: Ctx, node: TextNode, measure: MeasureText) {
 
 export function drawNode(ctx: Ctx, doc: PoulpeDocument, node: SceneNode, opts: RenderOptions): void {
   if (!node.visible || opts.hidden?.has(node.id)) return;
-  if (node.effects?.length) {
+  // Un réglage agit sur les calques du dessous : c'est son parent qui l'applique (drawChildren).
+  if (node.type === 'adjustment') return;
+  const mask = node.mask?.enabled ? opts.images.get(doc, node.mask.assetId) : null;
+  if (node.effects?.length || mask) {
     const effects = activeEffects(node);
-    if (effects.length && drawWithEffects(ctx, doc, node, opts, effects)) return;
+    if ((effects.length || mask) && drawWithEffects(ctx, doc, node, opts, effects, mask)) return;
   }
   ctx.save();
   ctx.globalAlpha *= node.opacity;
@@ -260,7 +319,7 @@ export function applyStrokeStyle(ctx: Ctx, stroke: Stroke): void {
 const arrowCache = new WeakMap<SceneNode, Path2D | null>();
 
 /** Flèches d'un tracé ouvert, mémorisées tant que l'objet ne change pas. */
-function arrowPath(node: Exclude<SceneNode, { type: 'group' | 'image' | 'text' }>): Path2D | null {
+function arrowPath(node: ShapeNode): Path2D | null {
   if (
     (!node.stroke.start || node.stroke.start === 'none') &&
     (!node.stroke.end || node.stroke.end === 'none')
@@ -287,10 +346,10 @@ function drawContent(ctx: Ctx, doc: PoulpeDocument, node: SceneNode, opts: Rende
       ctx.translate(-mask.width / 2, -mask.height / 2);
       ctx.clip(nodePath(mask));
       ctx.setTransform(ctx.getTransform().multiply(inverseLocal(mask)));
-      for (const c of kids.slice(1)) drawNode(ctx, doc, c, opts);
+      drawChildren(ctx, doc, kids.slice(1), opts, nodeBounds(mask));
       ctx.restore();
     } else {
-      for (const c of kids) drawNode(ctx, doc, c, opts);
+      drawChildren(ctx, doc, kids, opts, nodeBounds(node));
     }
     return;
   }
@@ -303,14 +362,13 @@ function drawContent(ctx: Ctx, doc: PoulpeDocument, node: SceneNode, opts: Rende
     if (img) {
       const c = node.crop;
       if (c) {
-        const iw = img.naturalWidth,
-          ih = img.naturalHeight;
+        const { width: iw, height: ih } = drawableSize(img);
         ctx.drawImage(img, c.x * iw, c.y * ih, c.width * iw, c.height * ih, 0, 0, w, h);
       } else ctx.drawImage(img, 0, 0, w, h);
     }
   } else if (node.type === 'text') {
     drawText(ctx, node, measure);
-  } else {
+  } else if (node.type !== 'adjustment') {
     const path = nodePath(node);
     if (node.type !== 'line') {
       const fill = canvasPaint(ctx, node.fill, w, h);
@@ -420,6 +478,7 @@ function drawWithEffects(
   node: SceneNode,
   opts: RenderOptions,
   effects: ReturnType<typeof activeEffects>,
+  mask: Drawable | null = null,
 ): boolean {
   const m = ctx.getTransform();
   const scale = Math.sqrt(Math.abs(m.a * m.d - m.b * m.c)) || 1;
@@ -448,6 +507,23 @@ function drawWithEffects(
   const layer = makeCanvas(w, h);
   layer.ctx.setTransform(m.a, m.b, m.c, m.d, m.e - x0, m.f - y0);
   drawContent(layer.ctx, doc, node, opts);
+  if (mask) {
+    // Masque de calque : appliqué au contenu, avant les effets (l'ombre suit la partie visible).
+    layer.ctx.save();
+    layer.ctx.globalCompositeOperation = 'destination-in';
+    applyNodeTransform(layer.ctx, node);
+    layer.ctx.drawImage(mask, 0, 0, node.width, node.height);
+    layer.ctx.restore();
+  }
+  if (!effects.length) {
+    ctx.save();
+    ctx.setTransform(1, 0, 0, 1, 0, 0);
+    ctx.globalAlpha *= node.opacity;
+    ctx.globalCompositeOperation = compositeOp(node.blendMode);
+    ctx.drawImage(layer.canvas, x0, y0);
+    ctx.restore();
+    return true;
+  }
 
   const out = makeCanvas(w, h);
   const o = out.ctx;
@@ -522,8 +598,130 @@ export function drawArtboard(
     }
     ctx.restore();
   }
-  for (const n of ab.children) drawNode(ctx, doc, n, opts);
+  drawChildren(ctx, doc, ab.children, opts, { x: ab.x, y: ab.y, width: ab.width, height: ab.height });
   ctx.restore();
+}
+
+// ————— Calques de réglage —————
+
+/** Résultat mémorisé de la composition d'une liste d'enfants qui contient des réglages. */
+const adjustCache = new WeakMap<SceneNode[], { key: string; canvas: AnyCanvas; x: number; y: number }>();
+
+/**
+ * Dessine des calques frères, du dessous vers le dessus. S'il y a des calques de réglage, les
+ * calques sont composés dans une toile à part (en pixels de l'écran ou de l'export) et chaque
+ * réglage transforme ce qui est déjà composé sous lui. `frame` : boîte du parent (plan de travail
+ * ou groupe), qui borne la zone calculée et sert de cadre à la vignette.
+ */
+export function drawChildren(
+  ctx: Ctx,
+  doc: PoulpeDocument,
+  nodes: SceneNode[],
+  opts: RenderOptions,
+  frame: Box,
+): void {
+  let last = -1;
+  for (let i = nodes.length - 1; i >= 0; i--) {
+    const n = nodes[i];
+    if (n.type === 'adjustment' && n.visible && !opts.hidden?.has(n.id)) {
+      last = i;
+      break;
+    }
+  }
+  if (last < 0) {
+    for (const n of nodes) drawNode(ctx, doc, n, opts);
+    return;
+  }
+  const m = ctx.getTransform();
+  const scale = Math.sqrt(Math.abs(m.a * m.d - m.b * m.c)) || 1;
+  let reach = 0;
+  for (let i = 0; i <= last; i++) {
+    const n = nodes[i];
+    if (n.type === 'adjustment') reach = Math.max(reach, adjustmentReach(n.adjustment));
+  }
+  const pts = [
+    [frame.x, frame.y],
+    [frame.x + frame.width, frame.y],
+    [frame.x + frame.width, frame.y + frame.height],
+    [frame.x, frame.y + frame.height],
+  ].map(([x, y]) => ({ x: m.a * x + m.c * y + m.e, y: m.b * x + m.d * y + m.f }));
+  const fx0 = Math.floor(Math.min(...pts.map((p) => p.x)));
+  const fy0 = Math.floor(Math.min(...pts.map((p) => p.y)));
+  const fx1 = Math.ceil(Math.max(...pts.map((p) => p.x)));
+  const fy1 = Math.ceil(Math.max(...pts.map((p) => p.y)));
+  // Zone visible (plus ce que les filtres lisent autour), bornée par le parent.
+  const pad = Math.ceil(reach * scale);
+  const x0 = Math.max(fx0, -pad),
+    y0 = Math.max(fy0, -pad);
+  const x1 = Math.min(fx1, ctx.canvas.width + pad),
+    y1 = Math.min(fy1, ctx.canvas.height + pad);
+  const w = x1 - x0,
+    h = y1 - y0;
+  if (w > 0 && h > 0 && w * h <= 64e6) {
+    const key = [m.a, m.b, m.c, m.d, m.e, m.f, x0, y0, w, h, renderRevision, [...(opts.hidden ?? [])].join()].join('|');
+    let hit = Object.isFrozen(nodes) ? adjustCache.get(nodes) : undefined;
+    if (!hit || hit.key !== key) {
+      const buf = makeCanvas(w, h);
+      buf.ctx.setTransform(m.a, m.b, m.c, m.d, m.e - x0, m.f - y0);
+      for (let i = 0; i <= last; i++) {
+        const n = nodes[i];
+        if (n.type === 'adjustment') {
+          if (n.visible && !opts.hidden?.has(n.id))
+            applyAdjustmentLayer(buf, doc, n, opts, scale, { x: m.e - x0, y: m.f - y0 }, {
+              x: fx0 - x0,
+              y: fy0 - y0,
+              width: fx1 - fx0,
+              height: fy1 - fy0,
+            });
+        } else drawNode(buf.ctx, doc, n, opts);
+      }
+      hit = { key, canvas: buf.canvas, x: x0, y: y0 };
+      if (Object.isFrozen(nodes)) adjustCache.set(nodes, hit);
+    }
+    ctx.save();
+    ctx.setTransform(1, 0, 0, 1, 0, 0);
+    ctx.drawImage(hit.canvas, hit.x, hit.y);
+    ctx.restore();
+  } else if (w > 0 && h > 0) {
+    // Zone trop grande pour une toile : on dessine sans les réglages.
+    for (let i = 0; i <= last; i++) drawNode(ctx, doc, nodes[i], opts);
+  }
+  for (let i = last + 1; i < nodes.length; i++) drawNode(ctx, doc, nodes[i], opts);
+}
+
+/** Applique un calque de réglage à la toile de composition, selon son opacité et son masque. */
+function applyAdjustmentLayer(
+  buf: { canvas: AnyCanvas; ctx: AnyCtx },
+  doc: PoulpeDocument,
+  node: AdjustmentNode,
+  opts: RenderOptions,
+  scale: number,
+  origin: { x: number; y: number },
+  frame: Box,
+): void {
+  const { width: w, height: h } = buf.canvas;
+  const src = buf.ctx.getImageData(0, 0, w, h);
+  const adjusted = new Uint8ClampedArray(src.data);
+  applyAdjustment({ data: adjusted, width: w, height: h }, node.adjustment, { scale, origin, frame });
+  const out = src.data;
+  const op = Math.max(0, Math.min(1, node.opacity));
+  const maskImg = node.mask?.enabled ? opts.images.get(doc, node.mask.assetId) : null;
+  let maskData: Uint8ClampedArray | null = null;
+  if (maskImg) {
+    const mc = makeCanvas(w, h);
+    mc.ctx.setTransform(buf.ctx.getTransform());
+    applyNodeTransform(mc.ctx, node);
+    mc.ctx.drawImage(maskImg, 0, 0, node.width, node.height);
+    maskData = mc.ctx.getImageData(0, 0, w, h).data;
+  }
+  for (let i = 0; i < out.length; i += 4) {
+    const k = maskData ? (op * maskData[i + 3]) / 255 : op;
+    if (k <= 0) continue;
+    out[i] += (adjusted[i] - out[i]) * k;
+    out[i + 1] += (adjusted[i + 1] - out[i + 1]) * k;
+    out[i + 2] += (adjusted[i + 2] - out[i + 2]) * k;
+  }
+  buf.ctx.putImageData(src, 0, 0);
 }
 
 export interface RasterOptions {
