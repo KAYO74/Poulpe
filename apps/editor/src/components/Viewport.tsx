@@ -12,6 +12,7 @@ import {
   setTextSelection,
 } from '../canvas/textEdit';
 import { placeImageBytes } from '../io';
+import { placeSvg } from '../vectorActions';
 import { addElement, type ElementKind } from '../libraryActions';
 import { ELEMENT_MIME } from '../panels/Library';
 import { ui, useEditor, useUi } from '../store';
@@ -74,6 +75,8 @@ export function Viewport() {
     if (!file || !controller) return;
     const rect = canvasRef.current!.getBoundingClientRect();
     const at = controller.toWorld(e.clientX - rect.left, e.clientY - rect.top);
+    if (file.type === 'image/svg+xml' && placeSvg(await file.text(), file.name.replace(/\.svg$/i, ''), at))
+      return;
     await placeImageBytes(new Uint8Array(await file.arrayBuffer()), file.type, at);
   };
 

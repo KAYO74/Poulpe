@@ -17,6 +17,8 @@ const HINTS: Record<string, string> = {
   hand: 'hint.hand',
   zoom: 'hint.zoom',
   eyedropper: 'hint.eyedropper',
+  pen: 'hint.pen',
+  pencil: 'hint.pencil',
 };
 
 export function StatusBar() {

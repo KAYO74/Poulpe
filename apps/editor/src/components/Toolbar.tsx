@@ -95,6 +95,12 @@ export function Toolbar() {
       <CmdButton id="layer.ungroup" icon="ungroup" />
       <CmdButton id="layer.clip" icon="mask" />
       <span className="tsep" />
+      <CmdButton id="geometry.unite" icon="unite" />
+      <CmdButton id="geometry.subtract" icon="subtract" />
+      <CmdButton id="geometry.intersect" icon="intersect" />
+      <CmdButton id="geometry.exclude" icon="exclude" />
+      <CmdButton id="geometry.divide" icon="divide" />
+      <span className="tsep" />
       <CmdButton id="arrange.alignLeft" icon="alignLeft" />
       <CmdButton id="arrange.alignHCenter" icon="alignHCenter" />
       <CmdButton id="arrange.alignRight" icon="alignRight" />

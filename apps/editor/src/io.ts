@@ -1,17 +1,22 @@
 import {
   POULPE_EXTENSION,
   PoulpeFileError,
+  activeEffects,
   artboardToSvg,
+  effectMargin,
+  nodeBounds,
+  type SceneNode,
   createDocument,
   decodePoulpe,
   encodePoulpe,
   type Artboard,
   type PoulpeDocument,
 } from '@poulpe/core';
-import { ImageCache, measureText, rasterizeArtboard } from '@poulpe/render';
+import { ImageCache, drawNode, measureText, rasterizeArtboard } from '@poulpe/render';
 import { placeImage } from './actions';
 import { t } from './i18n';
 import { editor, toast, ui } from './store';
+import { placeSvg } from './vectorActions';
 
 /*
  * Entrées / sorties de fichiers. Dans l'appli de bureau (Tauri), on passe par les boîtes de
@@ -179,6 +184,10 @@ export async function importImage(): Promise<void> {
     return;
   }
   const ext = file.name.split('.').pop()!.toLowerCase();
+  if (ext === 'svg') {
+    // Un SVG arrive en objets modifiables ; s'il est illisible, en image.
+    if (placeSvg(new TextDecoder().decode(file.bytes), baseName(file.name))) return;
+  }
   const mime =
     ext === 'jpg' || ext === 'jpeg' ? 'image/jpeg' : ext === 'svg' ? 'image/svg+xml' : `image/${ext}`;
   await placeImageBytes(file.bytes, mime);
@@ -215,6 +224,42 @@ export interface ExportOptions {
   transparent: boolean;
 }
 
+/**
+ * Le PDF ne sait pas lire les filtres SVG : les objets qui ont des effets y sont mis en image
+ * (2 pixels par point), effets compris.
+ */
+async function rasterizedEffects(doc: PoulpeDocument, ab: Artboard): Promise<Map<string, string>> {
+  const out = new Map<string, string>();
+  const visit = async (n: SceneNode) => {
+    if (!n.visible) return;
+    const fx = activeEffects(n);
+    if (!fx.length) {
+      if (n.type === 'group') for (const c of n.children) await visit(c);
+      return;
+    }
+    const m = effectMargin(fx) + 2;
+    const b = nodeBounds(n);
+    const x = b.x - m,
+      y = b.y - m,
+      w = b.width + 2 * m,
+      h = b.height + 2 * m;
+    const scale = Math.min(2, 4096 / Math.max(w, h, 1));
+    const canvas = document.createElement('canvas');
+    canvas.width = Math.max(1, Math.ceil(w * scale));
+    canvas.height = Math.max(1, Math.ceil(h * scale));
+    const ctx = canvas.getContext('2d')!;
+    ctx.scale(scale, scale);
+    ctx.translate(-x, -y);
+    drawNode(ctx, doc, n, { images: exportImages });
+    out.set(
+      n.id,
+      `<image x="${x}" y="${y}" width="${w}" height="${h}" preserveAspectRatio="none" href="${canvas.toDataURL('image/png')}"/>`,
+    );
+  };
+  for (const n of ab.children) await visit(n);
+  return out;
+}
+
 async function svgToPdf(
   doc: PoulpeDocument,
   artboards: Artboard[],
@@ -238,7 +283,9 @@ async function svgToPdf(
     for (let i = 0; i < artboards.length; i++) {
       const ab = artboards[i];
       if (i > 0) pdf.addPage([pt(ab.width), pt(ab.height)], orientation(ab));
-      host.innerHTML = artboardToSvg(doc, ab, { measureText });
+      await exportImages.ready(doc);
+      const fx = await rasterizedEffects(doc, ab);
+      host.innerHTML = artboardToSvg(doc, ab, { measureText, override: (n) => fx.get(n.id) ?? null });
       const svg = host.querySelector('svg')!;
       await svg2pdf(svg, pdf, { x: 0, y: 0, width: pt(ab.width), height: pt(ab.height) });
     }

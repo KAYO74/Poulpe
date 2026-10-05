@@ -1,5 +1,13 @@
 import {
+  activeEffects,
+  arrowPaths,
   charX,
+  dashPattern,
+  effectMargin,
+  layoutTextOnPath,
+  nodeBounds,
+  strokeCap,
+  strokeJoin,
   layoutText,
   linearGradientPoints,
   radialGradientRadius,
@@ -12,6 +20,7 @@ import {
   type PathCommand,
   type PoulpeDocument,
   type SceneNode,
+  type Stroke,
   type TextLayout,
   type TextNode,
 } from '@poulpe/core';
@@ -161,7 +170,6 @@ function applyNodeTransform(ctx: Ctx, node: SceneNode) {
 }
 
 function drawText(ctx: Ctx, node: TextNode, measure: MeasureText) {
-  const layout = cachedLayout(node, measure);
   const fill = canvasPaint(ctx, node.fill, node.width, node.height);
   const stroke =
     node.stroke.paint.type !== 'none' && node.stroke.width > 0
@@ -169,6 +177,28 @@ function drawText(ctx: Ctx, node: TextNode, measure: MeasureText) {
       : null;
   ctx.textBaseline = 'alphabetic';
   ctx.lineJoin = 'round';
+  if (node.path) {
+    // Texte sur tracé : chaque caractère est posé et tourné à sa place sur la courbe.
+    for (const g of layoutTextOnPath(node, measure)) {
+      ctx.save();
+      ctx.translate(g.x, g.y);
+      ctx.rotate(g.angle);
+      ctx.font = g.font;
+      const f = g.style.color ? rgbaToCss(g.style.color) : fill;
+      if (f) {
+        ctx.fillStyle = f;
+        ctx.fillText(g.char, -g.width / 2, 0);
+      }
+      if (stroke) {
+        ctx.strokeStyle = stroke;
+        ctx.lineWidth = node.stroke.width;
+        ctx.strokeText(g.char, -g.width / 2, 0);
+      }
+      ctx.restore();
+    }
+    return;
+  }
+  const layout = cachedLayout(node, measure);
   for (const line of layout.lines) {
     const y = line.baseline;
     for (const seg of line.segments) {
@@ -207,10 +237,45 @@ function drawText(ctx: Ctx, node: TextNode, measure: MeasureText) {
 
 export function drawNode(ctx: Ctx, doc: PoulpeDocument, node: SceneNode, opts: RenderOptions): void {
   if (!node.visible || opts.hidden?.has(node.id)) return;
-  const measure = opts.measure ?? measureText;
+  if (node.effects?.length) {
+    const effects = activeEffects(node);
+    if (effects.length && drawWithEffects(ctx, doc, node, opts, effects)) return;
+  }
   ctx.save();
   ctx.globalAlpha *= node.opacity;
   ctx.globalCompositeOperation = compositeOp(node.blendMode);
+  drawContent(ctx, doc, node, opts);
+  ctx.restore();
+}
+
+/** Applique le style d'un contour (épaisseur, extrémités, jonctions, pointillés). */
+export function applyStrokeStyle(ctx: Ctx, stroke: Stroke): void {
+  ctx.lineWidth = stroke.width;
+  ctx.lineJoin = strokeJoin(stroke);
+  ctx.lineCap = strokeCap(stroke);
+  ctx.miterLimit = 10;
+  ctx.setLineDash(dashPattern(stroke));
+}
+
+const arrowCache = new WeakMap<SceneNode, Path2D | null>();
+
+/** Flèches d'un tracé ouvert, mémorisées tant que l'objet ne change pas. */
+function arrowPath(node: Exclude<SceneNode, { type: 'group' | 'image' | 'text' }>): Path2D | null {
+  if (
+    (!node.stroke.start || node.stroke.start === 'none') &&
+    (!node.stroke.end || node.stroke.end === 'none')
+  )
+    return null;
+  if (Object.isFrozen(node) && arrowCache.has(node)) return arrowCache.get(node)!;
+  const cmds = arrowPaths(shapePath(node), node.stroke);
+  const p = cmds.length ? toPath2D(cmds) : null;
+  if (Object.isFrozen(node)) arrowCache.set(node, p);
+  return p;
+}
+
+/** Dessine un objet sans son opacité, son mode de fusion ni ses effets. */
+function drawContent(ctx: Ctx, doc: PoulpeDocument, node: SceneNode, opts: RenderOptions): void {
+  const measure = opts.measure ?? measureText;
   if (node.type === 'group') {
     const kids = node.children;
     if (node.clip && kids.length > 1 && kids[0].type !== 'group') {
@@ -227,9 +292,9 @@ export function drawNode(ctx: Ctx, doc: PoulpeDocument, node: SceneNode, opts: R
     } else {
       for (const c of kids) drawNode(ctx, doc, c, opts);
     }
-    ctx.restore();
     return;
   }
+  ctx.save();
   applyNodeTransform(ctx, node);
   const w = node.width,
     h = node.height;
@@ -258,14 +323,171 @@ export function drawNode(ctx: Ctx, doc: PoulpeDocument, node: SceneNode, opts: R
       const stroke = canvasPaint(ctx, node.stroke.paint, w, h);
       if (stroke) {
         ctx.strokeStyle = stroke;
-        ctx.lineWidth = node.stroke.width;
-        ctx.lineJoin = 'round';
-        ctx.lineCap = 'round';
+        applyStrokeStyle(ctx, node.stroke);
         ctx.stroke(path);
+        const heads = arrowPath(node);
+        if (heads) {
+          ctx.fillStyle = stroke;
+          ctx.fill(heads);
+        }
       }
     }
   }
   ctx.restore();
+}
+
+// ————— Effets —————
+
+type AnyCanvas = HTMLCanvasElement | OffscreenCanvas;
+type AnyCtx = CanvasRenderingContext2D | OffscreenCanvasRenderingContext2D;
+
+function makeCanvas(w: number, h: number): { canvas: AnyCanvas; ctx: AnyCtx } {
+  if (typeof OffscreenCanvas !== 'undefined') {
+    const canvas = new OffscreenCanvas(w, h);
+    return { canvas, ctx: canvas.getContext('2d')! };
+  }
+  const canvas = document.createElement('canvas');
+  canvas.width = w;
+  canvas.height = h;
+  return { canvas, ctx: canvas.getContext('2d')! };
+}
+
+let filterSupport: boolean | null = null;
+
+/** Le canevas sait-il flouter (`ctx.filter`) ? Ce n'est pas le cas de Safari. */
+function canFilter(): boolean {
+  if (filterSupport === null) {
+    const { ctx } = makeCanvas(1, 1);
+    ctx.filter = 'blur(2px)';
+    filterSupport = ctx.filter === 'blur(2px)';
+  }
+  return filterSupport;
+}
+
+/** Copie floutée d'un calque (écart type `sigma` en pixels). */
+function blurred(src: AnyCanvas, sigma: number): AnyCanvas {
+  const { canvas, ctx } = makeCanvas(src.width, src.height);
+  if (sigma <= 0.01) {
+    ctx.drawImage(src, 0, 0);
+    return canvas;
+  }
+  if (canFilter()) {
+    ctx.filter = `blur(${sigma}px)`;
+    ctx.drawImage(src, 0, 0);
+    return canvas;
+  }
+  // Repli : réduction puis agrandissement lissé, ce qui approche un flou.
+  const k = Math.max(1, sigma / 1.5);
+  const small = makeCanvas(Math.max(1, Math.round(src.width / k)), Math.max(1, Math.round(src.height / k)));
+  small.ctx.imageSmoothingQuality = 'high';
+  small.ctx.drawImage(src, 0, 0, small.canvas.width, small.canvas.height);
+  ctx.imageSmoothingQuality = 'high';
+  ctx.drawImage(small.canvas, 0, 0, src.width, src.height);
+  return canvas;
+}
+
+const FAR = 100000;
+
+/** Ombre seule d'un calque (sans le calque lui-même), ajoutée sur `out`. */
+function castShadow(
+  out: AnyCtx,
+  src: AnyCanvas,
+  color: string,
+  dx: number,
+  dy: number,
+  blur: number,
+  op: GlobalCompositeOperation = 'source-over',
+) {
+  out.save();
+  out.globalCompositeOperation = op;
+  out.shadowColor = rgbaToCss(color);
+  out.shadowBlur = blur;
+  // Le calque est dessiné très loin, seule son ombre retombe à sa place.
+  out.shadowOffsetX = dx + FAR;
+  out.shadowOffsetY = dy;
+  out.drawImage(src, -FAR, 0);
+  out.restore();
+}
+
+/**
+ * Dessine un objet avec ses effets : l'objet est rendu dans un calque à part (en pixels de
+ * l'écran ou de l'export), puis ombres, lueurs et flou sont composés autour de lui.
+ * Renvoie false si le calque n'a pas pu être créé (on dessine alors sans effets).
+ */
+function drawWithEffects(
+  ctx: Ctx,
+  doc: PoulpeDocument,
+  node: SceneNode,
+  opts: RenderOptions,
+  effects: ReturnType<typeof activeEffects>,
+): boolean {
+  const m = ctx.getTransform();
+  const scale = Math.sqrt(Math.abs(m.a * m.d - m.b * m.c)) || 1;
+  const b = nodeBounds(node);
+  const margin = effectMargin(effects) + 2;
+  const pts = [
+    [b.x - margin, b.y - margin],
+    [b.x + b.width + margin, b.y - margin],
+    [b.x + b.width + margin, b.y + b.height + margin],
+    [b.x - margin, b.y + b.height + margin],
+  ].map(([x, y]) => ({ x: m.a * x + m.c * y + m.e, y: m.b * x + m.d * y + m.f }));
+  let x0 = Math.floor(Math.min(...pts.map((p) => p.x)));
+  let y0 = Math.floor(Math.min(...pts.map((p) => p.y)));
+  let x1 = Math.ceil(Math.max(...pts.map((p) => p.x)));
+  let y1 = Math.ceil(Math.max(...pts.map((p) => p.y)));
+  // Inutile de rendre ce qui sort de la zone visible (plus la portée des effets).
+  const reach = Math.ceil(margin * scale);
+  x0 = Math.max(x0, -reach);
+  y0 = Math.max(y0, -reach);
+  x1 = Math.min(x1, ctx.canvas.width + reach);
+  y1 = Math.min(y1, ctx.canvas.height + reach);
+  const w = x1 - x0,
+    h = y1 - y0;
+  if (w <= 0 || h <= 0) return true;
+  if (w * h > 64e6) return false;
+  const layer = makeCanvas(w, h);
+  layer.ctx.setTransform(m.a, m.b, m.c, m.d, m.e - x0, m.f - y0);
+  drawContent(layer.ctx, doc, node, opts);
+
+  const out = makeCanvas(w, h);
+  const o = out.ctx;
+  for (const e of effects) {
+    if (e.type === 'dropShadow')
+      castShadow(o, layer.canvas, e.color, e.x * scale, e.y * scale, e.blur * scale);
+    else if (e.type === 'outerGlow') castShadow(o, layer.canvas, e.color, 0, 0, e.blur * scale);
+  }
+  const blur = effects.find((e) => e.type === 'blur');
+  o.drawImage(
+    blur && blur.type === 'blur' ? blurred(layer.canvas, (blur.radius * scale) / 2) : layer.canvas,
+    0,
+    0,
+  );
+  const inner = effects.filter((e) => e.type === 'innerShadow' || e.type === 'innerGlow');
+  if (inner.length) {
+    // Inverse du calque : ce qui est hors de l'objet, dont l'ombre tombe à l'intérieur.
+    const inv = makeCanvas(w, h);
+    inv.ctx.fillStyle = '#000';
+    inv.ctx.fillRect(0, 0, w, h);
+    inv.ctx.globalCompositeOperation = 'destination-out';
+    inv.ctx.drawImage(layer.canvas, 0, 0);
+    for (const e of inner) {
+      if (e.type !== 'innerShadow' && e.type !== 'innerGlow') continue;
+      const tmp = makeCanvas(w, h);
+      const dx = e.type === 'innerShadow' ? e.x * scale : 0,
+        dy = e.type === 'innerShadow' ? e.y * scale : 0;
+      castShadow(tmp.ctx, inv.canvas, e.color, dx, dy, e.blur * scale);
+      tmp.ctx.globalCompositeOperation = 'destination-in';
+      tmp.ctx.drawImage(layer.canvas, 0, 0);
+      o.drawImage(tmp.canvas, 0, 0);
+    }
+  }
+  ctx.save();
+  ctx.setTransform(1, 0, 0, 1, 0, 0);
+  ctx.globalAlpha *= node.opacity;
+  ctx.globalCompositeOperation = compositeOp(node.blendMode);
+  ctx.drawImage(out.canvas, x0, y0);
+  ctx.restore();
+  return true;
 }
 
 /** Inverse de la transformation locale d'un objet (pour revenir au repère du monde après un écrêtage). */

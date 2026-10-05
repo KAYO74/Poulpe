@@ -4,6 +4,7 @@ import { useT, type MessageKey } from '../i18n';
 import { useUi } from '../store';
 import { CharacterPanel } from './CharacterPanel';
 import { ColorPanel } from './ColorPanel';
+import { EffectsPanel } from './EffectsPanel';
 import { HistoryPanel } from './HistoryPanel';
 import { LayersPanel } from './LayersPanel';
 import { StrokePanel } from './StrokePanel';
@@ -63,10 +64,11 @@ export function Studio() {
     <aside className="studio" aria-label="Studio">
       <StudioGroup
         key={editingText ? 'text' : 'color'}
-        initial={editingText ? 3 : 0}
+        initial={editingText ? 4 : 0}
         tabs={[
           { id: 'color', label: 'studio.color', render: () => <ColorPanel /> },
           { id: 'stroke', label: 'studio.stroke', render: () => <StrokePanel /> },
+          { id: 'effects', label: 'studio.effects', render: () => <EffectsPanel /> },
           { id: 'transform', label: 'studio.transform', render: () => <TransformPanel /> },
           { id: 'character', label: 'studio.character', render: () => <CharacterPanel /> },
         ]}

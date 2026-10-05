@@ -78,7 +78,7 @@ describe('tracés SVG', () => {
   it('lit les documents de la version 1', () => {
     const doc = createDocument();
     const v1 = { ...JSON.parse(JSON.stringify(doc)), version: 1 };
-    expect(migrate(v1).version).toBe(2);
+    expect(migrate(v1).version).toBe(FORMAT_VERSION);
   });
 });
 
