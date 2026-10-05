@@ -27,6 +27,7 @@ const TYPE_ICON: Record<SceneNode['type'], IconName> = {
   text: 'text',
   image: 'image',
   group: 'folder',
+  symbol: 'symbol',
   adjustment: 'adjust',
 };
 

@@ -11,6 +11,7 @@ import { NumberField } from '../components/fields';
 import { Slider } from '../components/PhotoContext';
 import { useT } from '../i18n';
 import { renderBelow, selectedAdjustment, setAdjustment } from '../photo/photoActions';
+import { pickLut } from '../photo/retouchActions';
 import { useEditor } from '../store';
 
 /** Réglage numérique d'un calque : clé, libellé, bornes. */
@@ -336,6 +337,21 @@ export function AdjustmentPanel() {
             ))}
           </fieldset>
         ))}
+      {adj.kind === 'lut' && (
+        <div className="picker-row">
+          <span className="ctx-dim">{t('lut.name', { name: adj.name || '—' })}</span>
+          <button
+            className="btn small"
+            onClick={() =>
+              void pickLut().then((lut) => {
+                if (lut) set(lut, false);
+              })
+            }
+          >
+            {t('lut.replace')}
+          </button>
+        </div>
+      )}
       {adj.kind === 'photoFilter' && (
         <label className="field">
           <span className="field-label">{t('param.color')}</span>

@@ -452,6 +452,13 @@ svg.i {
   padding-bottom: 6px;
   border-bottom: 1px solid var(--line);
 }
+.toolcol.two {
+  width: 78px;
+}
+.toolcol.two .toolgroup {
+  display: grid;
+  grid-template-columns: repeat(2, 32px);
+}
 .tool {
   width: 32px;
   height: 32px;
@@ -1121,6 +1128,87 @@ kbd {
 .note.small {
   font-size: 11px;
   color: var(--faint);
+}
+/* En-tête d'une sous-section d'un panneau (contours en plus, symboles, styles). */
+.panel-sub {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px;
+  margin-top: 2px;
+  border-top: 1px solid var(--line);
+  padding-top: 8px;
+}
+.panel-sub-title {
+  font-size: 11px;
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+.icon-btn {
+  display: grid;
+  place-items: center;
+  width: 22px;
+  height: 22px;
+  border-radius: 5px;
+  border: 1px solid var(--line);
+  color: var(--muted);
+}
+.icon-btn:hover:not(:disabled) {
+  color: var(--fg);
+  border-color: var(--line-2);
+}
+.icon-btn:disabled {
+  opacity: 0.4;
+}
+/* Pastille de couleur native, pour les réglages secondaires. */
+.swatch-input {
+  width: 26px;
+  height: 22px;
+  padding: 0;
+  border: 1px solid var(--line-2);
+  border-radius: 5px;
+  background: none;
+}
+.swatch-input::-webkit-color-swatch-wrapper {
+  padding: 2px;
+}
+.swatch-input::-webkit-color-swatch {
+  border: none;
+  border-radius: 3px;
+}
+/* Liste des symboles et des styles enregistrés. */
+.asset-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.asset-row > button:first-child {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+  padding: 4px 6px;
+  border-radius: 5px;
+  border: 1px solid var(--line);
+  color: var(--fg);
+  text-align: left;
+}
+.asset-row > button:first-child:hover {
+  border-color: var(--accent);
+}
+.asset-row .asset-name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.style-preview {
+  width: 18px;
+  height: 18px;
+  flex: none;
+  border-radius: 4px;
+  border: 1px solid var(--line-2);
 }
 .lib-section {
   display: flex;
@@ -1875,4 +1963,19 @@ input.search {
   border-radius: 6px;
   padding: 8px;
   margin: 0;
+.anchor-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 18px);
+  gap: 2px;
+}
+.anchor-cell {
+  width: 18px;
+  height: 18px;
+  border-radius: 3px;
+  border: 1px solid var(--line);
+  background: var(--panel-2);
+}
+.anchor-cell[aria-pressed='true'] {
+  background: var(--accent);
+  border-color: var(--accent);
 }

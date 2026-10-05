@@ -10,6 +10,14 @@ export interface HistoryEntry {
   label: string;
   doc: PoulpeDocument;
   selection: string[];
+  /** État hors document gardé avec l'historique (la sélection de pixels de l'interface). */
+  extra?: unknown;
+}
+
+/** Lecture et restauration d'un état hors document qui suit l'historique (voir `setExtraState`). */
+export interface ExtraState {
+  get(): unknown;
+  set(value: unknown): void;
 }
 
 export interface EditorState {
@@ -46,6 +54,7 @@ export class Editor {
    * recalculer la taille des textes, qui dépend des polices du navigateur.
    */
   private normalizer: ((draft: PoulpeDocument) => void) | null = null;
+  private extra: ExtraState | null = null;
 
   constructor(doc: PoulpeDocument = createDocument()) {
     const frozen = freeze(doc, true);
@@ -122,7 +131,12 @@ export class Editor {
   }
 
   private push(label: string) {
-    this.past.push({ label: this.currentLabel, doc: this.state.doc, selection: this.state.selection });
+    this.past.push({
+      label: this.currentLabel,
+      doc: this.state.doc,
+      selection: this.state.selection,
+      extra: this.extra?.get(),
+    });
     this.future = [];
     this.currentLabel = label;
   }
@@ -149,7 +163,12 @@ export class Editor {
     if (!g) return;
     this.gesture = null;
     if (this.state.doc === g.base) return;
-    this.past.push({ label: this.currentLabel, doc: g.base, selection: g.selection });
+    this.past.push({
+      label: this.currentLabel,
+      doc: g.base,
+      selection: g.selection,
+      extra: this.extra?.get(),
+    });
     this.future = [];
     this.currentLabel = label;
     this.set(this.state.doc, this.state.selection);
@@ -166,16 +185,28 @@ export class Editor {
     if (this.gesture) this.cancel();
     const prev = this.past.pop();
     if (!prev) return;
-    this.future.push({ label: this.currentLabel, doc: this.state.doc, selection: this.state.selection });
+    this.future.push({
+      label: this.currentLabel,
+      doc: this.state.doc,
+      selection: this.state.selection,
+      extra: this.extra?.get(),
+    });
     this.currentLabel = prev.label;
+    this.extra?.set(prev.extra);
     this.set(prev.doc, prev.selection);
   }
 
   redo(): void {
     const next = this.future.pop();
     if (!next) return;
-    this.past.push({ label: this.currentLabel, doc: this.state.doc, selection: this.state.selection });
+    this.past.push({
+      label: this.currentLabel,
+      doc: this.state.doc,
+      selection: this.state.selection,
+      extra: this.extra?.get(),
+    });
     this.currentLabel = next.label;
+    this.extra?.set(next.extra);
     this.set(next.doc, next.selection);
   }
 
@@ -183,6 +214,31 @@ export class Editor {
   goTo(index: number): void {
     while (this.past.length > index && this.past.length) this.undo();
     while (this.past.length < index && this.future.length) this.redo();
+  }
+
+  /**
+   * État hors document qui suit l'historique : `get` est lu à chaque étape enregistrée, `set`
+   * le restaure à l'annulation et au rétablissement.
+   */
+  setExtraState(extra: ExtraState | null): void {
+    this.extra = extra;
+  }
+
+  /**
+   * Enregistre une étape d'historique qui ne change que l'état hors document (une nouvelle
+   * sélection de pixels, par exemple). `before` : cet état juste avant le changement.
+   */
+  mark(label: string, before: unknown): void {
+    if (this.gesture) this.commit(label);
+    this.past.push({
+      label: this.currentLabel,
+      doc: this.state.doc,
+      selection: this.state.selection,
+      extra: before,
+    });
+    this.future = [];
+    this.currentLabel = label;
+    this.set(this.state.doc, this.state.selection);
   }
 
   select(ids: string[]): void {

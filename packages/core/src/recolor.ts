@@ -1,4 +1,4 @@
-import { alphaOf, opaque, parseColor, withAlpha } from './color';
+import { alphaOf, isGradient, opaque, parseColor, withAlpha } from './color';
 import type { Artboard, Color, Paint, SceneNode } from './types';
 import { isStyled } from './tree';
 
@@ -36,6 +36,8 @@ function mapPaint(p: Paint, f: Visitor): Paint {
       return p;
     case 'solid':
       return { ...p, color: f(p.color) };
+    case 'pattern':
+      return p;
     default:
       return { ...p, stops: p.stops.map((s) => ({ ...s, color: f(s.color) })) };
   }
@@ -67,7 +69,7 @@ export function designColors(target: RecolorTarget): Color[] {
   };
   const paint = (p: Paint) => {
     if (p.type === 'solid') collect(p.color);
-    else if (p.type !== 'none') p.stops.forEach((s) => collect(s.color));
+    else if (isGradient(p)) p.stops.forEach((s) => collect(s.color));
   };
   const visit = (n: SceneNode) => {
     if (n.type === 'group') return n.children.forEach(visit);

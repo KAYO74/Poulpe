@@ -13,13 +13,14 @@ import type {
   PolygonNode,
   RectNode,
   SceneNode,
+  SymbolNode,
   StarNode,
   Stroke,
   TextNode,
   TextStyle,
 } from './types';
 
-export const FORMAT_VERSION = 6;
+export const FORMAT_VERSION = 7;
 
 export type FormatCategory = 'social' | 'print' | 'screen';
 
@@ -198,6 +199,14 @@ export function createAdjustment(b: BoxArgs & { adjustment: Adjustment }): Adjus
     ...base(b.name ?? 'Réglage', b.x, b.y, b.width, b.height),
     type: 'adjustment',
     adjustment: b.adjustment,
+  };
+}
+
+export function createSymbolInstance(b: BoxArgs & { symbolId: string }): SymbolNode {
+  return {
+    ...base(b.name ?? 'Symbole', b.x, b.y, b.width, b.height),
+    type: 'symbol',
+    symbolId: b.symbolId,
   };
 }
 

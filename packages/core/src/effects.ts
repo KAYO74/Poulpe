@@ -6,7 +6,14 @@ import type { Effect, EffectType, SceneNode } from './types';
  * comme pour les ombres du canevas.
  */
 
-export const EFFECT_TYPES: EffectType[] = ['dropShadow', 'innerShadow', 'outerGlow', 'innerGlow', 'blur'];
+export const EFFECT_TYPES: EffectType[] = [
+  'dropShadow',
+  'innerShadow',
+  'outerGlow',
+  'innerGlow',
+  'bevel',
+  'blur',
+];
 
 /** Effet par défaut de chaque type, quand on l'active dans le panneau. */
 export function defaultEffect(type: EffectType): Effect {
@@ -19,6 +26,18 @@ export function defaultEffect(type: EffectType): Effect {
       return { type, enabled: true, color: '#ffd25fcc', blur: 24 };
     case 'innerGlow':
       return { type, enabled: true, color: '#ffffffcc', blur: 12 };
+    case 'bevel':
+      return {
+        type,
+        enabled: true,
+        style: 'bevel',
+        angle: 135,
+        depth: 6,
+        softness: 4,
+        intensity: 70,
+        light: '#ffffff',
+        shadow: '#000000',
+      };
     case 'blur':
       return { type, enabled: true, radius: 8 };
   }
@@ -46,6 +65,7 @@ export function effectMargin(effects: Effect[]): number {
     if (e.type === 'dropShadow') m = Math.max(m, Math.max(Math.abs(e.x), Math.abs(e.y)) + e.blur * 1.5);
     else if (e.type === 'outerGlow') m = Math.max(m, e.blur * 1.5);
     else if (e.type === 'blur') m = Math.max(m, e.radius * 1.5);
+    else if (e.type === 'bevel') m = Math.max(m, e.style === 'bevel' ? e.depth + e.softness + 2 : 2);
     else m = Math.max(m, 2);
   }
   return Math.ceil(m);

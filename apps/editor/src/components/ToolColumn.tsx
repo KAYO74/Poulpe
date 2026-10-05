@@ -11,19 +11,23 @@ const GROUPS: ToolId[][] = [
   ['select', 'direct', 'artboard'],
   ['pen', 'pencil'],
   ['rect', 'ellipse', 'polygon', 'star', 'line'],
+  ['scissors', 'knife', 'corner', 'shapeBuilder'],
   ['text', 'image'],
   ['eyedropper', 'hand', 'zoom'],
 ];
 
 const PHOTO_GROUPS: ToolId[][] = [
-  ['select'],
-  ['marqueeRect', 'marqueeEllipse', 'lasso', 'magicWand'],
+  ['select', 'straighten', 'perspective'],
+  ['marqueeRect', 'marqueeEllipse', 'lasso', 'polyLasso', 'magicWand', 'quickSelect'],
   ['brush', 'eraser', 'fill'],
-  ['magicEraser', 'clone'],
-  ['dodge', 'burn', 'blurBrush', 'sharpenBrush'],
+  ['magicEraser', 'heal', 'clone'],
+  ['dodge', 'burn', 'blurBrush', 'sharpenBrush', 'smudge', 'liquify'],
   ['text'],
   ['eyedropper', 'hand', 'zoom'],
 ];
+
+/** Au-delà de ce nombre d'outils, la colonne passe sur deux rangées (comme dans Affinity). */
+const TWO_COLUMNS = 18;
 
 const KEY_OF = Object.fromEntries(Object.entries(TOOL_KEYS).map(([k, v]) => [v, k.toUpperCase()]));
 const PHOTO_KEY_OF = Object.fromEntries(
@@ -46,7 +50,12 @@ export function ToolColumn() {
   const fill = styled ? styled.fill : defaults.fill;
   const stroke = styled ? styled.stroke.paint : defaults.stroke.paint;
   return (
-    <div className="toolcol" role="toolbar" aria-orientation="vertical" aria-label="Outils">
+    <div
+      className={`toolcol${(photo ? PHOTO_GROUPS : GROUPS).flat().length > TWO_COLUMNS ? ' two' : ''}`}
+      role="toolbar"
+      aria-orientation="vertical"
+      aria-label="Outils"
+    >
       {(photo ? PHOTO_GROUPS : GROUPS).map((group, gi) => (
         <div className="toolgroup" key={gi}>
           {group.map((id) => {

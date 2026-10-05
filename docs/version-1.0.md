@@ -31,7 +31,7 @@ La v1.0 ajoute à Poulpe ce qui fait gagner du temps dans Illustrator, Photoshop
 | `.github/workflows/desktop.yml`        | Signature des mises à jour, de macOS et de Windows, chacune activée seulement si ses secrets existent.                                           |
 | `packaging/flathub/`                   | Manifeste Flatpak, fiche AppStream et raccourci de bureau, prêts pour une demande sur Flathub.                                                   |
 
-Le format de fichier ne change pas (version 6) : la vectorisation crée des tracés et le détourage un masque de calque, qui existaient déjà. Les macros, raccourcis et extensions sont gardés à part, dans l'appli.
+Le format de fichier ne change pas (version 7) : la vectorisation crée des tracés et le détourage un masque de calque, qui existaient déjà. Les macros, raccourcis et extensions sont gardés à part, dans l'appli.
 
 ## Choix et écarts
 
