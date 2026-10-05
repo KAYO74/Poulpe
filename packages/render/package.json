@@ -1,0 +1,16 @@
+{
+  "name": "@poulpe/render",
+  "version": "0.1.0",
+  "private": true,
+  "license": "MPL-2.0",
+  "type": "module",
+  "main": "src/index.ts",
+  "types": "src/index.ts",
+  "scripts": {
+    "typecheck": "tsc -p tsconfig.json",
+    "test": "echo \"(rendu testé par les tests de bout en bout de l'éditeur)\""
+  },
+  "dependencies": {
+    "@poulpe/core": "workspace:*"
+  }
+}

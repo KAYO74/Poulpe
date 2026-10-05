@@ -4,7 +4,7 @@
 
 Application libre et gratuite de création graphique qui réunit la puissance d'Affinity, Illustrator et Photoshop (vectoriel, retouche photo, mise en page) et la simplicité de Canva (modèles, glisser-déposer). Interface moderne, épurée et ergonomique, proche d'Affinity.
 
-**Statut :** cadrage terminé, développement du moteur d'édition (v0.1) à venir. Le dépôt est privé pour l'instant.
+**Statut :** moteur d'édition v0.1 terminé : formes, texte avec styles par caractère, images recadrables, calques, couleurs et dégradés, repères, brouillons automatiques, export PNG, JPEG, SVG et PDF (polices intégrées), appli de bureau. Le dépôt est privé pour l'instant.
 
 ## En bref
 
@@ -14,18 +14,43 @@ Application libre et gratuite de création graphique qui réunit la puissance d'
 - **Français et anglais**, au choix de l'utilisateur dans l'appli.
 - **Format ouvert** : `.poulpe` est une archive ZIP contenant un document JSON versionné et ses ressources. Export PNG, JPEG, SVG et PDF.
 
+## Lancer Poulpe
+
+Il faut Node 20 ou plus et pnpm 10 (`corepack enable`).
+
+```sh
+pnpm install
+pnpm dev            # éditeur dans le navigateur : http://localhost:5173
+pnpm test           # tests du moteur
+pnpm e2e            # tests de bout en bout
+pnpm desktop:dev    # appli de bureau (Rust et dépendances Tauri requis)
+```
+
+Le détail est dans [Moteur d'édition v0.1](docs/moteur-v0.1.md).
+
+## Organisation du code
+
+| Dossier | Rôle |
+| --- | --- |
+| `packages/core` | Modèle de document, commandes, historique, export SVG, format `.poulpe` |
+| `packages/render` | Rendu sur canevas, export PNG et JPEG |
+| `apps/editor` | Interface façon Affinity (React + Vite) |
+| `apps/desktop` | Appli de bureau Tauri 2 |
+
 ## Stack technique
 
 | Couche | Choix |
 | --- | --- |
 | Langage | TypeScript strict, monorepo pnpm |
-| Rendu | CanvasKit (Skia en WebAssembly) sur WebGL 2 |
+| Rendu | Canvas 2D derrière une interface de rendu ; CanvasKit (Skia en WebAssembly) prévu pour la v0.3 |
 | Interface | React, Vite, Radix UI |
 | Bureau | Tauri 2 (Electron en solution de repli) |
 | Tests | Vitest, Playwright |
 
 ## Documentation
 
+- [Moteur d'édition v0.1 : état et organisation du code](docs/moteur-v0.1.md)
+- [Format de fichier `.poulpe`](docs/format-poulpe.md)
 - [Cadrage et architecture](docs/cadrage-architecture.md)
 - [Feuille de route des fonctionnalités](docs/feuille-de-route.md)
 - [Maquette de l'interface v3](design/maquette-v3.html) : prototype interactif à ouvrir dans un navigateur (voir [design/README.md](design/README.md))
