@@ -76,6 +76,55 @@ jobs:
         with:
           workspaces: apps/desktop/src-tauri
       - run: pnpm install --frozen-lockfile
+      # Signature : chaque partie ne s'active que si ses secrets existent (Settings > Secrets and
+      # variables > Actions). Sans eux, les installeurs sont produits comme avant, non signés.
+      # Voir docs/signature-et-mises-a-jour.md.
+      - name: Signature et mises à jour (si configurées)
+        shell: bash
+        env:
+          UPDATER_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          UPDATER_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
+          APPLE_CERTIFICATE: ${{ secrets.APPLE_CERTIFICATE }}
+          APPLE_CERTIFICATE_PASSWORD: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
+          APPLE_SIGNING_IDENTITY: ${{ secrets.APPLE_SIGNING_IDENTITY }}
+          APPLE_ID: ${{ secrets.APPLE_ID }}
+          APPLE_PASSWORD: ${{ secrets.APPLE_PASSWORD }}
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+          AZURE_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
+          AZURE_CLIENT_SECRET: ${{ secrets.AZURE_CLIENT_SECRET }}
+          AZURE_TENANT_ID: ${{ secrets.AZURE_TENANT_ID }}
+          AZURE_SIGNING_ENDPOINT: ${{ vars.AZURE_SIGNING_ENDPOINT }}
+          AZURE_SIGNING_ACCOUNT: ${{ vars.AZURE_SIGNING_ACCOUNT }}
+          AZURE_SIGNING_PROFILE: ${{ vars.AZURE_SIGNING_PROFILE }}
+        run: |
+          conf=apps/desktop/src-tauri/tauri.conf.json
+          # Mises à jour automatiques : fichiers de mise à jour signés et latest.json.
+          if [ -n "$UPDATER_KEY" ]; then
+            {
+              echo "TAURI_SIGNING_PRIVATE_KEY<<POULPE_EOF"
+              echo "$UPDATER_KEY"
+              echo "POULPE_EOF"
+              echo "TAURI_SIGNING_PRIVATE_KEY_PASSWORD=$UPDATER_KEY_PASSWORD"
+            } >> "$GITHUB_ENV"
+            node -e "const f='$conf',c=JSON.parse(require('fs').readFileSync(f));c.bundle.createUpdaterArtifacts=true;require('fs').writeFileSync(f,JSON.stringify(c,null,2))"
+            echo "Mises à jour automatiques : activées."
+          else
+            echo "Mises à jour automatiques : secret TAURI_SIGNING_PRIVATE_KEY absent, fichiers de mise à jour non produits."
+          fi
+          # macOS : certificat Developer ID et notarisation Apple.
+          if [ "$RUNNER_OS" = "macOS" ] && [ -n "$APPLE_CERTIFICATE" ]; then
+            for v in APPLE_CERTIFICATE APPLE_CERTIFICATE_PASSWORD APPLE_SIGNING_IDENTITY APPLE_ID APPLE_PASSWORD APPLE_TEAM_ID; do
+              echo "$v=${!v}" >> "$GITHUB_ENV"
+            done
+            echo "macOS : signature et notarisation activées."
+          fi
+          # Windows : Azure Trusted Signing.
+          if [ "$RUNNER_OS" = "Windows" ] && [ -n "$AZURE_CLIENT_ID" ]; then
+            cargo install trusted-signing-cli --locked
+            for v in AZURE_CLIENT_ID AZURE_CLIENT_SECRET AZURE_TENANT_ID; do echo "$v=${!v}" >> "$GITHUB_ENV"; done
+            node -e "const f='$conf',c=JSON.parse(require('fs').readFileSync(f));c.bundle.windows={...(c.bundle.windows||{}),signCommand:'trusted-signing-cli -e $AZURE_SIGNING_ENDPOINT -a $AZURE_SIGNING_ACCOUNT -c $AZURE_SIGNING_PROFILE -d Poulpe %1'};require('fs').writeFileSync(f,JSON.stringify(c,null,2))"
+            echo "Windows : signature activée."
+          fi
       - uses: tauri-apps/tauri-action@v0
         id: tauri
         env:
@@ -91,6 +140,8 @@ jobs:
           releaseDraft: false
           prerelease: ${{ contains(env.TAG, '-') }}
           assetNamePattern: Poulpe_[platform]_[arch][setup][ext]
+          # latest.json (mises à jour automatiques) pointe vers l'installeur .exe sous Windows.
+          updaterJsonPreferNsis: true
       - uses: actions/upload-artifact@v4
         if: ${{ !env.TAG }}
         with:

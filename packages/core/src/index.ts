@@ -25,6 +25,8 @@ export * from './inpaint';
 export * from './cmyk';
 export * from './icc';
 export * from './pdfPrint';
+export * from './trace';
+export * from './matte';
 export * from './lut';
 export * from './retouch';
 export * from './symbols';

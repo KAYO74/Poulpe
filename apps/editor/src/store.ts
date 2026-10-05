@@ -81,6 +81,10 @@ export type Dialog =
   | 'selectionModify'
   | 'document'
   | 'batch'
+  | 'vectorize'
+  | 'extensions'
+  | 'extensionParams'
+  | 'update'
   | 'imageSize'
   | 'canvasSize';
 
@@ -95,6 +99,8 @@ export interface Settings {
   library: boolean;
   /** Afficher l'écran d'accueil (nouveau document, modèles) au lancement. */
   showWelcome: boolean;
+  /** Appli de bureau : chercher les mises à jour au lancement. */
+  autoUpdate: boolean;
 }
 
 export interface View {
@@ -174,6 +180,7 @@ function loadSettings(): Settings {
     snapping: true,
     library: true,
     showWelcome: true,
+    autoUpdate: true,
   };
   try {
     return { ...fallback, ...JSON.parse(localStorage.getItem(SETTINGS_KEY) ?? '{}') };
