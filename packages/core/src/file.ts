@@ -95,6 +95,9 @@ const MIGRATIONS: Record<number, (doc: Record<string, unknown>) => Record<string
   // Version 3 : contours avancés (pointillés, extrémités, flèches), effets de calque, texte sur
   // tracé. Tous facultatifs : rien à convertir.
   2: (doc) => doc,
+  // Version 4 : mise en page (pages maîtres, cadres de texte liés, numéros de page, fond perdu,
+  // marges, résolution). Tous facultatifs : rien à convertir.
+  3: (doc) => doc,
 };
 
 export function migrate(raw: Record<string, unknown>): PoulpeDocument {

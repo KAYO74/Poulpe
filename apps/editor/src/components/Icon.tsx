@@ -87,6 +87,16 @@ const PATHS = {
   shuffle:
     'M2 4.5h2.5c3 0 4 7 7 7H14 M12 9.5l2 2-2 2 M2 11.5h2.5c1.2 0 2-1 2.7-2.3 M9.3 6.8c.7-1.3 1.5-2.3 2.7-2.3H14 M12 2.5l2 2-2 2',
   link: 'M6.5 9.5l3-3 M7 4.5l1-1a2.5 2.5 0 0 1 3.5 3.5l-1 1 M9 11.5l-1 1A2.5 2.5 0 0 1 4.5 9l1-1',
+  unlink:
+    'M7 4.5l1-1a2.5 2.5 0 0 1 3.5 3.5l-1 1 M9 11.5l-1 1A2.5 2.5 0 0 1 4.5 9l1-1 M2.5 2.5l2 2 M13.5 13.5l-2-2',
+  pages: 'M4.5 1.5h7v10h-7z M2.5 4v10.5h7',
+  master: 'M3.5 1.5h9v13h-9z M5.5 4h5 M5.5 6.5h5 M6.5 11.5h3',
+  duplicate: 'M5.5 5.5h8v8h-8z M2.5 10.5v-8h8',
+  textFrame: 'M2.5 2.5h11v11h-11z M5 5h6 M8 5v6',
+  pageNumber: 'M3.5 1.5h9v13h-9z M6.5 10.5h3 M7 8.5l1-1v3',
+  arrange: 'M2.5 2.5h4.5v5H2.5z M9 2.5h4.5v5H9z M2.5 9.5h4.5v4H2.5z M9 9.5h4.5v4H9z',
+  settings:
+    'M8 5.5a2.5 2.5 0 1 1 0 5 2.5 2.5 0 0 1 0-5z M8 1.5v2 M8 12.5v2 M1.5 8h2 M12.5 8h2 M3.4 3.4l1.4 1.4 M11.2 11.2l1.4 1.4 M3.4 12.6l1.4-1.4 M11.2 4.8l1.4-1.4',
 } as const;
 
 export type IconName = keyof typeof PATHS;

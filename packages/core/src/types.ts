@@ -1,5 +1,5 @@
 /**
- * Modèle de document Poulpe (format `.poulpe`, version 3).
+ * Modèle de document Poulpe (format `.poulpe`, version 4).
  *
  * Toutes les coordonnées sont en pixels, dans l'espace du document (« monde ») :
  * les objets d'un plan de travail ne sont pas relatifs à ce plan de travail.
@@ -188,6 +188,16 @@ export interface TextNode extends NodeBase, Styled {
   autoWidth: boolean;
   /** Texte sur tracé : le texte suit cette courbe, sur une seule ligne. */
   path?: TextPath;
+  /**
+   * Cadre de texte (mise en page) : la boîte garde sa hauteur, le texte qui ne tient pas déborde
+   * dans le cadre suivant (`next`) ou reste caché.
+   */
+  frame?: boolean;
+  /**
+   * Cadre suivant d'un texte lié. Le premier cadre de la chaîne porte le texte et son style ; les
+   * suivants affichent la suite et leur propre `text` est ignoré.
+   */
+  next?: string;
 }
 
 /** Courbe suivie par un texte, exprimée dans `viewBox` et étirée sur la boîte du texte. */
@@ -252,6 +262,32 @@ export interface Artboard {
   background: Paint;
   /** Du dessous vers le dessus. */
   children: SceneNode[];
+  /** Page maître : ses objets apparaissent sur les pages qui l'utilisent ; elle n'est pas une page. */
+  master?: boolean;
+  /** Page maître utilisée par cette page. */
+  masterId?: string;
+}
+
+/** Marges d'une page, en pixels. Sur les pages en vis-à-vis, `inside` est du côté de la reliure. */
+export interface Margins {
+  top: number;
+  bottom: number;
+  inside: number;
+  outside: number;
+}
+
+/** Réglages de mise en page et d'impression du document. */
+export interface DocumentLayout {
+  /** Résolution : pixels par pouce. Donne la taille réelle à l'impression (96 si absent). */
+  dpi?: number;
+  /** Fond perdu autour de chaque page, en pixels. */
+  bleed?: number;
+  /** Marges des pages, affichées comme des repères. */
+  margins?: Margins;
+  /** Pages en vis-à-vis (livre, magazine) : la page 1 seule à droite, puis des doubles pages. */
+  facing?: boolean;
+  /** Numéro de la première page (1 si absent). */
+  firstNumber?: number;
 }
 
 export interface Asset {
@@ -274,6 +310,8 @@ export interface PoulpeDocument {
   /** Repères tirés depuis les règles, en coordonnées du document. */
   guides?: { x: number[]; y: number[] };
   assets: Record<string, Asset>;
+  /** Mise en page et impression. */
+  layout?: DocumentLayout;
 }
 
 export type Parent = Artboard | GroupNode;
