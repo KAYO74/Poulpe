@@ -22,7 +22,8 @@ export function useCurrentPaint(): { paint: Paint; target: 'fill' | 'stroke'; ha
   const brushColor = useUi((s) => s.brushColor);
   useTextSelection();
   // Persona Photo : le panneau règle la couleur du pinceau.
-  if (persona === 'photo') return { paint: { type: 'solid', color: brushColor }, target: 'fill', hasSelection: false };
+  if (persona === 'photo')
+    return { paint: { type: 'solid', color: brushColor }, target: 'fill', hasSelection: false };
   const editing = editingStyle();
   if (editing?.color && target === 'fill')
     return { paint: { type: 'solid', color: editing.color }, target, hasSelection: true };

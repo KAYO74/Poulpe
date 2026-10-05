@@ -219,7 +219,9 @@ export function canFilter(): boolean {
 }
 
 /** Pixels du calque sélectionné après le filtre (limité à la sélection de pixels). */
-export function filteredPixels(adj: Adjustment): { nodeId: string; assetId: string; canvas: HTMLCanvasElement } | null {
+export function filteredPixels(
+  adj: Adjustment,
+): { nodeId: string; assetId: string; canvas: HTMLCanvasElement } | null {
   const node = selectedImage();
   if (!node) return null;
   const base = pixelsOf(node);
@@ -236,7 +238,12 @@ export function filteredPixels(adj: Adjustment): { nodeId: string; assetId: stri
   if (ab) {
     const p0 = toPx.transformPoint(new DOMPoint(ab.x, ab.y));
     const p1 = toPx.transformPoint(new DOMPoint(ab.x + ab.width, ab.y + ab.height));
-    frame = { x: Math.min(p0.x, p1.x), y: Math.min(p0.y, p1.y), width: Math.abs(p1.x - p0.x), height: Math.abs(p1.y - p0.y) };
+    frame = {
+      x: Math.min(p0.x, p1.x),
+      y: Math.min(p0.y, p1.y),
+      width: Math.abs(p1.x - p0.x),
+      height: Math.abs(p1.y - p0.y),
+    };
   }
   const o = toPx.transformPoint(new DOMPoint(0, 0));
   applyAdjustment({ data: out, width: W, height: H }, adj, { scale, origin: { x: o.x, y: o.y }, frame });
@@ -310,7 +317,12 @@ export function copySelectionToLayer(): boolean {
     if (!loc) return;
     const id = newId('img');
     d.assets[id] = { id, mime: 'image/png', width: base.width, height: base.height, data: key };
-    const copy = { ...structuredClone(loc.node as typeof node), id: newId('node'), assetId: id, name: t('name.pixelLayer') };
+    const copy = {
+      ...structuredClone(loc.node as typeof node),
+      id: newId('node'),
+      assetId: id,
+      name: t('name.pixelLayer'),
+    };
     delete copy.mask;
     loc.parent.children.splice(loc.index + 1, 0, copy);
     return [copy.id];
@@ -342,7 +354,14 @@ export function rasterizeSelection(): void {
     if (!l) return;
     const id = newId('img');
     d.assets[id] = { id, mime: 'image/png', width: canvas.width, height: canvas.height, data: key };
-    const img = createImage({ x: ab.x, y: ab.y, width: ab.width, height: ab.height, assetId: id, name: n.name });
+    const img = createImage({
+      x: ab.x,
+      y: ab.y,
+      width: ab.width,
+      height: ab.height,
+      assetId: id,
+      name: n.name,
+    });
     l.parent.children.splice(l.index, 1, img);
     pruneAssets(d);
     return [img.id];
@@ -369,19 +388,34 @@ export function mergeVisible(): void {
   editor.apply('history.mergeVisible', (d) => {
     const id = newId('img');
     d.assets[id] = { id, mime: 'image/png', width: canvas.width, height: canvas.height, data: key };
-    const img = createImage({ x: ab.x, y: ab.y, width: ab.width, height: ab.height, assetId: id, name: t('name.merged') });
+    const img = createImage({
+      x: ab.x,
+      y: ab.y,
+      width: ab.width,
+      height: ab.height,
+      assetId: id,
+      name: t('name.merged'),
+    });
     findArtboard(d, ab.id)!.children.push(img);
     return [img.id];
   });
 }
 
 /** Ouvre une photo dans un nouveau document à sa taille, en Persona Photo. */
-export function openPhotoDocument(data: string, mime: string, width: number, height: number, name: string): void {
+export function openPhotoDocument(
+  data: string,
+  mime: string,
+  width: number,
+  height: number,
+  name: string,
+): void {
   const doc = createDocument({ name, width, height });
   doc.artboards[0].name = name;
   const id = newId('img');
   doc.assets[id] = { id, mime, width, height, data };
-  doc.artboards[0].children.push(createImage({ x: 0, y: 0, width, height, assetId: id, name: t('name.background') }));
+  doc.artboards[0].children.push(
+    createImage({ x: 0, y: 0, width, height, assetId: id, name: t('name.background') }),
+  );
   editor.load(doc);
   clearSelection();
   ui.set({ filePath: null, dialog: null, persona: 'photo', tool: 'brush', maskEditId: null });

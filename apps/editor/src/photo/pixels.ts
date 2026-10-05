@@ -74,7 +74,10 @@ export function pixelsOf(node: ImageNode, doc: PoulpeDocument = editor.doc): HTM
 }
 
 /** Résolution d'un nouveau masque : celle de l'image pour un calque de pixels, sinon 1 pixel par pixel du document. */
-export function maskSize(node: SceneNode, doc: PoulpeDocument = editor.doc): { width: number; height: number } {
+export function maskSize(
+  node: SceneNode,
+  doc: PoulpeDocument = editor.doc,
+): { width: number; height: number } {
   if (node.type === 'image') {
     const a = doc.assets[node.assetId];
     if (a) {
@@ -121,7 +124,13 @@ export function commitBitmap(
     const n = findNode(d, nodeId)?.node;
     if (!n) return;
     const assetId = newId('img');
-    d.assets[assetId] = { id: assetId, mime: 'image/png', width: canvas.width, height: canvas.height, data: key };
+    d.assets[assetId] = {
+      id: assetId,
+      mime: 'image/png',
+      width: canvas.width,
+      height: canvas.height,
+      data: key,
+    };
     if (which === 'pixels' && n.type === 'image') n.assetId = assetId;
     else n.mask = { assetId, enabled: n.mask?.enabled ?? true };
     pruneAssets(d);
@@ -150,15 +159,29 @@ export function imageAt(p: Vec): ImageNode | null {
  */
 export function newPixelLayer(at?: Vec): string | null {
   const doc = editor.doc;
-  const ab = (at && artboardAt(doc, at)) || findArtboard(doc, editor.getState().activeArtboardId) || doc.artboards[0];
+  const ab =
+    (at && artboardAt(doc, at)) || findArtboard(doc, editor.getState().activeArtboardId) || doc.artboards[0];
   if (!ab) return null;
   const k = Math.min(1, 8192 / Math.max(ab.width, ab.height));
   const canvas = makeCanvas(ab.width * k, ab.height * k);
   const key = registerBitmap(canvas);
   const assetId = newId('img');
-  const node = createImage({ x: ab.x, y: ab.y, width: ab.width, height: ab.height, assetId, name: t('name.pixelLayer') });
+  const node = createImage({
+    x: ab.x,
+    y: ab.y,
+    width: ab.width,
+    height: ab.height,
+    assetId,
+    name: t('name.pixelLayer'),
+  });
   editor.apply('history.newPixelLayer', (d) => {
-    d.assets[assetId] = { id: assetId, mime: 'image/png', width: canvas.width, height: canvas.height, data: key };
+    d.assets[assetId] = {
+      id: assetId,
+      mime: 'image/png',
+      width: canvas.width,
+      height: canvas.height,
+      data: key,
+    };
     const target = findArtboard(d, ab.id)!;
     // Au-dessus de l'objet sélectionné s'il est sur ce plan de travail.
     const sel = editor.selection.length ? findNode(d, editor.selection[editor.selection.length - 1]) : null;

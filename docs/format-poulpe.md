@@ -1,4 +1,4 @@
-# Format de fichier `.poulpe` (version 3)
+# Format de fichier `.poulpe` (version 4)
 
 Un document Poulpe est une archive ZIP. Tout y est lisible avec des outils standard : un logiciel de décompression suffit pour récupérer les images d'origine et le document en JSON.
 
@@ -6,7 +6,7 @@ Un document Poulpe est une archive ZIP. Tout y est lisible avec des outils stand
 affiche.poulpe (ZIP)
 ├── manifest.json        version du format, appli d'origine, liste des fichiers (non compressé, en premier)
 ├── document.json        le document
-├── assets/images/       images importées, telles quelles (jamais recompressées)
+├── assets/images/       images importées, telles quelles (jamais recompressées), pixels retouchés et masques (PNG)
 └── thumbnail.png        aperçu du premier plan de travail, 256 px au plus (facultatif)
 ```
 
@@ -40,19 +40,20 @@ Toutes les coordonnées sont en pixels dans l'espace du document : un objet n'es
 
 ### Objets
 
-Champs communs : `id`, `name`, `x`, `y`, `width`, `height`, `rotation`, `opacity` (0 à 1), `blendMode`, `visible`, `locked`, `effects` (facultatif, voir plus bas).
+Champs communs : `id`, `name`, `x`, `y`, `width`, `height`, `rotation`, `opacity` (0 à 1), `blendMode`, `visible`, `locked`, `effects` et `mask` (facultatifs, voir plus bas).
 
-| `type`    | Champs propres                                                                          |
-| --------- | --------------------------------------------------------------------------------------- |
-| `rect`    | `fill`, `stroke`, `cornerRadius`                                                        |
-| `ellipse` | `fill`, `stroke`                                                                        |
-| `polygon` | `fill`, `stroke`, `sides`                                                               |
-| `star`    | `fill`, `stroke`, `points`, `innerRatio`                                                |
-| `path`    | `fill`, `stroke`, `d`, `viewBox`, `fillRule` (facultatif)                               |
-| `line`    | `stroke`, `direction` (1 : haut gauche vers bas droit, -1 : bas gauche vers haut droit) |
-| `text`    | `text`, `style`, `fill`, `stroke`, `autoWidth`, `runs` et `path` (facultatifs)          |
-| `image`   | `assetId`, `crop` (facultatif)                                                          |
-| `group`   | `children`, `clip` (l'objet du dessous sert de masque d'écrêtage)                       |
+| `type`       | Champs propres                                                                          |
+| ------------ | --------------------------------------------------------------------------------------- |
+| `rect`       | `fill`, `stroke`, `cornerRadius`                                                        |
+| `ellipse`    | `fill`, `stroke`                                                                        |
+| `polygon`    | `fill`, `stroke`, `sides`                                                               |
+| `star`       | `fill`, `stroke`, `points`, `innerRatio`                                                |
+| `path`       | `fill`, `stroke`, `d`, `viewBox`, `fillRule` (facultatif)                               |
+| `line`       | `stroke`, `direction` (1 : haut gauche vers bas droit, -1 : bas gauche vers haut droit) |
+| `text`       | `text`, `style`, `fill`, `stroke`, `autoWidth`, `runs` et `path` (facultatifs)          |
+| `image`      | `assetId`, `crop` (facultatif)                                                          |
+| `group`      | `children`, `clip` (l'objet du dessous sert de masque d'écrêtage)                       |
+| `adjustment` | `adjustment` : réglage ou filtre dynamique (voir « Calques de réglage »)                |
 
 `style` d'un texte : `fontFamily`, `fontSize`, `fontWeight`, `italic`, `align` (`left`, `center`, `right`, `justify`), `lineHeight` (multiplicateur), `letterSpacing` (px), `underline`, `strike`, `uppercase`.
 
@@ -100,8 +101,44 @@ Un contour vaut `{ "paint": <peinture>, "width": <px> }`, centré sur le tracé.
 { "type": "blur", "enabled": true, "radius": 4 }
 ```
 
+### Masques de calque
+
+`mask` vaut `{ "assetId": "img_…", "enabled": true }`. L'image désignée (PNG) est étirée sur la boîte de l'objet, comme une image ; seule son opacité compte : opaque, l'objet est visible, transparent, il est caché. Un masque désactivé (`enabled: false`) est gardé mais n'agit pas.
+
+Un objet `image` retouché (pinceau, gomme, gomme magique, filtres) pointe simplement vers une nouvelle image PNG dans `assets` : l'image d'origine n'est jamais modifiée sur place.
+
+### Calques de réglage
+
+Un objet `adjustment` modifie tout ce qui est dessous lui dans le même parent (plan de travail ou groupe), sans toucher aux pixels : on peut le régler, le masquer ou le supprimer à tout moment. Son `opacity` dose l'effet, son `mask` le limite à une zone. Seul le mode de fusion `normal` est appliqué pour l'instant. Le champ `adjustment` a un `kind` et ses réglages :
+
+| `kind`               | Réglages                                                                                     |
+| -------------------- | -------------------------------------------------------------------------------------------- |
+| `brightnessContrast` | `brightness`, `contrast` (−100 à 100)                                                        |
+| `levels`             | `black`, `white`, `outBlack`, `outWhite` (0 à 255), `gamma` (0,1 à 10)                       |
+| `curves`             | `rgb`, `r`, `g`, `b` : points `[entrée, sortie]` de 0 à 1                                    |
+| `exposure`           | `exposure` (IL, −5 à 5), `offset`, `gamma`                                                   |
+| `hsl`                | `hue` (−180 à 180), `saturation`, `lightness` (−100 à 100)                                   |
+| `vibrance`           | `vibrance`, `saturation` (−100 à 100)                                                        |
+| `whiteBalance`       | `temperature`, `tint` (−100 à 100)                                                           |
+| `colorBalance`       | `shadows`, `midtones`, `highlights` : `[cyan↔rouge, magenta↔vert, jaune↔bleu]` de −100 à 100 |
+| `blackWhite`         | `red`, `green`, `blue` : part de chaque canal en %                                           |
+| `photoFilter`        | `color`, `density` (0 à 100)                                                                 |
+| `gradientMap`        | `stops` : arrêts de dégradé, du plus sombre au plus clair                                    |
+| `invert`             | (aucun)                                                                                      |
+| `threshold`          | `level` (0 à 255)                                                                            |
+| `posterize`          | `levels` (2 à 32)                                                                            |
+| `gaussianBlur`       | `radius` (px du document)                                                                    |
+| `unsharpMask`        | `amount` (%), `radius` (px), `threshold` (0 à 255)                                           |
+| `clarity`            | `amount` (−100 à 100)                                                                        |
+| `noise`              | `amount` (%), `monochrome`                                                                   |
+| `vignette`           | `amount` (−100 à 100), `size`, `softness` (0 à 100)                                          |
+| `pixelate`           | `size` (px du document)                                                                      |
+
+Un logiciel qui ne connaît pas les calques de réglage peut les ignorer : le reste du document reste juste, seules les corrections manquent.
+
 ## Versions
 
 - **1** (Poulpe 0.1) : version initiale.
 - **2** (Poulpe 0.2) : ajout des objets `path`. Un fichier de version 1 s'ouvre sans changement ; un fichier de version 2 ne s'ouvre pas dans Poulpe 0.1.
 - **3** (Poulpe 0.3) : contours avancés (`cap`, `join`, `dash`, `start`, `end`), `effects` sur tous les objets, `path` sur les textes. Tous ces champs sont facultatifs : un fichier de version 1 ou 2 s'ouvre sans changement ; un fichier de version 3 ne s'ouvre pas dans Poulpe 0.2.
+- **4** (Poulpe 0.4) : objets `adjustment` (calques de réglage et filtres dynamiques) et `mask` sur tous les objets. Un fichier des versions 1 à 3 s'ouvre sans changement ; un fichier de version 4 ne s'ouvre pas dans Poulpe 0.3.

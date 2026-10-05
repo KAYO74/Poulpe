@@ -206,7 +206,10 @@ export async function importImage(): Promise<void> {
 /** Ouvre une photo dans un nouveau document à sa taille, en Persona Photo (comme Affinity Photo). */
 export async function openPhoto(): Promise<void> {
   if (!confirmDiscard()) return;
-  const file = await pickFile(['png', 'jpg', 'jpeg', 'webp', 'gif'], 'image/png,image/jpeg,image/webp,image/gif');
+  const file = await pickFile(
+    ['png', 'jpg', 'jpeg', 'webp', 'gif'],
+    'image/png,image/jpeg,image/webp,image/gif',
+  );
   if (!file) return;
   const ext = file.name.split('.').pop()!.toLowerCase();
   const mime = ext === 'jpg' || ext === 'jpeg' ? 'image/jpeg' : `image/${ext}`;
@@ -299,7 +302,10 @@ async function rasterizedParts(
   pdf: boolean,
 ): Promise<Map<string, string>> {
   const out = new Map<string, string>();
-  const visitChildren = async (nodes: SceneNode[], frame: { x: number; y: number; width: number; height: number }) => {
+  const visitChildren = async (
+    nodes: SceneNode[],
+    frame: { x: number; y: number; width: number; height: number },
+  ) => {
     let last = -1;
     nodes.forEach((n, i) => {
       if (n.type === 'adjustment' && n.visible) last = i;
@@ -308,8 +314,14 @@ async function rasterizedParts(
       const part = nodes.slice(0, last + 1);
       const host = part.find((n) => n.visible);
       if (host) {
-        const scale = Math.min(4096 / Math.max(frame.width, frame.height, 1), Math.max(2, imageDensity(doc, part)));
-        out.set(host.id, rasterImage(frame, scale, (ctx) => drawChildren(ctx, doc, part, { images: exportImages }, frame)));
+        const scale = Math.min(
+          4096 / Math.max(frame.width, frame.height, 1),
+          Math.max(2, imageDensity(doc, part)),
+        );
+        out.set(
+          host.id,
+          rasterImage(frame, scale, (ctx) => drawChildren(ctx, doc, part, { images: exportImages }, frame)),
+        );
         for (const n of part) if (n !== host) out.set(n.id, '');
       }
     }

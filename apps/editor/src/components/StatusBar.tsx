@@ -35,7 +35,8 @@ export function StatusBar() {
   return (
     <footer className="statusbar">
       <span className="hint">
-        <b>{cropping ? t('ctx.crop') : t(`tool.${tool}`)}</b> : {t(cropping ? 'hint.crop' : (HINTS[tool] ?? `hint.${tool}`))}
+        <b>{cropping ? t('ctx.crop') : t(`tool.${tool}`)}</b> :{' '}
+        {t(cropping ? 'hint.crop' : (HINTS[tool] ?? `hint.${tool}`))}
       </span>
       <span className="spacer" />
       {busy && (

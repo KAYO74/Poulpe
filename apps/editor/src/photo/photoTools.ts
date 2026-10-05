@@ -38,13 +38,7 @@ import {
   newPixelLayer,
   selectedImage,
 } from './pixels';
-import {
-  getSelection,
-  selectShape,
-  selectSimilar,
-  selectionIn,
-  selectionOutline,
-} from './selection';
+import { getSelection, selectShape, selectSimilar, selectionIn, selectionOutline } from './selection';
 
 /*
  * Outils de la Persona Photo : sélections (rectangle, ellipse, lasso, baguette magique),
@@ -107,7 +101,15 @@ class LazySource {
         this.compute({ data: img.data, width: img.width, height: img.height });
         const ix = tx * T - x0,
           iy = ty * T - y0;
-        sctx.putImageData(img, x0, y0, ix, iy, Math.min(T, this.base.width - tx * T), Math.min(T, this.base.height - ty * T));
+        sctx.putImageData(
+          img,
+          x0,
+          y0,
+          ix,
+          iy,
+          Math.min(T, this.base.width - tx * T),
+          Math.min(T, this.base.height - ty * T),
+        );
       }
   }
 }
@@ -216,7 +218,12 @@ export class PhotoTools {
     this.pointer = s;
     if (ui.get().busy) return true;
     if (tool === 'marqueeRect' || tool === 'marqueeEllipse') {
-      this.marquee = { start: p, current: p, mode: this.mode(e), shape: tool === 'marqueeRect' ? 'rect' : 'ellipse' };
+      this.marquee = {
+        start: p,
+        current: p,
+        mode: this.mode(e),
+        shape: tool === 'marqueeRect' ? 'rect' : 'ellipse',
+      };
       return true;
     }
     if (tool === 'lasso') {
@@ -274,7 +281,11 @@ export class PhotoTools {
       const events = typeof e.getCoalescedEvents === 'function' ? e.getCoalescedEvents() : [];
       const rect = this.c.canvas.getBoundingClientRect();
       const pts = events.length
-        ? events.map((ev) => ({ p: this.c.toWorld(ev.clientX - rect.left, ev.clientY - rect.top), pressure: ev.pressure, pen: ev.pointerType === 'pen' }))
+        ? events.map((ev) => ({
+            p: this.c.toWorld(ev.clientX - rect.left, ev.clientY - rect.top),
+            pressure: ev.pressure,
+            pen: ev.pointerType === 'pen',
+          }))
         : [{ p, pressure: e.pressure, pen: e.pointerType === 'pen' }];
       for (const q of pts) this.strokeTo(q.p, q.pen ? q.pressure : 1);
       this.recompose();
@@ -409,7 +420,11 @@ export class PhotoTools {
       ctx.fillStyle = '#fff';
       ctx.fillRect(0, 0, base.width, base.height);
     }
-    return { base, toPx: docToMask(node, base.width, base.height), assetId: node.mask?.assetId ?? `pending-mask-${node.id}` };
+    return {
+      base,
+      toPx: docToMask(node, base.width, base.height),
+      assetId: node.mask?.assetId ?? `pending-mask-${node.id}`,
+    };
   }
 
   // ————— Pinceaux —————
@@ -441,7 +456,8 @@ export class PhotoTools {
           toast(t('photo.cloneNeedSource'));
           return;
         }
-        if (!this.cloneOffset) this.cloneOffset = { x: this.cloneSource.x - p.x, y: this.cloneSource.y - p.y };
+        if (!this.cloneOffset)
+          this.cloneOffset = { x: this.cloneSource.x - p.x, y: this.cloneSource.y - p.y };
         const a = toPx.transformPoint(new DOMPoint(p.x, p.y));
         const b = toPx.transformPoint(new DOMPoint(p.x + this.cloneOffset.x, p.y + this.cloneOffset.y));
         const s = makeCanvas(w, h);
@@ -449,14 +465,23 @@ export class PhotoTools {
         source = s;
       } else if (tool === 'dodge' || tool === 'burn') {
         const ev = tool === 'dodge' ? 0.7 : -0.7;
-        source = new LazySource(base, (q) => applyAdjustment(q, { kind: 'exposure', exposure: ev, offset: 0, gamma: 1 }), 0);
+        source = new LazySource(
+          base,
+          (q) => applyAdjustment(q, { kind: 'exposure', exposure: ev, offset: 0, gamma: 1 }),
+          0,
+        );
       } else if (tool === 'blurBrush') {
         const sigma = 3 * pxScale;
         source = new LazySource(base, (q) => q.data.set(gaussianBlurred(q, sigma)), sigma * 3);
       } else {
         source = new LazySource(
           base,
-          (q) => applyAdjustment(q, { kind: 'unsharpMask', amount: 150, radius: 1.5, threshold: 0 }, { scale: pxScale }),
+          (q) =>
+            applyAdjustment(
+              q,
+              { kind: 'unsharpMask', amount: 150, radius: 1.5, threshold: 0 },
+              { scale: pxScale },
+            ),
           6 * pxScale,
         );
       }
@@ -504,7 +529,12 @@ export class PhotoTools {
     const d = this.dirty;
     const rect = { x0: x - pad, y0: y - pad, x1: x + pad, y1: y + pad };
     this.dirty = d
-      ? { x0: Math.min(d.x0, rect.x0), y0: Math.min(d.y0, rect.y0), x1: Math.max(d.x1, rect.x1), y1: Math.max(d.y1, rect.y1) }
+      ? {
+          x0: Math.min(d.x0, rect.x0),
+          y0: Math.min(d.y0, rect.y0),
+          x1: Math.max(d.x1, rect.x1),
+          y1: Math.max(d.y1, rect.y1),
+        }
       : rect;
   }
 
@@ -553,13 +583,17 @@ export class PhotoTools {
     if (s.tool === 'magicEraser') {
       // La gomme magique ne touche pas encore aux pixels : on montre la zone en rouge.
       const tc = s.tint!.getContext('2d')!;
+      // « source-in » touche toute la toile : on le limite à la zone pour garder le reste du trait.
+      tc.save();
+      tc.beginPath();
+      tc.rect(x0, y0, w, h);
+      tc.clip();
       tc.clearRect(x0, y0, w, h);
-      tc.globalCompositeOperation = 'source-over';
       tc.drawImage(s.buf, x0, y0, w, h, x0, y0, w, h);
       tc.globalCompositeOperation = 'source-in';
       tc.fillStyle = 'rgba(255, 60, 90, 0.55)';
       tc.fillRect(x0, y0, w, h);
-      tc.globalCompositeOperation = 'source-over';
+      tc.restore();
       this.c.requestDraw();
       return;
     }
@@ -596,7 +630,8 @@ export class PhotoTools {
       wc.globalCompositeOperation = 'destination-out';
       wc.drawImage(cov, 0, 0, w, h, x0, y0, w, h);
     } else if (s.source) {
-      const src = s.source instanceof LazySource ? (s.source.ensure({ x0, y0, x1, y1 }), s.source.canvas) : s.source;
+      const src =
+        s.source instanceof LazySource ? (s.source.ensure({ x0, y0, x1, y1 }), s.source.canvas) : s.source;
       const t2 = this.scratch(w, h, 2);
       const tc = t2.getContext('2d')!;
       tc.globalCompositeOperation = 'copy';
@@ -639,7 +674,12 @@ export class PhotoTools {
       blurBrush: 'history.blurBrush',
       sharpenBrush: 'history.sharpenBrush',
     };
-    commitBitmap(s.nodeId, s.which, s.work, s.which === 'mask' ? 'history.maskPaint' : (labels[s.tool] ?? 'history.brush'));
+    commitBitmap(
+      s.nodeId,
+      s.which,
+      s.work,
+      s.which === 'mask' ? 'history.maskPaint' : (labels[s.tool] ?? 'history.brush'),
+    );
     setLiveBitmap(s.assetId, null);
   }
 
@@ -648,7 +688,12 @@ export class PhotoTools {
    * calque, puis enregistre le résultat. Sert à la gomme magique et au remplissage d'après le
    * contenu.
    */
-  async runInpaint(nodeId: string, base: HTMLCanvasElement, cover: HTMLCanvasElement, threshold: number): Promise<void> {
+  async runInpaint(
+    nodeId: string,
+    base: HTMLCanvasElement,
+    cover: HTMLCanvasElement,
+    threshold: number,
+  ): Promise<void> {
     const W = base.width,
       H = base.height;
     const cd = cover.getContext('2d', { willReadFrequently: true })!.getImageData(0, 0, W, H).data;
@@ -714,7 +759,13 @@ export class PhotoTools {
     if (q.x < 0 || q.y < 0 || q.x >= W || q.y >= H) return;
     const ctx = base.getContext('2d', { willReadFrequently: true })!;
     const img = ctx.getImageData(0, 0, W, H);
-    const mask = floodMask({ data: img.data, width: W, height: H }, q.x, q.y, ui.get().tolerance, ui.get().contiguous);
+    const mask = floodMask(
+      { data: img.data, width: W, height: H },
+      q.x,
+      q.y,
+      ui.get().tolerance,
+      ui.get().contiguous,
+    );
     const sel = selectionIn(W, H, toPx);
     const sd = sel?.getContext('2d', { willReadFrequently: true })!.getImageData(0, 0, W, H).data;
     const op = brushSettings('brush').opacity / 100;
@@ -742,7 +793,12 @@ export class PhotoTools {
     }
     const out = makeCanvas(W, H);
     out.getContext('2d')!.putImageData(img, 0, 0);
-    commitBitmap(target.node.id, target.which, out, target.which === 'mask' ? 'history.maskPaint' : 'history.fill');
+    commitBitmap(
+      target.node.id,
+      target.which,
+      out,
+      target.which === 'mask' ? 'history.maskPaint' : 'history.fill',
+    );
   }
 
   // ————— Dessin —————
@@ -756,7 +812,14 @@ export class PhotoTools {
     if (s?.tint) {
       ctx.save();
       const dpr = ctx.getTransform().a;
-      const screen = new DOMMatrix([dpr * view.zoom, 0, 0, dpr * view.zoom, dpr * view.panX, dpr * view.panY]);
+      const screen = new DOMMatrix([
+        dpr * view.zoom,
+        0,
+        0,
+        dpr * view.zoom,
+        dpr * view.panX,
+        dpr * view.panY,
+      ]);
       ctx.setTransform(screen.multiply(s.toPx.inverse()));
       ctx.drawImage(s.tint, 0, 0);
       ctx.restore();
