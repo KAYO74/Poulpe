@@ -9,7 +9,7 @@ import {
 } from '@poulpe/core';
 import { deleteSelection, updateSelected } from '../actions';
 import { AdjustmentMenu } from '../components/AdjustmentMenu';
-import { COMMANDS } from '../commands';
+import { COMMANDS, runCommand } from '../commands';
 import { toggleMaskEdit } from '../photo/photoActions';
 import { images } from '../photo/pixels';
 import { NumberField, Select } from '../components/fields';
@@ -288,7 +288,7 @@ export function LayersPanel() {
             className="ib small"
             title={t('layer.newPixel')}
             aria-label={t('layer.newPixel')}
-            onClick={() => COMMANDS['layer.newPixel'].run()}
+            onClick={() => runCommand('layer.newPixel')}
           >
             <Icon name="pixelLayer" size={14} />
           </button>
@@ -297,7 +297,7 @@ export function LayersPanel() {
             title={t('layer.addMask')}
             aria-label={t('layer.addMask')}
             disabled={!COMMANDS['layer.addMask'].enabled()}
-            onClick={() => COMMANDS['layer.addMask'].run()}
+            onClick={() => runCommand('layer.addMask')}
           >
             <Icon name="addMask" size={14} />
           </button>

@@ -26,6 +26,7 @@ import {
 import { t } from './i18n';
 import { editor, toast, ui } from './store';
 import { textToCurves } from './textToCurves';
+import { recordStep } from './macros/recorder';
 
 /*
  * Actions du vectoriel pro : géométrie, conversion en courbes, contours et effets, texte sur
@@ -137,6 +138,7 @@ export function canOutlineStroke(): boolean {
 export function offsetPath(distance: number, join: StrokeJoin): void {
   const ids = topLevelIds(editor.doc, sel());
   if (!ids.length || !distance) return;
+  recordStep({ kind: 'offset', distance, join });
   let ok = false;
   editor.apply('history.offset', (d) => {
     const out: string[] = [];

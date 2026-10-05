@@ -11,6 +11,7 @@ import { Select } from '../components/fields';
 import { Slider } from '../components/PhotoContext';
 import { useT } from '../i18n';
 import { selectedImage } from '../photo/pixels';
+import { recordStep } from '../macros/recorder';
 import { ui } from '../store';
 import { insertTrace, traceAsync, traceNodeCount, traceSource, traceToSvg } from './vectorize';
 
@@ -203,6 +204,7 @@ export function VectorizeDialog() {
             if (!result) return;
             close();
             insertTrace(node.id, result, original);
+            recordStep({ kind: 'vectorize', options: opts, maxSide: PRECISION[precision], original });
           }}
         >
           {t('vectorize.go')}

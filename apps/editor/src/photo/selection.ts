@@ -10,6 +10,7 @@ import {
 } from '@poulpe/core';
 import { drawArtboard, type ImageCache } from '@poulpe/render';
 import { editor, ui, type SelectionMode } from '../store';
+import { recordStep } from '../macros/recorder';
 
 /*
  * Sélection de pixels de la Persona Photo (rectangle, ellipse, lasso, baguette magique).
@@ -243,6 +244,7 @@ export function invertSelection(): void {
 /** Adoucir, agrandir ou réduire la sélection, de `radius` pixels du document. */
 export function modifySelection(kind: 'feather' | 'grow' | 'shrink', radius: number): void {
   if (!current || radius <= 0) return;
+  recordStep({ kind: 'selectionModify', mode: kind, radius });
   const m = current;
   if (kind === 'feather') {
     blurMask(m, radius * 2);

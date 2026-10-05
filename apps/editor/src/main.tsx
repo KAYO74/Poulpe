@@ -28,6 +28,7 @@ createRoot(document.getElementById('root')!).render(
 
 void loadSystemFonts();
 void startDrafts();
+void import('./extensions/host').then((x) => x.startExtensions());
 if (isDesktop() || location.search.includes('bench'))
   void import('./bench').then((b) => b.maybeRunBenchmark(isDesktop()));
 

@@ -128,6 +128,11 @@ const PATHS = {
   modeSubtract: 'M2.5 2.5h7v4H6.5v3h-4z M6.5 6.5h7v7h-7z',
   modeIntersect: 'M2.5 2.5h7v7h-7z M6.5 6.5h7v7h-7z M6.5 6.5h3v3h-3z',
   histogram: 'M2 13.5h12 M3 13.5v-3 M5 13.5V8 M7 13.5V4 M9 13.5V6 M11 13.5v-4 M13 13.5v-2',
+  play: 'M5 3l8 5-8 5z',
+  import: 'M8 2v8 M5 7l3 3 3-3 M2.5 9.5v4h11v-4',
+  extension: 'M3 5.5h3V4a1.5 1.5 0 0 1 3 0v1.5h3v3h-1.5a1.5 1.5 0 0 0 0 3H12v3H3z',
+  keyboard: 'M1.5 4.5h13v7h-13z M4 7h1 M7 7h1 M10 7h2 M4.5 9.5h7',
+  update: 'M13 8a5 5 0 1 1-1.5-3.6 M13 2.5v3h-3',
 } as const;
 
 export type IconName = keyof typeof PATHS;

@@ -1,4 +1,4 @@
-import { COMMANDS, formatShortcut, type CommandId } from '../commands';
+import { COMMANDS, commandShortcut, formatShortcut, runCommand, type CommandId } from '../commands';
 import { getLang, setLang, useT } from '../i18n';
 import { setSettings, ui, useEditor, useUi } from '../store';
 import { setPersona } from '../photo/persona';
@@ -9,14 +9,15 @@ function CmdButton({ id, icon }: { id: CommandId; icon: IconName }) {
   const t = useT();
   useEditor();
   const cmd = COMMANDS[id] as (typeof COMMANDS)[CommandId] & { enabled?: () => boolean; shortcut?: string };
-  const label = t(cmd.label) + (cmd.shortcut ? ` (${formatShortcut(cmd.shortcut)})` : '');
+  const shortcut = commandShortcut(id);
+  const label = t(cmd.label) + (shortcut ? ` (${formatShortcut(shortcut)})` : '');
   return (
     <button
       className="ib"
       title={label}
       aria-label={label}
       disabled={cmd.enabled ? !cmd.enabled() : false}
-      onClick={() => cmd.run()}
+      onClick={() => void runCommand(id)}
     >
       <Icon name={icon} />
     </button>

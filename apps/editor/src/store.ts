@@ -70,7 +70,9 @@ export type Dialog =
   | 'selectionModify'
   | 'document'
   | 'batch'
-  | 'vectorize';
+  | 'vectorize'
+  | 'extensions'
+  | 'extensionParams';
 
 export interface Settings {
   theme: Theme;
