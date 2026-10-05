@@ -9,6 +9,7 @@ import {
   type PoulpeDocument,
   type SceneNode,
   type TextNode,
+  isStyled,
 } from '@poulpe/core';
 import {
   circle,
@@ -95,7 +96,7 @@ function scaleTree(n: SceneNode, k: number) {
   n.height *= k;
   if (n.type === 'group') n.children.forEach((c) => scaleTree(c, k));
   else if (n.type === 'text') n.style = { ...n.style, fontSize: n.style.fontSize * k };
-  else if (n.type !== 'image') n.stroke = { ...n.stroke, width: n.stroke.width * k };
+  else if (isStyled(n)) n.stroke = { ...n.stroke, width: n.stroke.width * k };
 }
 
 const L = (lang: Lang) => (fr: string, en: string) => (lang === 'fr' ? fr : en);

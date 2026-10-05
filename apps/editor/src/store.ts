@@ -24,15 +24,51 @@ export type ToolId =
   | 'image'
   | 'hand'
   | 'zoom'
-  | 'eyedropper';
+  | 'eyedropper'
+  // Persona Photo
+  | 'marqueeRect'
+  | 'marqueeEllipse'
+  | 'lasso'
+  | 'magicWand'
+  | 'brush'
+  | 'eraser'
+  | 'fill'
+  | 'magicEraser'
+  | 'clone'
+  | 'dodge'
+  | 'burn'
+  | 'blurBrush'
+  | 'sharpenBrush';
+
+/** Espaces de travail, comme les Personas d'Affinity. */
+export type Persona = 'draw' | 'photo' | 'layout';
+
+/** Combinaison d'une nouvelle sélection de pixels avec l'ancienne. */
+export type SelectionMode = 'replace' | 'add' | 'subtract' | 'intersect';
+
+export interface BrushSettings {
+  /** Diamètre en pixels du document. */
+  size: number;
+  /** Dureté du bord, opacité et flux, de 0 à 100. */
+  hardness: number;
+  opacity: number;
+  flow: number;
+}
 
 export type Side = 'left' | 'right';
 export type Theme = 'dark' | 'light';
 export type Dialog =
-  null | 'new' | 'export' | 'shortcuts' | 'about' | 'draft' | 'resize' | 'offset' | 'document';
-
-/** Personas, comme dans Affinity : chacune a ses outils et ses panneaux. */
-export type Persona = 'draw' | 'layout';
+  | null
+  | 'new'
+  | 'export'
+  | 'shortcuts'
+  | 'about'
+  | 'draft'
+  | 'resize'
+  | 'offset'
+  | 'filter'
+  | 'selectionModify'
+  | 'document';
 
 export interface Settings {
   theme: Theme;
@@ -71,6 +107,27 @@ export interface UiState {
   nodeSelection: string[];
   /** Lissage du crayon, de 0 à 100. */
   pencilSmoothing: number;
+  /** Réglages des pinceaux, par outil (pinceau, gomme, tampon…). */
+  brushes: Partial<Record<ToolId, BrushSettings>>;
+  /** Couleurs de peinture de la Persona Photo : principale et secondaire. */
+  brushColor: string;
+  brushColor2: string;
+  selectionMode: SelectionMode;
+  /** Adoucissement des nouvelles sélections, en pixels du document. */
+  feather: number;
+  /** Baguette magique et pot de peinture : tolérance (0 à 255) et zone contiguë. */
+  tolerance: number;
+  contiguous: boolean;
+  /** Une sélection de pixels est active. */
+  hasPixelSelection: boolean;
+  /** Le pinceau peint dans le masque de ce calque plutôt que dans ses pixels. */
+  maskEditId: string | null;
+  /** Filtre ouvert dans la boîte de dialogue Filtres. */
+  filterKind: import('@poulpe/core').AdjustmentKind | null;
+  /** Modification de sélection demandée (adoucir, agrandir, réduire). */
+  selectionModify: 'feather' | 'grow' | 'shrink' | null;
+  /** Calcul long en cours (gomme magique) : avancement de 0 à 1. */
+  busy: { label: string; progress: number } | null;
   /** Cadre de texte dont on choisit le cadre suivant (après un clic sur son indicateur de débordement). */
   linkFrom: string | null;
   /** Fichier courant : chemin (bureau) ou nom (navigateur). */
@@ -136,6 +193,18 @@ export const ui = new Store<UiState>({
   cropId: null,
   nodeSelection: [],
   pencilSmoothing: 50,
+  brushes: {},
+  brushColor: '#1a1a1d',
+  brushColor2: '#ffffff',
+  selectionMode: 'replace',
+  feather: 0,
+  tolerance: 32,
+  contiguous: true,
+  hasPixelSelection: false,
+  maskEditId: null,
+  filterKind: null,
+  selectionModify: null,
+  busy: null,
   linkFrom: null,
   filePath: null,
   dialog: null,
@@ -171,6 +240,30 @@ export function useEditor(): EditorState {
 
 export function useUi<T>(select: (s: UiState) => T): T {
   return useSyncExternalStore(ui.subscribe, () => select(ui.get()));
+}
+
+const BRUSH_DEFAULTS: Partial<Record<ToolId, BrushSettings>> = {
+  brush: { size: 24, hardness: 80, opacity: 100, flow: 100 },
+  eraser: { size: 40, hardness: 80, opacity: 100, flow: 100 },
+  magicEraser: { size: 36, hardness: 100, opacity: 100, flow: 100 },
+  clone: { size: 40, hardness: 50, opacity: 100, flow: 100 },
+  dodge: { size: 60, hardness: 20, opacity: 50, flow: 40 },
+  burn: { size: 60, hardness: 20, opacity: 50, flow: 40 },
+  blurBrush: { size: 50, hardness: 30, opacity: 100, flow: 50 },
+  sharpenBrush: { size: 50, hardness: 30, opacity: 60, flow: 50 },
+};
+
+/** Réglages du pinceau de l'outil (ceux du pinceau par défaut pour les autres outils). */
+export function brushSettings(tool: ToolId = ui.get().tool): BrushSettings {
+  return ui.get().brushes[tool] ?? BRUSH_DEFAULTS[tool] ?? BRUSH_DEFAULTS.brush!;
+}
+
+export function setBrush(patch: Partial<BrushSettings>, tool: ToolId = ui.get().tool): void {
+  ui.set((s) => ({ brushes: { ...s.brushes, [tool]: { ...brushSettings(tool), ...patch } } }));
+}
+
+export function isBrushTool(tool: ToolId): boolean {
+  return tool in BRUSH_DEFAULTS;
 }
 
 export function setTool(tool: ToolId): void {

@@ -148,7 +148,7 @@ describe('champs et cadres liés', () => {
   });
 });
 
-describe('format v4', () => {
+describe('format v5', () => {
   it('garde pages maîtres, cadres et réglages', () => {
     const doc = book();
     doc.layout = { dpi: 300, bleed: 35, facing: true, margins: { top: 1, bottom: 1, inside: 1, outside: 1 } };
@@ -161,8 +161,11 @@ describe('format v4', () => {
   });
 
   it('ouvre les documents des versions précédentes', () => {
-    const old = { ...createDocument(), version: 3 } as unknown as Record<string, unknown>;
-    expect(migrate(old).version).toBe(FORMAT_VERSION);
+    expect(FORMAT_VERSION).toBe(5);
+    for (const version of [1, 2, 3, 4]) {
+      const old = { ...createDocument(), version } as unknown as Record<string, unknown>;
+      expect(migrate(old).version).toBe(FORMAT_VERSION);
+    }
   });
 
   it('montre la page maître sous la page dans le SVG', () => {

@@ -32,7 +32,7 @@ Cette première partie de la v0.5 donne à Poulpe ce qui fait d'Affinity Publish
 | `apps/editor/src/io.ts`                  | PDF à la taille réelle, fond perdu, traits de coupe, TrimBox et BleedBox, plage de pages.                                                 |
 | `apps/editor/src/components/Dialogs.tsx` | Réglages du document, options PDF, pages et vis-à-vis dans « Nouveau document ».                                                          |
 
-Le format de fichier passe en version 4 (voir [format-poulpe.md](format-poulpe.md)). Tous les nouveaux champs sont facultatifs : les fichiers des versions 1 à 3 s'ouvrent sans changement. Le fil « Retouche photo » prépare aussi une version 4 du format : celle des deux branches qui fusionne en second prendra le numéro 5.
+Le format de fichier passe en version 5 (voir [format-poulpe.md](format-poulpe.md)), juste après la version 4 de la retouche photo. Tous les nouveaux champs sont facultatifs : les fichiers des versions 1 à 4 s'ouvrent sans changement.
 
 ## Choix et écarts
 
@@ -44,5 +44,5 @@ Le format de fichier passe en version 4 (voir [format-poulpe.md](format-poulpe.m
 
 ## Tests
 
-- `packages/core/test/v05.test.ts` : numérotation, rangement en colonne et en doubles pages, déplacement et duplication de pages (liens compris), marges en vis-à-vis, unités, champs, répartition du texte dans trois cadres, chaîne refermée après suppression, format v4 et migration, page maître et fond perdu dans le SVG.
+- `packages/core/test/v05.test.ts` : numérotation, rangement en colonne et en doubles pages, déplacement et duplication de pages (liens compris), marges en vis-à-vis, unités, champs, répartition du texte dans trois cadres, chaîne refermée après suppression, format v5 et migration, page maître et fond perdu dans le SVG.
 - `apps/editor/e2e/layout.spec.ts` : document A4 de plusieurs pages, panneau Pages (dupliquer, ajouter, supprimer, annuler), page maître avec numéro de page et PDF à la taille réelle, texte qui coule d'un cadre à l'autre par l'indicateur de débordement, réglages du document et PDF avec fond perdu et traits de coupe.

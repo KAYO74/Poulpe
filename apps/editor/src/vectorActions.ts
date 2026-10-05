@@ -21,6 +21,7 @@ import {
   type Stroke,
   type StrokeJoin,
   pathToSvg,
+  isStyled,
 } from '@poulpe/core';
 import { t } from './i18n';
 import { editor, toast, ui } from './store';
@@ -33,8 +34,7 @@ import { textToCurves } from './textToCurves';
 
 const sel = () => editor.selection;
 
-const STROKED = (n: SceneNode): n is Exclude<SceneNode, { type: 'group' | 'image' }> =>
-  n.type !== 'group' && n.type !== 'image';
+const STROKED = isStyled;
 
 export function canBoolean(): boolean {
   return topLevelIds(editor.doc, sel()).length >= 2;
@@ -130,9 +130,7 @@ export function canOutlineStroke(): boolean {
   const doc = editor.doc;
   return sel().some((id) => {
     const n = findNode(doc, id)?.node;
-    return (
-      !!n && n.type !== 'group' && n.type !== 'image' && n.type !== 'text' && n.stroke.paint.type !== 'none'
-    );
+    return !!n && isStyled(n) && n.type !== 'text' && n.stroke.paint.type !== 'none';
   });
 }
 
