@@ -1,5 +1,5 @@
 import * as Menu from '@radix-ui/react-dropdown-menu';
-import { FORMAT_PRESETS } from '@poulpe/core';
+import { COLOR_ADJUSTMENTS, FORMAT_PRESETS, LIVE_FILTERS } from '@poulpe/core';
 import { addArtboard } from '../actions';
 import { COMMANDS, formatShortcut, type CommandId } from '../commands';
 import { exportDocument } from '../io';
@@ -70,6 +70,7 @@ export function MenuBar() {
       <Top label={t('menu.file')}>
         <Item id="file.new" />
         <Item id="file.open" />
+        <Item id="file.openPhoto" />
         <Sep />
         <Item id="file.save" />
         <Item id="file.saveAs" />
@@ -100,8 +101,23 @@ export function MenuBar() {
         <Sep />
         <Item id="edit.selectAll" />
         <Item id="edit.deselect" />
+        <Sep />
+        <Item id="edit.clearPixels" />
+        <Item id="edit.contentAwareFill" />
       </Top>
       <Top label={t('menu.layer')}>
+        <Item id="layer.newPixel" />
+        <Item id="layer.copyToLayer" />
+        <Sub label={t('menu.mask')}>
+          <Item id="layer.addMask" />
+          <Item id="layer.editMask" />
+          <Item id="layer.toggleMask" />
+          <Item id="layer.invertMask" />
+          <Item id="layer.removeMask" />
+        </Sub>
+        <Item id="layer.rasterize" />
+        <Item id="layer.mergeVisible" />
+        <Sep />
         <Item id="layer.group" />
         <Item id="layer.ungroup" />
         <Item id="layer.clip" />
@@ -119,6 +135,43 @@ export function MenuBar() {
         <Sep />
         <Item id="layer.lock" />
         <Item id="layer.hide" />
+      </Top>
+      <Top label={t('menu.select')}>
+        <Item id="select.all" />
+        <Item id="select.deselect" />
+        <Item id="select.invert" />
+        <Sep />
+        <Item id="select.feather" />
+        <Item id="select.grow" />
+        <Item id="select.shrink" />
+        <Sep />
+        <Item id="select.fromLayer" />
+      </Top>
+      <Top label={t('menu.adjust')}>
+        {COLOR_ADJUSTMENTS.map((k) => (
+          <Item key={k} id={`adjust.${k}`} />
+        ))}
+        <Sep />
+        <Sub label={t('menu.liveFilters')}>
+          {LIVE_FILTERS.map((k) => (
+            <Item key={k} id={`adjust.${k}`} />
+          ))}
+        </Sub>
+        <Sep />
+        <Item id="adjust.auto" />
+      </Top>
+      <Top label={t('menu.filters')}>
+        {LIVE_FILTERS.map((k) => (
+          <Item key={k} id={`filter.${k}`} />
+        ))}
+        <Sep />
+        <Sub label={t('menu.adjust')}>
+          {COLOR_ADJUSTMENTS.map((k) => (
+            <Item key={k} id={`filter.${k}`} />
+          ))}
+        </Sub>
+        <Sep />
+        <Item id="edit.contentAwareFill" />
       </Top>
       <Top label={t('menu.text')}>
         <Item id="text.onPath" />
@@ -179,6 +232,7 @@ export function MenuBar() {
       </Top>
       <Top label={t('menu.view')}>
         <Item id="persona.draw" checked={persona === 'draw'} />
+        <Item id="persona.photo" checked={persona === 'photo'} />
         <Item id="persona.layout" checked={persona === 'layout'} />
         <Sep />
         <Item id="view.zoomIn" />

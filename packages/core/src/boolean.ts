@@ -3,7 +3,7 @@ import { PaperOffset } from 'paperjs-offset';
 import { pathToSvg, type PathCommand } from './geometry';
 import { exactBounds } from './bezier';
 import { parseSvgPath } from './path';
-import { findNode, topLevelIds, walkDocument } from './tree';
+import { findNode, isStyled, topLevelIds, walkDocument } from './tree';
 import type { Parent, PathNode, PoulpeDocument, SceneNode, StrokeJoin } from './types';
 import { createPath } from './factory';
 import { cloneData, worldOutline } from './vector';
@@ -109,7 +109,7 @@ function firstStyled(n: SceneNode): Extract<SceneNode, { fill: unknown }> | null
     }
     return null;
   }
-  return n.type === 'image' ? null : n;
+  return isStyled(n) ? n : null;
 }
 
 /**
@@ -202,7 +202,7 @@ export function applyOffset(
 export function applyOutlineStroke(doc: PoulpeDocument, id: string, name: string): string | null {
   const loc = findNode(doc, id);
   const n = loc?.node;
-  if (!loc || !n || n.type === 'group' || n.type === 'text' || n.type === 'image') return null;
+  if (!loc || !n || !isStyled(n) || n.type === 'text') return null;
   if (n.stroke.paint.type === 'none' || n.stroke.width <= 0) return null;
   const outline = worldOutline(n);
   if (!outline?.length) return null;

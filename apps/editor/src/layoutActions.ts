@@ -20,18 +20,14 @@ import { cachedFlow } from '@poulpe/render';
 import { insertEditedText, isEditingText } from './canvas/textEdit';
 import { getController } from './components/Viewport';
 import { t } from './i18n';
-import { editor, setTool, toast, ui, type Persona } from './store';
+import { editor, toast, ui } from './store';
 
 /*
  * Actions de la Persona Mise en page : pages, pages maîtres, champs, cadres de texte liés et
  * réglages du document. Chacune passe par `editor.apply`, donc s'annule.
  */
 
-export function setPersona(persona: Persona): void {
-  if (ui.get().persona === persona) return;
-  ui.set({ persona, linkFrom: null });
-  setTool('select');
-}
+export { setPersona } from './photo/persona';
 
 /** Affiche une page (ou une page maître) en entier et en fait la page active. */
 export function goToPage(id: string): void {

@@ -1,18 +1,23 @@
 import { useEffect, useRef, useState } from 'react';
 import {
   FORMAT_PRESETS,
+  defaultAdjustment,
   documentDpi,
   findFormat,
   mmToPx,
   printablePages,
   pxToMm,
+  type Adjustment,
   type FormatCategory,
 } from '@poulpe/core';
 import { TEMPLATES } from '@poulpe/library';
 import { COMMANDS, TOOL_KEYS, formatShortcut } from '../commands';
 import { discardDraft, getPendingDraft, restoreDraft } from '../drafts';
 import { getLang, useT } from '../i18n';
-import { exportDocument, newDocument, openDocument, type ExportOptions } from '../io';
+import { exportDocument, newDocument, openDocument, openPhoto, type ExportOptions } from '../io';
+import { AdjustmentFields } from '../panels/AdjustmentPanel';
+import { applyFilter, previewFilter } from '../photo/photoActions';
+import { modifySelection } from '../photo/selection';
 import { newFromTemplate, resizeDesign } from '../libraryActions';
 import { TemplateCard } from '../panels/Library';
 import { offsetPath } from '../vectorActions';
@@ -110,6 +115,10 @@ function NewDialog() {
             </button>
           ))}
           <span className="spacer" />
+          <button onClick={() => void openPhoto()} data-testid="welcome-open-photo">
+            <Icon name="photo" />
+            {t('new.openPhoto')}
+          </button>
           <button onClick={() => void openDocument()}>
             <Icon name="folder" />
             {t('new.open')}
@@ -697,6 +706,87 @@ function DocumentDialog() {
   );
 }
 
+/** Filtre appliqué aux pixels du calque choisi, avec aperçu en direct. */
+function FilterDialog() {
+  const t = useT();
+  const kind = useUi((s) => s.filterKind);
+  const [adj, setAdj] = useState<Adjustment>(() => defaultAdjustment(kind ?? 'gaussianBlur'));
+  const [preview, setPreview] = useState(true);
+  useEffect(() => {
+    const id = setTimeout(() => previewFilter(preview ? adj : null), 120);
+    return () => clearTimeout(id);
+  }, [adj, preview]);
+  useEffect(() => () => previewFilter(null), []);
+  if (!kind) return null;
+  const cancel = () => {
+    previewFilter(null);
+    close();
+  };
+  return (
+    <Modal title={t(`adjust.${kind}`)} onClose={cancel}>
+      <p className="note">{t('filter.hint')}</p>
+      <AdjustmentFields adj={adj} onChange={setAdj} />
+      <footer>
+        <label className="check">
+          <input type="checkbox" checked={preview} onChange={(e) => setPreview(e.target.checked)} />
+          {t('filter.preview')}
+        </label>
+        <span className="spacer" />
+        <button className="btn" onClick={cancel}>
+          {t('new.cancel')}
+        </button>
+        <button
+          className="btn primary"
+          data-testid="filter-apply"
+          onClick={() => {
+            close();
+            applyFilter(adj);
+          }}
+        >
+          {t('filter.apply')}
+        </button>
+      </footer>
+    </Modal>
+  );
+}
+
+/** Adoucir, agrandir ou réduire la sélection de pixels. */
+function SelectionModifyDialog() {
+  const t = useT();
+  const kind = useUi((s) => s.selectionModify) ?? 'feather';
+  const [radius, setRadius] = useState(kind === 'feather' ? 10 : 5);
+  return (
+    <Modal title={t(`selmod.${kind}`)} onClose={close}>
+      <div className="picker-row">
+        <NumberField
+          label={t('selmod.radius')}
+          value={radius}
+          min={0}
+          max={500}
+          decimals={1}
+          unit="px"
+          width={130}
+          onChange={setRadius}
+        />
+      </div>
+      <footer>
+        <button className="btn" onClick={close}>
+          {t('new.cancel')}
+        </button>
+        <button
+          className="btn primary"
+          onClick={() => {
+            close();
+            modifySelection(kind, radius);
+          }}
+        >
+          OK
+        </button>
+      </footer>
+    </Modal>
+  );
+}
+
 function AboutDialog() {
   const t = useT();
   return (
@@ -739,5 +829,7 @@ export function Dialogs() {
   if (dialog === 'resize') return <ResizeDialog />;
   if (dialog === 'offset') return <OffsetDialog />;
   if (dialog === 'document') return <DocumentDialog />;
+  if (dialog === 'filter') return <FilterDialog />;
+  if (dialog === 'selectionModify') return <SelectionModifyDialog />;
   return null;
 }

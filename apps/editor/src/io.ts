@@ -8,6 +8,7 @@ import {
   pxToPt,
   activeEffects,
   artboardToSvg,
+  bytesToDataUrl,
   effectMargin,
   nodeBounds,
   type SceneNode,
@@ -17,7 +18,14 @@ import {
   type Artboard,
   type PoulpeDocument,
 } from '@poulpe/core';
-import { ImageCache, drawNode, measureText, rasterizeArtboard } from '@poulpe/render';
+import {
+  ImageCache,
+  drawChildren,
+  drawNode,
+  materialize,
+  measureText,
+  rasterizeArtboard,
+} from '@poulpe/render';
 import { placeImage } from './actions';
 import { t } from './i18n';
 import { editor, toast, ui } from './store';
@@ -183,16 +191,18 @@ async function thumbnail(doc: PoulpeDocument): Promise<Uint8Array | undefined> {
 }
 
 export async function saveDocument(saveAs = false): Promise<void> {
-  const doc = editor.doc;
+  const live = editor.doc;
+  const doc = await materialize(live);
   const bytes = encodePoulpe(doc, {
-    thumbnail: await thumbnail(doc),
+    thumbnail: await thumbnail(live),
     generator: `Poulpe ${__APP_VERSION__}`,
   });
   // Dans le navigateur, on ne peut pas réécrire le fichier ouvert : chaque enregistrement redemande où l'écrire.
   const existing = !saveAs && isDesktop() ? ui.get().filePath : null;
   const path = await saveBytes(bytes, 'poulpe', doc.name, existing);
   if (!path) return;
-  editor.markSaved();
+  // Marque enregistré le document tel qu'il était au moment de l'enregistrement.
+  if (editor.doc === live) editor.markSaved();
   ui.set({ filePath: path });
   toast(t('file.saved'));
 }
@@ -211,6 +221,33 @@ export async function importImage(): Promise<void> {
   const mime =
     ext === 'jpg' || ext === 'jpeg' ? 'image/jpeg' : ext === 'svg' ? 'image/svg+xml' : `image/${ext}`;
   await placeImageBytes(file.bytes, mime);
+}
+
+/** Ouvre une photo dans un nouveau document à sa taille, en Persona Photo (comme Affinity Photo). */
+export async function openPhoto(): Promise<void> {
+  if (!confirmDiscard()) return;
+  const file = await pickFile(
+    ['png', 'jpg', 'jpeg', 'webp', 'gif'],
+    'image/png,image/jpeg,image/webp,image/gif',
+  );
+  if (!file) return;
+  const ext = file.name.split('.').pop()!.toLowerCase();
+  const mime = ext === 'jpg' || ext === 'jpeg' ? 'image/jpeg' : `image/${ext}`;
+  await openPhotoBytes(file.bytes, mime, baseName(file.name));
+}
+
+export async function openPhotoBytes(bytes: Uint8Array, mime: string, name: string): Promise<void> {
+  const data = bytesToDataUrl(bytes, mime);
+  const img = new Image();
+  img.src = data;
+  try {
+    await img.decode();
+  } catch {
+    window.alert(t('file.imageError'));
+    return;
+  }
+  const { openPhotoDocument } = await import('./photo/photoActions');
+  openPhotoDocument(data, mime, img.naturalWidth || 512, img.naturalHeight || 512, name);
 }
 
 export async function placeImageBytes(
@@ -266,17 +303,77 @@ export function parsePageRange(range: string, count: number): number[] {
   return [...out].sort((x, y) => x - y);
 }
 
+/** Image PNG (balise SVG) d'une zone du document rendue sur un canevas. */
+function rasterImage(
+  box: { x: number; y: number; width: number; height: number },
+  scale: number,
+  draw: (ctx: CanvasRenderingContext2D) => void,
+): string {
+  const canvas = document.createElement('canvas');
+  canvas.width = Math.max(1, Math.ceil(box.width * scale));
+  canvas.height = Math.max(1, Math.ceil(box.height * scale));
+  const ctx = canvas.getContext('2d')!;
+  ctx.scale(scale, scale);
+  ctx.translate(-box.x, -box.y);
+  draw(ctx);
+  return `<image x="${box.x}" y="${box.y}" width="${box.width}" height="${box.height}" preserveAspectRatio="none" href="${canvas.toDataURL('image/png')}"/>`;
+}
+
+/** Pixels de l'image par pixel du document, au plus fin parmi les images des objets. */
+function imageDensity(doc: PoulpeDocument, nodes: SceneNode[]): number {
+  let d = 1;
+  const visit = (n: SceneNode) => {
+    if (n.type === 'group') n.children.forEach(visit);
+    else if (n.type === 'image') {
+      const a = doc.assets[n.assetId];
+      if (a) d = Math.max(d, (a.width * (n.crop?.width ?? 1)) / Math.max(1, n.width));
+    }
+  };
+  nodes.forEach(visit);
+  return d;
+}
+
 /**
- * Le PDF ne sait pas lire les filtres SVG : les objets qui ont des effets y sont mis en image
- * (2 pixels par point), effets compris.
+ * Ce que le SVG ou le PDF ne savent pas décrire est mis en image :
+ * - les calques de réglage, avec tout ce qu'ils modifient (les calques du dessous dans leur parent) ;
+ * - pour le PDF (`pdf`), les objets qui ont des effets ou un masque.
  */
-async function rasterizedEffects(doc: PoulpeDocument, ab: Artboard): Promise<Map<string, string>> {
+async function rasterizedParts(
+  doc: PoulpeDocument,
+  ab: Artboard,
+  pdf: boolean,
+): Promise<Map<string, string>> {
   const out = new Map<string, string>();
+  const visitChildren = async (
+    nodes: SceneNode[],
+    frame: { x: number; y: number; width: number; height: number },
+  ) => {
+    let last = -1;
+    nodes.forEach((n, i) => {
+      if (n.type === 'adjustment' && n.visible) last = i;
+    });
+    if (last >= 0) {
+      const part = nodes.slice(0, last + 1);
+      const host = part.find((n) => n.visible);
+      if (host) {
+        const scale = Math.min(
+          4096 / Math.max(frame.width, frame.height, 1),
+          Math.max(2, imageDensity(doc, part)),
+        );
+        out.set(
+          host.id,
+          rasterImage(frame, scale, (ctx) => drawChildren(ctx, doc, part, { images: exportImages }, frame)),
+        );
+        for (const n of part) if (n !== host) out.set(n.id, '');
+      }
+    }
+    for (const n of nodes.slice(last + 1)) await visit(n);
+  };
   const visit = async (n: SceneNode) => {
     if (!n.visible) return;
     const fx = activeEffects(n);
-    if (!fx.length) {
-      if (n.type === 'group') for (const c of n.children) await visit(c);
+    if (!pdf || (!fx.length && !n.mask?.enabled)) {
+      if (n.type === 'group') await visitChildren(n.children, nodeBounds(n));
       return;
     }
     const m = effectMargin(fx) + 2;
@@ -298,8 +395,17 @@ async function rasterizedEffects(doc: PoulpeDocument, ab: Artboard): Promise<Map
       `<image x="${x}" y="${y}" width="${w}" height="${h}" preserveAspectRatio="none" href="${canvas.toDataURL('image/png')}"/>`,
     );
   };
-  for (const n of ab.children) await visit(n);
-  for (const n of masterOf(doc, ab)?.children ?? []) await visit(n);
+  await exportImages.ready(doc);
+  await visitChildren(ab.children, { x: ab.x, y: ab.y, width: ab.width, height: ab.height });
+  // Les objets de la page maître restent à leur place sur la page maître (le SVG les décale).
+  const master = masterOf(doc, ab);
+  if (master)
+    await visitChildren(master.children, {
+      x: master.x,
+      y: master.y,
+      width: master.width,
+      height: master.height,
+    });
   return out;
 }
 
@@ -326,6 +432,7 @@ async function svgToPdf(
   const pdf = new jsPDF({ unit: 'pt', format: size(first), orientation: orientation(first) });
   const { embedFonts } = await import('./pdfFonts');
   const missingFonts = await embedFonts(pdf, doc, artboards);
+  const mat = await materialize(doc);
   const host = document.createElement('div');
   host.style.cssText = 'position:fixed;left:-99999px;top:0';
   document.body.appendChild(host);
@@ -334,8 +441,8 @@ async function svgToPdf(
       const ab = artboards[i];
       if (i > 0) pdf.addPage(size(ab), orientation(ab));
       await exportImages.ready(doc);
-      const fx = await rasterizedEffects(doc, ab);
-      host.innerHTML = artboardToSvg(doc, ab, {
+      const fx = await rasterizedParts(doc, ab, true);
+      host.innerHTML = artboardToSvg(mat, ab, {
         measureText,
         bleed: bleedPx,
         override: (n) => fx.get(n.id) ?? null,
@@ -411,8 +518,13 @@ export async function exportDocument(opts: ExportOptions): Promise<void> {
     const name = artboards.length > 1 || doc.artboards.length > 1 ? `${doc.name} - ${ab.name}` : doc.name;
     let bytes: Uint8Array;
     if (opts.kind === 'svg') {
+      const parts = await rasterizedParts(doc, ab, false);
       bytes = new TextEncoder().encode(
-        artboardToSvg(doc, ab, { measureText, background: !opts.transparent }),
+        artboardToSvg(await materialize(doc), ab, {
+          measureText,
+          background: !opts.transparent,
+          override: (n) => parts.get(n.id) ?? null,
+        }),
       );
     } else {
       const blob = await rasterizeArtboard(doc, ab, exportImages, {

@@ -1,4 +1,4 @@
-import { FORMAT_PRESETS, findArtboard, findNode, localToWorld, type SceneNode } from '@poulpe/core';
+import { FORMAT_PRESETS, findArtboard, findNode, isStyled, localToWorld, type SceneNode } from '@poulpe/core';
 import { setPaint, setTextStyle, updateArtboard, updateSelected } from '../actions';
 import { useFonts } from '../fonts';
 import { useT } from '../i18n';
@@ -7,6 +7,8 @@ import { getController } from './Viewport';
 import { convertToCurves, removeTextFromPath, setTextPathOffset } from '../vectorActions';
 import { canLinkSelection, linkSelection, toggleFrame } from '../layoutActions';
 import { NumberField, Select, paintPreview } from './fields';
+import { PhotoContext } from './PhotoContext';
+import { isPhotoTool } from '../photo/photoTools';
 
 const SHAPES: ToolId[] = ['rect', 'ellipse', 'polygon', 'star', 'line'];
 
@@ -14,15 +16,13 @@ function PaintSwatches({ node }: { node: SceneNode | null }) {
   const t = useT();
   const defaults = useUi((s) => s.defaults);
   const target = useUi((s) => s.colorTarget);
-  const fill = node && node.type !== 'group' && node.type !== 'image' ? node.fill : defaults.fill;
-  const stroke = node && node.type !== 'group' && node.type !== 'image' ? node.stroke : defaults.stroke;
+  const fill = node && isStyled(node) ? node.fill : defaults.fill;
+  const stroke = node && isStyled(node) ? node.stroke : defaults.stroke;
   const setWidth = (w: number) => {
     if (node)
-      updateSelected(
-        'history.style',
-        (n) => void (n.type !== 'group' && n.type !== 'image' && (n.stroke = { ...n.stroke, width: w })),
-        { deep: true },
-      );
+      updateSelected('history.style', (n) => void (isStyled(n) && (n.stroke = { ...n.stroke, width: w })), {
+        deep: true,
+      });
     else ui.set({ defaults: { ...defaults, stroke: { ...defaults.stroke, width: w } } });
   };
   return (
@@ -72,7 +72,9 @@ export function ContextBar() {
   const toolName = t(`tool.${tool}`);
   let content: React.ReactNode;
 
-  if (tool === 'pen' || tool === 'pencil') {
+  if (isPhotoTool(tool)) {
+    content = <PhotoContext tool={tool} />;
+  } else if (tool === 'pen' || tool === 'pencil') {
     content = (
       <>
         <PaintSwatches node={null} />

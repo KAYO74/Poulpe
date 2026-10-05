@@ -1,5 +1,5 @@
 /**
- * Modèle de document Poulpe (format `.poulpe`, version 4).
+ * Modèle de document Poulpe (format `.poulpe`, version 5).
  *
  * Toutes les coordonnées sont en pixels, dans l'espace du document (« monde ») :
  * les objets d'un plan de travail ne sont pas relatifs à ce plan de travail.
@@ -106,6 +106,17 @@ interface NodeBase {
   locked: boolean;
   /** Effets de calque (au plus un de chaque type). */
   effects?: Effect[];
+  /** Masque de calque : ce qui est opaque dans le masque reste visible, le reste est caché. */
+  mask?: LayerMask;
+}
+
+/**
+ * Masque de calque : une image dont seule l'opacité compte (opaque = visible, transparent =
+ * caché), étirée sur la boîte de l'objet comme une image.
+ */
+export interface LayerMask {
+  assetId: string;
+  enabled: boolean;
 }
 
 interface Styled {
@@ -248,8 +259,61 @@ export interface GroupNode extends NodeBase {
   clip: boolean;
 }
 
+/** Réglage d'image (couleurs, tons) ou filtre dynamique (flou, netteté…), non destructif. */
+export type Adjustment =
+  | { kind: 'brightnessContrast'; brightness: number; contrast: number }
+  /** Niveaux d'entrée et de sortie de 0 à 255, gamma de 0,1 à 10. */
+  | { kind: 'levels'; black: number; white: number; gamma: number; outBlack: number; outWhite: number }
+  /** Courbes : points (entrée, sortie) de 0 à 1, pour l'ensemble et pour chaque canal. */
+  | {
+      kind: 'curves';
+      rgb: [number, number][];
+      r: [number, number][];
+      g: [number, number][];
+      b: [number, number][];
+    }
+  /** Teinte en degrés (−180 à 180), saturation et luminosité de −100 à 100. */
+  | { kind: 'hsl'; hue: number; saturation: number; lightness: number }
+  | { kind: 'vibrance'; vibrance: number; saturation: number }
+  /** Exposition en IL (−5 à 5). */
+  | { kind: 'exposure'; exposure: number; offset: number; gamma: number }
+  | { kind: 'whiteBalance'; temperature: number; tint: number }
+  /** Balance des couleurs : [cyan↔rouge, magenta↔vert, jaune↔bleu] de −100 à 100 par plage de tons. */
+  | {
+      kind: 'colorBalance';
+      shadows: [number, number, number];
+      midtones: [number, number, number];
+      highlights: [number, number, number];
+    }
+  /** Noir et blanc : part de chaque canal, en pourcentage. */
+  | { kind: 'blackWhite'; red: number; green: number; blue: number }
+  | { kind: 'photoFilter'; color: Color; density: number }
+  | { kind: 'gradientMap'; stops: GradientStop[] }
+  | { kind: 'invert' }
+  | { kind: 'threshold'; level: number }
+  | { kind: 'posterize'; levels: number }
+  // Filtres dynamiques (rayons en pixels du document).
+  | { kind: 'gaussianBlur'; radius: number }
+  | { kind: 'unsharpMask'; amount: number; radius: number; threshold: number }
+  | { kind: 'noise'; amount: number; monochrome: boolean }
+  | { kind: 'vignette'; amount: number; size: number; softness: number }
+  | { kind: 'pixelate'; size: number }
+  | { kind: 'clarity'; amount: number };
+export type AdjustmentKind = Adjustment['kind'];
+
+/**
+ * Calque de réglage : agit sur tout ce qui est dessous dans le même parent (plan de travail ou
+ * groupe). Sa boîte sert de repère à son masque.
+ */
+export interface AdjustmentNode extends NodeBase {
+  type: 'adjustment';
+  adjustment: Adjustment;
+}
+
 export type ShapeNode = RectNode | EllipseNode | PolygonNode | StarNode | LineNode | PathNode;
-export type SceneNode = ShapeNode | TextNode | ImageNode | GroupNode;
+export type SceneNode = ShapeNode | TextNode | ImageNode | GroupNode | AdjustmentNode;
+/** Objets qui ont un remplissage et un contour. */
+export type StyledNode = ShapeNode | TextNode;
 export type NodeType = SceneNode['type'];
 
 export interface Artboard {

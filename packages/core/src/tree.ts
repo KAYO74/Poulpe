@@ -1,7 +1,7 @@
 import { current, isDraft } from 'immer';
 import { boxCenter, boxContains, nodeBounds, rotatePoint, unionBoxes, type Box, type Vec } from './geometry';
 import { newId } from './ids';
-import type { Artboard, GroupNode, Parent, PoulpeDocument, SceneNode, TextNode } from './types';
+import type { Artboard, GroupNode, Parent, PoulpeDocument, SceneNode, StyledNode, TextNode } from './types';
 
 /** Multiplie les tailles de police d'un texte, plages comprises. */
 export function scaleTextSize(node: TextNode, k: number): void {
@@ -22,6 +22,11 @@ export interface NodeLocation {
   parent: Parent;
   index: number;
   artboard: Artboard;
+}
+
+/** L'objet a-t-il un remplissage et un contour (formes, tracés, textes) ? */
+export function isStyled(n: SceneNode): n is StyledNode {
+  return n.type !== 'group' && n.type !== 'image' && n.type !== 'adjustment';
 }
 
 export function isGroup(n: SceneNode | Parent): n is GroupNode {

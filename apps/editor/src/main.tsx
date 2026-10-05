@@ -1,13 +1,16 @@
 import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
 import { App } from './App';
+import { getController } from './components/Viewport';
 import { startDrafts } from './drafts';
 import { loadSystemFonts } from './fonts';
 import { getLang } from './i18n';
-import { isDesktop, openPath } from './io';
+import { isDesktop, openPath, openPhotoBytes } from './io';
 import * as library from './libraryActions';
 import * as vector from './vectorActions';
 import * as layout from './layoutActions';
+import * as photo from './photo/photoActions';
+import * as pixelSelection from './photo/selection';
 import { normalizeTexts } from './normalize';
 import { editor, ui } from './store';
 import './styles.css';
@@ -40,4 +43,12 @@ if (isDesktop()) {
 }
 
 // Accès pour les tests de bout en bout.
-(window as unknown as { poulpe: unknown }).poulpe = { editor, ui, library, vector, layout };
+(window as unknown as { poulpe: unknown }).poulpe = {
+  editor,
+  ui,
+  library,
+  vector,
+  layout,
+  controller: getController,
+  photo: { ...photo, ...pixelSelection, openPhotoBytes },
+};

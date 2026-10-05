@@ -1,4 +1,4 @@
-import { ARROW_HEADS, findNode, type ArrowHead, type Stroke } from '@poulpe/core';
+import { ARROW_HEADS, findNode, isStyled, type ArrowHead, type Stroke } from '@poulpe/core';
 import { updateSelected } from '../actions';
 import { NumberField, Select, paintPreview } from '../components/fields';
 import { useT } from '../i18n';
@@ -19,7 +19,7 @@ export function StrokePanel() {
   const { doc, selection } = useEditor();
   const defaults = useUi((s) => s.defaults);
   const node = selection.length ? findNode(doc, selection[0])?.node : null;
-  const stroke = node && node.type !== 'group' && node.type !== 'image' ? node.stroke : defaults.stroke;
+  const stroke = node && isStyled(node) ? node.stroke : defaults.stroke;
   const preset = DASHES.find((d) => JSON.stringify(d.dash) === JSON.stringify(stroke.dash))?.id ?? 'custom';
   const dash = stroke.dash ?? [3, 2];
   return (
@@ -45,8 +45,7 @@ export function StrokePanel() {
             node
               ? updateSelected(
                   'history.style',
-                  (n) =>
-                    void (n.type !== 'group' && n.type !== 'image' && (n.stroke = { ...n.stroke, width: w })),
+                  (n) => void (isStyled(n) && (n.stroke = { ...n.stroke, width: w })),
                   { deep: true },
                 )
               : ui.set({ defaults: { ...defaults, stroke: { ...defaults.stroke, width: w } } })

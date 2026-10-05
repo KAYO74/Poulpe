@@ -28,6 +28,7 @@ import {
   type SceneNode,
   type TextStyle,
   type ZOrder,
+  isStyled,
 } from '@poulpe/core';
 import { t } from './i18n';
 import { applyEditingStyle, endTextEdit, isEditingText } from './canvas/textEdit';
@@ -84,6 +85,7 @@ export function copySelection(): void {
   const assets: PoulpeDocument['assets'] = {};
   const collect = (n: SceneNode) => {
     if (n.type === 'image' && doc.assets[n.assetId]) assets[n.assetId] = doc.assets[n.assetId];
+    if (n.mask && doc.assets[n.mask.assetId]) assets[n.mask.assetId] = doc.assets[n.mask.assetId];
     if (n.type === 'group') n.children.forEach(collect);
   };
   nodes.forEach(collect);
@@ -255,7 +257,7 @@ export function setPaint(target: 'fill' | 'stroke', paint: Paint, gesture = fals
     for (const id of ids) {
       const visit = (m: SceneNode) => {
         if (m.type === 'group') return m.children.forEach(visit);
-        if (m.type === 'image') return;
+        if (!isStyled(m)) return;
         if (target === 'fill') {
           m.fill = paint;
           if (m.type === 'text' && m.runs) m.runs = clearRunKeys(m.runs, ['color'], m.style, m.text.length);
