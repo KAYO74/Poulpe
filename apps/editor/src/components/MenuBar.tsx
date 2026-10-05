@@ -18,6 +18,8 @@ import { exportDocument } from '../io';
 import { getLang, setLang, useT } from '../i18n';
 import { setSettings, useEditor, useUi } from '../store';
 import { Icon } from './Icon';
+import { WorkspaceItems } from './WorkspaceMenu';
+import { useActiveWorkspace } from '../workspaces';
 
 function Item({ id, checked }: { id: CommandId | (string & {}); checked?: boolean }) {
   useT();
@@ -97,6 +99,7 @@ export function MenuBar() {
   const t = useT();
   const settings = useUi((s) => s.settings);
   const persona = useUi((s) => s.persona);
+  const custom = useActiveWorkspace();
   const softProof = useUi((s) => s.softProof);
   const { activeArtboardId } = useEditor();
   const quickExport = (kind: 'png' | 'jpeg' | 'svg' | 'pdf') =>
@@ -293,9 +296,12 @@ export function MenuBar() {
         <Item id="document.setup" />
       </Top>
       <Top label={t('menu.view')}>
-        <Item id="persona.draw" checked={persona === 'draw'} />
-        <Item id="persona.photo" checked={persona === 'photo'} />
-        <Item id="persona.layout" checked={persona === 'layout'} />
+        <Item id="persona.draw" checked={!custom && persona === 'draw'} />
+        <Item id="persona.photo" checked={!custom && persona === 'photo'} />
+        <Item id="persona.layout" checked={!custom && persona === 'layout'} />
+        <Sub label={t('workspace.menu')}>
+          <WorkspaceItems />
+        </Sub>
         <Sep />
         <Item id="view.zoomIn" />
         <Item id="view.zoomOut" />
@@ -333,6 +339,7 @@ export function MenuBar() {
             </Menu.Item>
           ))}
         </Sub>
+        <Item id="view.resetPanels" />
         <Sub label={t('view.language')}>
           {(['fr', 'en'] as const).map((l) => (
             <Menu.Item key={l} className="menu-item" onSelect={() => setLang(l)}>
