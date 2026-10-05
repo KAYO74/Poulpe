@@ -34,13 +34,7 @@
     "longDescription": "Poulpe est une application libre de création graphique : dessin vectoriel, retouche photo et mise en page, avec vectorisation d'images, détourage automatique, macros et extensions.",
     "copyright": "Contributeurs de Poulpe, MPL-2.0",
     "license": "MPL-2.0",
-    "icon": [
-      "icons/32x32.png",
-      "icons/128x128.png",
-      "icons/128x128@2x.png",
-      "icons/icon.icns",
-      "icons/icon.ico"
-    ],
+    "icon": ["icons/32x32.png", "icons/128x128.png", "icons/128x128@2x.png", "icons/icon.icns", "icons/icon.ico"],
     "fileAssociations": [
       {
         "ext": ["poulpe"],
@@ -51,9 +45,7 @@
       }
     ],
     "linux": {
-      "deb": {
-        "section": "graphics"
-      }
+      "deb": { "section": "graphics" }
     }
   },
   "plugins": {
