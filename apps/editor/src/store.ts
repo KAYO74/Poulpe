@@ -13,6 +13,8 @@ export type ToolId =
   | 'select'
   | 'direct'
   | 'artboard'
+  | 'pen'
+  | 'pencil'
   | 'rect'
   | 'ellipse'
   | 'polygon'
@@ -26,7 +28,7 @@ export type ToolId =
 
 export type Side = 'left' | 'right';
 export type Theme = 'dark' | 'light';
-export type Dialog = null | 'new' | 'export' | 'shortcuts' | 'about' | 'draft' | 'resize';
+export type Dialog = null | 'new' | 'export' | 'shortcuts' | 'about' | 'draft' | 'resize' | 'offset';
 
 export interface Settings {
   theme: Theme;
@@ -60,6 +62,10 @@ export interface UiState {
   editingTextId: string | null;
   /** Image en cours de recadrage. */
   cropId: string | null;
+  /** Nœuds sélectionnés (« sous-tracé:nœud ») du tracé édité avec l'outil Nœud. */
+  nodeSelection: string[];
+  /** Lissage du crayon, de 0 à 100. */
+  pencilSmoothing: number;
   /** Fichier courant : chemin (bureau) ou nom (navigateur). */
   filePath: string | null;
   dialog: Dialog;
@@ -120,6 +126,8 @@ export const ui = new Store<UiState>({
   recentColors: [],
   editingTextId: null,
   cropId: null,
+  nodeSelection: [],
+  pencilSmoothing: 50,
   filePath: null,
   dialog: null,
   toast: null,
@@ -157,7 +165,8 @@ export function useUi<T>(select: (s: UiState) => T): T {
 }
 
 export function setTool(tool: ToolId): void {
-  ui.set({ tool, editingTextId: null, cropId: null });
+  if (ui.get().tool !== tool) window.dispatchEvent(new Event('poulpe:toolchange'));
+  ui.set({ tool, editingTextId: null, cropId: null, nodeSelection: [] });
 }
 
 /** Redessine le composant quand la sélection dans le texte édité change. */

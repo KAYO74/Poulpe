@@ -1,0 +1,194 @@
+import { expect, test, type Page } from '@playwright/test';
+
+/* Vectoriel pro (v0.3) : plume, nœuds, crayon, géométrie, contours, effets, texte sur tracé, import SVG. */
+
+type AnyNode = Record<string, any>;
+
+const nodes = (page: Page): Promise<AnyNode[]> =>
+  page.evaluate(() => (window as any).poulpe.editor.doc.artboards[0].children);
+const history = (page: Page): Promise<string[]> =>
+  page.evaluate(() => (window as any).poulpe.editor.getState().history);
+
+async function canvas(page: Page) {
+  const box = (await page.getByTestId('canvas').boundingBox())!;
+  const at = (x: number, y: number): [number, number] => [box.x + x, box.y + y];
+  const drag = async (a: [number, number], b: [number, number], steps = 8) => {
+    await page.mouse.move(...at(...a));
+    await page.mouse.down();
+    await page.mouse.move(...at(...b), { steps });
+    await page.mouse.up();
+  };
+  return { at, drag };
+}
+
+test.beforeEach(async ({ page }) => {
+  await page.addInitScript(() => {
+    if (!localStorage.getItem('poulpe.settings'))
+      localStorage.setItem('poulpe.settings', JSON.stringify({ showWelcome: false }));
+  });
+  await page.goto('/');
+  await expect(page.getByTestId('canvas')).toBeVisible();
+});
+
+test('dessine un tracé fermé à la plume', async ({ page }) => {
+  const { at, drag } = await canvas(page);
+  await page.keyboard.press('p');
+  await page.mouse.click(...at(400, 200));
+  // Glisser pose un nœud lisse.
+  await drag([550, 250], [600, 330]);
+  await page.mouse.click(...at(420, 400));
+  // Clic sur le premier nœud : le tracé se ferme et prend le remplissage.
+  await page.mouse.click(...at(400, 200));
+  const [p] = await nodes(page);
+  expect(p.type).toBe('path');
+  expect(p.d).toMatch(/C/);
+  expect(p.d).toMatch(/Z$/);
+  expect(p.fill.type).toBe('solid');
+  expect(await history(page)).toEqual(['history.open', 'history.pen']);
+});
+
+test('termine un tracé ouvert avec Entrée et modifie ses nœuds', async ({ page }) => {
+  const { at, drag } = await canvas(page);
+  await page.keyboard.press('p');
+  await page.mouse.click(...at(300, 300));
+  await page.mouse.click(...at(500, 300));
+  await page.mouse.click(...at(500, 450));
+  await page.keyboard.press('Enter');
+  let [p] = await nodes(page);
+  expect(p.fill.type).toBe('none');
+  expect(p.d.match(/L/g)).toHaveLength(2);
+
+  // Outil Nœud : clic sur un segment, un nœud s'ajoute.
+  await page.keyboard.press('a');
+  await page.mouse.click(...at(400, 300));
+  [p] = await nodes(page);
+  expect(p.d.match(/L/g)).toHaveLength(3);
+  // On le supprime avec la touche Suppr.
+  await page.keyboard.press('Delete');
+  [p] = await nodes(page);
+  expect(p.d.match(/L/g)).toHaveLength(2);
+
+  // Glisser un nœud le déplace.
+  await drag([500, 450], [520, 500]);
+  const before = p;
+  [p] = await nodes(page);
+  expect(p.y + p.height).toBeGreaterThan(before.y + before.height + 10);
+  const h = await history(page);
+  expect(h.at(-1)).toBe('history.nodes');
+
+  // Double-clic sur un nœud : il devient lisse (avec des poignées).
+  await page.mouse.dblclick(...at(500, 300));
+  [p] = await nodes(page);
+  expect(p.d).toMatch(/C/);
+});
+
+test('dessine au crayon', async ({ page }) => {
+  const { at } = await canvas(page);
+  await page.keyboard.press('n');
+  await page.mouse.move(...at(300, 300));
+  await page.mouse.down();
+  for (let i = 0; i <= 30; i++) await page.mouse.move(...at(300 + i * 10, 300 + Math.sin(i / 4) * 60));
+  await page.mouse.up();
+  const [p] = await nodes(page);
+  expect(p.type).toBe('path');
+  expect(p.stroke.paint.type).toBe('solid');
+  expect(p.d).toMatch(/C/);
+  expect(await history(page)).toEqual(['history.open', 'history.pencil']);
+});
+
+test('réunit, soustrait et divise des formes', async ({ page }) => {
+  const { drag } = await canvas(page);
+  await page.keyboard.press('m');
+  await drag([300, 200], [500, 400]);
+  await page.keyboard.press('e');
+  await drag([420, 320], [620, 520]);
+  await page.keyboard.press('Control+a');
+  await page.getByRole('button', { name: 'Union' }).click();
+  let list = await nodes(page);
+  expect(list).toHaveLength(1);
+  expect(list[0].type).toBe('path');
+  await page.keyboard.press('Control+z');
+  await page.keyboard.press('Control+a');
+  await page.getByRole('button', { name: 'Division' }).click();
+  list = await nodes(page);
+  expect(list).toHaveLength(3);
+  await page.keyboard.press('Control+z');
+  await page.keyboard.press('Control+a');
+  await page.getByRole('button', { name: 'Soustraction' }).click();
+  list = await nodes(page);
+  expect(list).toHaveLength(1);
+  expect(list[0].fill.color).toBe('#2ba59a');
+});
+
+test('convertit une forme en courbes et décale son contour', async ({ page }) => {
+  const { drag } = await canvas(page);
+  await page.keyboard.press('s');
+  await drag([300, 200], [500, 400]);
+  await page.keyboard.press('Control+Enter');
+  let list = await nodes(page);
+  expect(list[0].type).toBe('path');
+  await page.getByRole('button', { name: 'Calque' }).click();
+  await page.getByRole('menuitem', { name: 'Décalage du tracé…' }).click();
+  await page.getByTestId('offset-distance').fill('20');
+  await page.getByTestId('offset-go').click();
+  list = await nodes(page);
+  expect(list).toHaveLength(2);
+  expect(list[1].width).toBeGreaterThan(list[0].width + 30);
+});
+
+test('règle pointillés, flèches et effets', async ({ page }) => {
+  const { drag } = await canvas(page);
+  await page.keyboard.press('l');
+  await drag([300, 300], [600, 300]);
+  await page.getByTestId('tab-stroke').click();
+  await page.getByLabel('Style').selectOption('dashed');
+  await page.getByLabel('Fin').selectOption('triangle');
+  let [line] = await nodes(page);
+  expect(line.stroke.dash).toEqual([3, 2]);
+  expect(line.stroke.end).toBe('triangle');
+
+  await page.getByTestId('tab-effects').click();
+  await page.getByRole('checkbox', { name: 'Ombre portée' }).check();
+  await page.getByTestId('effect-dropShadow-blur').fill('30');
+  await page.getByTestId('effect-dropShadow-blur').press('Enter');
+  [line] = await nodes(page);
+  expect(line.effects).toEqual([expect.objectContaining({ type: 'dropShadow', enabled: true, blur: 30 })]);
+});
+
+test('place un texte sur un cercle puis le vectorise', async ({ page }) => {
+  const { at, drag } = await canvas(page);
+  await page.keyboard.press('e');
+  await drag([300, 200], [600, 500]);
+  await page.keyboard.press('t');
+  await page.mouse.click(...at(700, 600));
+  await page.keyboard.type('Poulpe sur un cercle');
+  await page.keyboard.press('Escape');
+  await page.keyboard.press('v');
+  await page.keyboard.press('Control+a');
+  await page.getByRole('button', { name: 'Texte', exact: true }).click();
+  await page.getByRole('menuitem', { name: 'Placer le texte sur le tracé' }).click();
+  let list = await nodes(page);
+  expect(list).toHaveLength(1);
+  expect(list[0].type).toBe('text');
+  expect(list[0].path.offset).toBe(0.75);
+  await page.getByRole('button', { name: 'Texte', exact: true }).click();
+  await page.getByRole('menuitem', { name: 'Vectoriser le texte' }).click();
+  await expect.poll(async () => (await nodes(page))[0].type).toBe('path');
+  list = await nodes(page);
+  expect(list[0].d.length).toBeGreaterThan(200);
+});
+
+test('importe un SVG en objets modifiables', async ({ page }) => {
+  const ok = await page.evaluate(() =>
+    (window as any).poulpe.vector.placeSvg(
+      '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><rect x="10" y="10" width="40" height="40" fill="#e5484d"/><circle cx="70" cy="70" r="20" fill="blue"/></svg>',
+      'logo',
+    ),
+  );
+  expect(ok).toBe(true);
+  const [g] = await nodes(page);
+  expect(g.type).toBe('group');
+  expect(g.name).toBe('logo');
+  expect(g.children.map((c: AnyNode) => c.type)).toEqual(['path', 'path']);
+  expect(await history(page)).toEqual(['history.open', 'history.import']);
+});

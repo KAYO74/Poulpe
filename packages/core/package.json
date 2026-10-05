@@ -1,6 +1,6 @@
 {
   "name": "@poulpe/core",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "private": true,
   "license": "MPL-2.0",
   "type": "module",
@@ -12,7 +12,9 @@
   },
   "dependencies": {
     "fflate": "^0.8.2",
-    "immer": "^10.1.3"
+    "immer": "^10.1.3",
+    "paper": "^0.12.18",
+    "paperjs-offset": "^2.2.1"
   },
   "devDependencies": {
     "vitest": "^3.2.4"

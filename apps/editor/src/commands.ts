@@ -4,6 +4,7 @@ import { beginTextEdit, endTextEdit, isEditingText } from './canvas/textEdit';
 import { getController } from './components/Viewport';
 import { setLang, getLang, type MessageKey } from './i18n';
 import { exportDocument, importImage, openDocument, saveDocument } from './io';
+import * as V from './vectorActions';
 import { editor, setSettings, setTool, ui, type ToolId } from './store';
 
 export interface Command {
@@ -102,6 +103,52 @@ export const COMMANDS = {
       editor.select([]);
     },
     enabled: hasSel,
+  },
+
+  'layer.convertToCurves': {
+    label: 'layer.convertToCurves',
+    shortcut: 'Mod+Enter',
+    run: () => void V.convertToCurves(),
+    enabled: V.canConvertToCurves,
+  },
+  'layer.outlineStroke': {
+    label: 'layer.outlineStroke',
+    run: V.outlineStroke,
+    enabled: V.canOutlineStroke,
+  },
+  'layer.offset': {
+    label: 'layer.offset',
+    run: () => ui.set({ dialog: 'offset' }),
+    enabled: () => editor.selection.length > 0,
+  },
+  'geometry.unite': { label: 'geometry.unite', run: () => V.booleanOp('unite'), enabled: V.canBoolean },
+  'geometry.subtract': {
+    label: 'geometry.subtract',
+    run: () => V.booleanOp('subtract'),
+    enabled: V.canBoolean,
+  },
+  'geometry.intersect': {
+    label: 'geometry.intersect',
+    run: () => V.booleanOp('intersect'),
+    enabled: V.canBoolean,
+  },
+  'geometry.exclude': { label: 'geometry.exclude', run: () => V.booleanOp('exclude'), enabled: V.canBoolean },
+  'geometry.divide': { label: 'geometry.divide', run: () => V.booleanOp('divide'), enabled: V.canBoolean },
+
+  'text.onPath': { label: 'text.onPath', run: V.placeTextOnPath, enabled: V.canPlaceOnPath },
+  'text.offPath': {
+    label: 'text.offPath',
+    run: V.removeTextFromPath,
+    enabled: () => V.selectedPathText() !== null,
+  },
+  'text.toCurves': {
+    label: 'text.toCurves',
+    run: () => void V.convertToCurves(),
+    enabled: () =>
+      editor.selection.some((id) => {
+        const n = findNode(editor.doc, id)?.node;
+        return n?.type === 'text' && !n.locked;
+      }),
   },
 
   'arrange.front': {
@@ -222,11 +269,13 @@ export const TOOL_KEYS: Record<string, ToolId> = {
   v: 'select',
   a: 'direct',
   b: 'artboard',
+  p: 'pen',
+  n: 'pencil',
   m: 'rect',
   e: 'ellipse',
   g: 'polygon',
   s: 'star',
-  p: 'line',
+  l: 'line',
   t: 'text',
   i: 'eyedropper',
   h: 'hand',
@@ -262,7 +311,8 @@ function matches(e: KeyboardEvent, shortcut: string): boolean {
     (key === '=' && (e.code === 'Equal' || e.key === '+')) ||
     (key === '-' && (e.code === 'Minus' || e.code === 'NumpadSubtract')) ||
     (key === '0' && (e.code === 'Digit0' || e.code === 'Numpad0')) ||
-    (key === '1' && (e.code === 'Digit1' || e.code === 'Numpad1'));
+    (key === '1' && (e.code === 'Digit1' || e.code === 'Numpad1')) ||
+    (key === 'Enter' && e.key === 'Enter');
   if (shift !== e.shiftKey && !(key === '=' && e.key === '+')) return false;
   return codeMatch || k === key.toLowerCase();
 }
@@ -276,6 +326,10 @@ export function handleKeyDown(e: KeyboardEvent): void {
     // Le focus a quitté le texte édité (clic dans un panneau) : la touche termine l'édition.
     endTextEdit();
     if (e.key === 'Escape') return;
+  }
+  if (!e.ctrlKey && !e.metaKey && getController()?.paths.key(e)) {
+    e.preventDefault();
+    return;
   }
   for (const cmd of Object.values(COMMANDS) as Command[]) {
     if (cmd.shortcut && matches(e, cmd.shortcut)) {

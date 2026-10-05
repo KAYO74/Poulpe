@@ -6,6 +6,7 @@ import { loadSystemFonts } from './fonts';
 import { getLang } from './i18n';
 import { isDesktop, openPath } from './io';
 import * as library from './libraryActions';
+import * as vector from './vectorActions';
 import { normalizeTexts } from './normalize';
 import { editor, ui } from './store';
 import './styles.css';
@@ -38,4 +39,4 @@ if (isDesktop()) {
 }
 
 // Accès pour les tests de bout en bout.
-(window as unknown as { poulpe: unknown }).poulpe = { editor, ui, library };
+(window as unknown as { poulpe: unknown }).poulpe = { editor, ui, library, vector };

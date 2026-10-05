@@ -1,4 +1,4 @@
-# Format de fichier `.poulpe` (version 2)
+# Format de fichier `.poulpe` (version 3)
 
 Un document Poulpe est une archive ZIP. Tout y est lisible avec des outils standard : un logiciel de décompression suffit pour récupérer les images d'origine et le document en JSON.
 
@@ -17,7 +17,7 @@ Le code de lecture et d'écriture est dans [`packages/core/src/file.ts`](../pack
 ```json
 {
   "format": "poulpe",
-  "version": 2,
+  "version": 3,
   "generator": "Poulpe 0.2.0",
   "created": "2026-10-04T09:43:00.000Z",
   "files": ["document.json", "assets/images/img_1a2b3c.png", "thumbnail.png"]
@@ -40,7 +40,7 @@ Toutes les coordonnées sont en pixels dans l'espace du document : un objet n'es
 
 ### Objets
 
-Champs communs : `id`, `name`, `x`, `y`, `width`, `height`, `rotation`, `opacity` (0 à 1), `blendMode`, `visible`, `locked`.
+Champs communs : `id`, `name`, `x`, `y`, `width`, `height`, `rotation`, `opacity` (0 à 1), `blendMode`, `visible`, `locked`, `effects` (facultatif, voir plus bas).
 
 | `type`    | Champs propres                                                                          |
 | --------- | --------------------------------------------------------------------------------------- |
@@ -50,7 +50,7 @@ Champs communs : `id`, `name`, `x`, `y`, `width`, `height`, `rotation`, `opacity
 | `star`    | `fill`, `stroke`, `points`, `innerRatio`                                                |
 | `path`    | `fill`, `stroke`, `d`, `viewBox`, `fillRule` (facultatif)                               |
 | `line`    | `stroke`, `direction` (1 : haut gauche vers bas droit, -1 : bas gauche vers haut droit) |
-| `text`    | `text`, `style`, `fill`, `stroke`, `autoWidth`, `runs` (facultatif)                     |
+| `text`    | `text`, `style`, `fill`, `stroke`, `autoWidth`, `runs` et `path` (facultatifs)          |
 | `image`   | `assetId`, `crop` (facultatif)                                                          |
 | `group`   | `children`, `clip` (l'objet du dessous sert de masque d'écrêtage)                       |
 
@@ -59,6 +59,8 @@ Champs communs : `id`, `name`, `x`, `y`, `width`, `height`, `rotation`, `opacity
 `runs` d'un texte : styles par caractère, triés et sans chevauchement. Chaque plage vaut `{ "start": 8, "end": 12, "style": { … } }` : elle couvre les caractères `start` à `end - 1` (indices UTF-16 de `text`) et ne contient que ce qui diffère du `style` du texte, parmi `fontFamily`, `fontSize`, `fontWeight`, `italic`, `underline`, `strike`, `letterSpacing` et `color` (couleur unie qui remplace le remplissage). L'alignement, l'interligne et les capitales valent pour tout le texte.
 
 `d` d'un tracé : données de tracé SVG (commandes `M L H V C S Q T A Z`, absolues ou relatives), dans le repère `viewBox` (`{ "x", "y", "width", "height" }`). Le tracé est étiré pour remplir la boîte de l'objet. `fillRule` vaut `nonzero` (par défaut) ou `evenodd`.
+
+`path` d'un texte : courbe que suit le texte, `{ "d", "viewBox", "offset" }`. `d` et `viewBox` se lisent comme ceux d'un tracé, étirés sur la boîte du texte. `offset` (0 à 1) place le texte le long de la courbe : son début s'il est aligné à gauche, son milieu s'il est centré, sa fin s'il est aligné à droite. Un texte sur tracé ne passe pas à la ligne.
 
 `crop` d'une image : partie de l'image source affichée dans la boîte de l'objet, `{ "x", "y", "width", "height" }` en fractions (0 à 1) de l'image. Sans `crop`, l'image entière remplit la boîte.
 
@@ -77,9 +79,29 @@ Les couleurs sont en hexadécimal `#rrggbb` ou `#rrggbbaa`.
 
 L'angle d'un dégradé linéaire est en degrés (0 : de gauche à droite, 90 : de haut en bas) et la ligne du dégradé couvre toute la boîte, comme en CSS. Le centre et le rayon d'un dégradé radial sont des fractions de la boîte (le rayon, de sa plus grande dimension).
 
-Un contour vaut `{ "paint": <peinture>, "width": <px> }`, centré sur le tracé.
+Un contour vaut `{ "paint": <peinture>, "width": <px> }`, centré sur le tracé. Champs facultatifs (version 3) :
+
+| Champ          | Valeurs                                                                                                |
+| -------------- | ------------------------------------------------------------------------------------------------------ |
+| `cap`          | `butt`, `round` (par défaut), `square` : extrémités des traits                                         |
+| `join`         | `miter`, `round` (par défaut), `bevel` : jonctions des traits                                          |
+| `dash`         | longueurs alternées trait / espace, en multiples de l'épaisseur (`[3, 2]`) ; absent : trait plein      |
+| `start`, `end` | `none`, `triangle`, `arrow`, `circle`, `square`, `bar` : flèche au début et à la fin d'un tracé ouvert |
+
+### Effets
+
+`effects` est une liste d'au plus un effet de chaque type, dessinés dans cet ordre : ombre portée et lueur externe sous l'objet, l'objet lui-même (flouté par `blur`), puis ombre interne et lueur interne à l'intérieur de l'objet. Chaque effet a `type` et `enabled` (un effet désactivé est gardé avec ses réglages). Couleurs avec transparence (`#rrggbbaa`), distances en pixels.
+
+```json
+{ "type": "dropShadow", "enabled": true, "color": "#00000066", "x": 4, "y": 6, "blur": 10 }
+{ "type": "innerShadow", "enabled": true, "color": "#00000066", "x": 2, "y": 3, "blur": 6 }
+{ "type": "outerGlow", "enabled": true, "color": "#ffd166cc", "blur": 12 }
+{ "type": "innerGlow", "enabled": true, "color": "#ffffffaa", "blur": 8 }
+{ "type": "blur", "enabled": true, "radius": 4 }
+```
 
 ## Versions
 
 - **1** (Poulpe 0.1) : version initiale.
 - **2** (Poulpe 0.2) : ajout des objets `path`. Un fichier de version 1 s'ouvre sans changement ; un fichier de version 2 ne s'ouvre pas dans Poulpe 0.1.
+- **3** (Poulpe 0.3) : contours avancés (`cap`, `join`, `dash`, `start`, `end`), `effects` sur tous les objets, `path` sur les textes. Tous ces champs sont facultatifs : un fichier de version 1 ou 2 s'ouvre sans changement ; un fichier de version 3 ne s'ouvre pas dans Poulpe 0.2.

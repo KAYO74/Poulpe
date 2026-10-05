@@ -92,6 +92,9 @@ const MIGRATIONS: Record<number, (doc: Record<string, unknown>) => Record<string
   // Version 2 : ajout des tracés libres (`path`). Rien à convertir, mais une ancienne version de
   // Poulpe refuse ainsi proprement un document qui en contient.
   1: (doc) => doc,
+  // Version 3 : contours avancés (pointillés, extrémités, flèches), effets de calque, texte sur
+  // tracé. Tous facultatifs : rien à convertir.
+  2: (doc) => doc,
 };
 
 export function migrate(raw: Record<string, unknown>): PoulpeDocument {

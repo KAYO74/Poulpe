@@ -176,6 +176,15 @@ interface LocalFont {
   blob(): Promise<Blob>;
 }
 
+/** Fichier d'une police (fournie avec Poulpe ou installée), au format TrueType ou OpenType. */
+export async function fontFaceBytes(face: Face): Promise<Uint8Array | null> {
+  try {
+    return (await bundledFace(face)) ?? (await systemFace(face));
+  } catch {
+    return null;
+  }
+}
+
 /** Polices (famille, graisse, style) utilisées par les textes des plans de travail. */
 export function usedFaces(doc: PoulpeDocument, artboards: Artboard[]): Face[] {
   const ids = new Set(artboards.map((a) => a.id));
