@@ -14,7 +14,8 @@ import {
   subscribeCommands,
   unregisterCommand,
 } from './registry';
-import { exportDocument, importImage, openDocument, saveDocument } from './io';
+import { exportDocument, importImage, isDesktop, openDocument, saveDocument } from './io';
+import { checkForUpdates } from './updater';
 import * as V from './vectorActions';
 import * as L from './layoutActions';
 import { editor, setSettings, setTool, ui, type Persona, type ToolId } from './store';
@@ -408,6 +409,11 @@ export const COMMANDS = {
     run: () => ui.set({ dialog: 'shortcuts' }),
   },
   'help.about': { label: 'help.about', run: () => ui.set({ dialog: 'about' }) },
+  'help.checkUpdates': {
+    label: 'help.checkUpdates',
+    run: () => void checkForUpdates(),
+    enabled: isDesktop,
+  },
   'extensions.manage': { label: 'extensions.manage', run: () => ui.set({ dialog: 'extensions' }) },
   'macro.record': {
     label: 'macro.recordCommand',

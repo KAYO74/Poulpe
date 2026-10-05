@@ -1,0 +1,40 @@
+# Manifeste Flatpak de Poulpe, pour Flathub. Il reprend le paquet .deb de la version GitHub
+# (même méthode que d'autres applis Tauri sur Flathub). À chaque version : mettre à jour l'url
+# et le sha256 du .deb. Voir docs/signature-et-mises-a-jour.md.
+app-id: io.github.kayo74.Poulpe
+runtime: org.gnome.Platform
+runtime-version: '48'
+sdk: org.gnome.Sdk
+command: poulpe
+finish-args:
+  - --share=ipc
+  - --socket=wayland
+  - --socket=fallback-x11
+  - --device=dri
+  # Ouverture et enregistrement passent par le portail de fichiers ; accès direct aux documents
+  # pour le double-clic sur un .poulpe et les polices installées.
+  - --filesystem=xdg-documents
+  - --filesystem=xdg-pictures
+  - --filesystem=xdg-download
+  - --filesystem=xdg-data/fonts:ro
+  - --filesystem=~/.fonts:ro
+modules:
+  - name: poulpe
+    buildsystem: simple
+    sources:
+      - type: file
+        dest-filename: poulpe.deb
+        url: https://github.com/KAYO74/Poulpe/releases/download/v1.0.0/Poulpe_linux_amd64.deb
+        sha256: A_REMPLACER_PAR_L_EMPREINTE_DU_DEB
+        only-arches: [x86_64]
+      - type: file
+        path: io.github.kayo74.Poulpe.metainfo.xml
+      - type: file
+        path: io.github.kayo74.Poulpe.desktop
+    build-commands:
+      - ar -x poulpe.deb
+      - tar -xf data.tar.gz
+      - install -Dm755 usr/bin/poulpe /app/bin/poulpe
+      - install -Dm644 usr/share/icons/hicolor/128x128/apps/poulpe.png /app/share/icons/hicolor/128x128/apps/io.github.kayo74.Poulpe.png
+      - install -Dm644 io.github.kayo74.Poulpe.desktop /app/share/applications/io.github.kayo74.Poulpe.desktop
+      - install -Dm644 io.github.kayo74.Poulpe.metainfo.xml /app/share/metainfo/io.github.kayo74.Poulpe.metainfo.xml

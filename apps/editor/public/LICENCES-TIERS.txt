@@ -1,0 +1,17 @@
+Poulpe est distribué sous licence MPL-2.0. Il embarque notamment les composants suivants.
+
+ONNX Runtime Web — Copyright (c) Microsoft Corporation. Licence MIT.
+  https://github.com/microsoft/onnxruntime
+
+Modèle de détourage « silueta » (models/silueta.onnx) — dérivé de U²-Net.
+  U²-Net : Copyright (c) Xuebin Qin et coll. Licence Apache 2.0. https://github.com/xuebinqin/U-2-Net
+  Version « silueta » publiée par le projet rembg : Copyright (c) Daniel Gatis. Licence MIT.
+  https://github.com/danielgatis/rembg
+
+QuickJS — Copyright (c) Fabrice Bellard et Charlie Gordon. Licence MIT. https://bellard.org/quickjs/
+quickjs-emscripten — Copyright (c) Jake Teton-Landis. Licence MIT. https://github.com/justjake/quickjs-emscripten
+
+Tauri et ses greffons (dialog, fs, process, updater) — Licence MIT ou Apache 2.0. https://tauri.app
+
+Les autres dépendances (React, Radix UI, Paper.js, pdf.js, jsPDF, ag-psd, opentype.js, fflate, immer, polices
+Fontsource) sont sous licences MIT, Apache 2.0, BSD ou SIL Open Font License ; voir leurs dépôts respectifs.

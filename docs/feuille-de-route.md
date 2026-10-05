@@ -100,6 +100,8 @@ Faite en octobre 2026, en deux parties. Première partie, voir [mise-en-page-v0.
 
 ### v1.0 Version stable
 
+Livrée le 5 octobre 2026, voir [version-1.0.md](version-1.0.md) : vectorisation d'image, détourage automatique (sélection du sujet, suppression de l'arrière-plan), macros, raccourcis personnalisables, extensions, mises à jour automatiques. La signature des installeurs et Flathub sont prêts et attendent les comptes nécessaires (voir [signature-et-mises-a-jour.md](signature-et-mises-a-jour.md)). L'accessibilité vérifiée, la documentation anglaise complète et les performances sur très gros fichiers suivront en v1.x.
+
 - Vectorisation d'image, détourage automatique et remplissage selon le contenu, calculés dans le navigateur.
 - Actions et macros enregistrables, raccourcis personnalisables, extensions.
 - Appli de bureau signée (Windows, macOS) avec mises à jour automatiques, publiée sur Flathub pour Linux.

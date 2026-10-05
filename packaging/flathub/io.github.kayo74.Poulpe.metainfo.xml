@@ -1,0 +1,63 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- Fiche AppStream de Poulpe : c'est elle qu'affichent Flathub et les logithèques Linux. -->
+<component type="desktop-application">
+  <id>io.github.kayo74.Poulpe</id>
+  <name>Poulpe</name>
+  <summary>Free graphic design: vector, photo editing and layout</summary>
+  <summary xml:lang="fr">Création graphique libre : vectoriel, retouche photo et mise en page</summary>
+  <metadata_license>CC0-1.0</metadata_license>
+  <project_license>MPL-2.0</project_license>
+  <developer id="io.github.kayo74">
+    <name>Poulpe contributors</name>
+  </developer>
+  <description>
+    <p>
+      Poulpe is a free and open source graphic design application, in the spirit of Affinity, Illustrator and
+      Photoshop. One document brings together three workspaces: Draw, Photo and Layout.
+    </p>
+    <p xml:lang="fr">
+      Poulpe est une application libre de création graphique, dans l’esprit d’Affinity, d’Illustrator et de
+      Photoshop. Un même document réunit trois espaces de travail : Dessin, Photo et Mise en page.
+    </p>
+    <ul>
+      <li>Vector drawing: pen, nodes, boolean operations, text on a path, effects</li>
+      <li>Photo editing: brushes, selections, masks, adjustment layers, magic eraser</li>
+      <li>Image vectorization and automatic background removal, computed on your computer</li>
+      <li>Multi-page layout, CMYK and PDF/X export, PSD and PDF import</li>
+      <li>Macros, custom shortcuts and extensions</li>
+    </ul>
+    <ul xml:lang="fr">
+      <li>Dessin vectoriel : plume, nœuds, opérations booléennes, texte sur tracé, effets</li>
+      <li>Retouche photo : pinceaux, sélections, masques, calques de réglage, gomme magique</li>
+      <li>Vectorisation d’images et détourage automatique, calculés sur votre ordinateur</li>
+      <li>Mise en page multipage, export CMJN et PDF/X, ouverture des PSD et PDF</li>
+      <li>Macros, raccourcis personnalisables et extensions</li>
+    </ul>
+  </description>
+  <launchable type="desktop-id">io.github.kayo74.Poulpe.desktop</launchable>
+  <url type="homepage">https://github.com/KAYO74/Poulpe</url>
+  <url type="bugtracker">https://github.com/KAYO74/Poulpe/issues</url>
+  <categories>
+    <category>Graphics</category>
+    <category>VectorGraphics</category>
+    <category>RasterGraphics</category>
+  </categories>
+  <content_rating type="oars-1.1" />
+  <supports>
+    <control>pointing</control>
+    <control>keyboard</control>
+  </supports>
+  <screenshots>
+    <screenshot type="default">
+      <caption>Draw workspace</caption>
+      <image>https://raw.githubusercontent.com/KAYO74/Poulpe/main/docs/images/editeur-sombre.png</image>
+    </screenshot>
+  </screenshots>
+  <releases>
+    <release version="1.0.0" date="2026-10-05">
+      <description>
+        <p>Image vectorization, automatic cutout, macros, custom shortcuts, extensions and automatic updates.</p>
+      </description>
+    </release>
+  </releases>
+</component>

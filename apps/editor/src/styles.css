@@ -1863,3 +1863,16 @@ input.search {
 .shortcuts:has(.shortcut-edit) {
   grid-template-columns: 1fr 1.6fr;
 }
+
+/* ——— v1.0 : mises à jour ——— */
+.update-notes {
+  max-height: 200px;
+  overflow: auto;
+  white-space: pre-wrap;
+  font: inherit;
+  font-size: 12px;
+  background: var(--input);
+  border-radius: 6px;
+  padding: 8px;
+  margin: 0;
+}

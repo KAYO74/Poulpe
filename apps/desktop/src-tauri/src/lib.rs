@@ -95,6 +95,13 @@ pub fn run() {
     let app = tauri::Builder::default()
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_fs::init())
+        .plugin(tauri_plugin_process::init())
+        .setup(|_app| {
+            // Mises à jour automatiques : vérifiées et installées depuis l'interface (updater.ts).
+            #[cfg(desktop)]
+            _app.handle().plugin(tauri_plugin_updater::Builder::new().build())?;
+            Ok(())
+        })
         .manage(OpenedFile(Mutex::new(poulpe_file_from_args(std::env::args()))))
         .invoke_handler(tauri::generate_handler![
             opened_file,
