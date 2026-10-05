@@ -1,21 +1,36 @@
 import * as Menu from '@radix-ui/react-dropdown-menu';
 import { COLOR_ADJUSTMENTS, FORMAT_PRESETS, LIVE_FILTERS, LUT_PRESETS, type LutPreset } from '@poulpe/core';
 import { addArtboard } from '../actions';
-import { COMMANDS, formatShortcut, type CommandId } from '../commands';
+import { useSyncExternalStore } from 'react';
+import {
+  allCommands,
+  commandShortcut,
+  commandTitle,
+  commandsVersion,
+  findCommand,
+  formatShortcut,
+  runCommand,
+  subscribeCommands,
+  type CommandId,
+} from '../commands';
+import { useShortcuts } from '../shortcuts';
 import { exportDocument } from '../io';
 import { getLang, setLang, useT } from '../i18n';
 import { setSettings, useEditor, useUi } from '../store';
 import { Icon } from './Icon';
 
-function Item({ id, checked }: { id: CommandId; checked?: boolean }) {
-  const t = useT();
-  const cmd = COMMANDS[id] as (typeof COMMANDS)[CommandId] & { enabled?: () => boolean; shortcut?: string };
+function Item({ id, checked }: { id: CommandId | (string & {}); checked?: boolean }) {
+  useT();
+  useShortcuts();
+  const cmd = findCommand(id);
+  if (!cmd) return null;
   const enabled = !cmd.enabled || cmd.enabled();
+  const shortcut = commandShortcut(id);
   return (
-    <Menu.Item className="menu-item" disabled={!enabled} onSelect={() => cmd.run()}>
+    <Menu.Item className="menu-item" disabled={!enabled} onSelect={() => void runCommand(id)}>
       <span className="menu-check">{checked ? '✓' : ''}</span>
-      <span className="menu-label">{t(cmd.label)}</span>
-      {cmd.shortcut && <span className="menu-shortcut">{formatShortcut(cmd.shortcut)}</span>}
+      <span className="menu-label">{commandTitle(cmd)}</span>
+      {shortcut && <span className="menu-shortcut">{formatShortcut(shortcut)}</span>}
     </Menu.Item>
   );
 }
@@ -34,6 +49,32 @@ function Top({ label, children }: { label: string; children: React.ReactNode }) 
 }
 
 const Sep = () => <Menu.Separator className="menu-sep" />;
+
+/** Menu Extensions : les commandes des extensions installées, puis la gestion. */
+function ExtensionsMenu() {
+  const t = useT();
+  useSyncExternalStore(subscribeCommands, commandsVersion);
+  const ext = allCommands().filter(([id]) => id.startsWith('ext:'));
+  const macros = allCommands().filter(([id]) => id.startsWith('macro:'));
+  return (
+    <Top label={t('menu.extensions')}>
+      {ext.map(([id]) => (
+        <Item key={id} id={id} />
+      ))}
+      {ext.length > 0 && <Sep />}
+      <Item id="extensions.manage" />
+      <Sep />
+      <Item id="macro.record" />
+      {macros.length > 0 && (
+        <Sub label={t('macro.title')}>
+          {macros.map(([id]) => (
+            <Item key={id} id={id} />
+          ))}
+        </Sub>
+      )}
+    </Top>
+  );
+}
 
 function Sub({ label, children }: { label: string; children: React.ReactNode }) {
   return (
@@ -118,6 +159,8 @@ export function MenuBar() {
           <Item id="layer.removeMask" />
         </Sub>
         <Item id="layer.rasterize" />
+        <Item id="image.removeBackground" />
+        <Item id="image.vectorize" />
         <Item id="layer.mergeVisible" />
         <Sep />
         <Item id="layer.group" />
@@ -155,6 +198,7 @@ export function MenuBar() {
         <Item id="select.shrink" />
         <Sep />
         <Item id="select.fromLayer" />
+        <Item id="select.subject" />
       </Top>
       <Top label={t('menu.adjust')}>
         {COLOR_ADJUSTMENTS.map((k) => (
@@ -298,8 +342,10 @@ export function MenuBar() {
           ))}
         </Sub>
       </Top>
+      <ExtensionsMenu />
       <Top label={t('menu.help')}>
         <Item id="help.shortcuts" />
+        <Item id="help.checkUpdates" />
         <Item id="help.about" />
       </Top>
     </nav>

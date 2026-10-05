@@ -13,6 +13,7 @@ import { HistoryPanel } from './HistoryPanel';
 import { LayersPanel } from './LayersPanel';
 import { StrokePanel } from './StrokePanel';
 import { TransformPanel } from './TransformPanel';
+import { MacrosPanel } from '../macros/MacrosPanel';
 
 interface Tab {
   id: string;
@@ -109,6 +110,7 @@ export function Studio() {
         tabs={[
           { id: 'layers', label: 'studio.layers', render: () => <LayersPanel /> },
           { id: 'history', label: 'studio.history', render: () => <HistoryPanel /> },
+          { id: 'macros', label: 'macro.title', render: () => <MacrosPanel /> },
         ]}
       />
     </aside>

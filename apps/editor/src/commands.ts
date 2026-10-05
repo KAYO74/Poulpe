@@ -2,8 +2,20 @@ import { COLOR_ADJUSTMENTS, LIVE_FILTERS, findNode, type AdjustmentKind } from '
 import * as A from './actions';
 import { beginTextEdit, endTextEdit, isEditingText } from './canvas/textEdit';
 import { getController } from './components/Viewport';
-import { setLang, getLang, type MessageKey } from './i18n';
-import { exportDocument, importImage, openDocument, saveDocument } from './io';
+import { setLang, getLang, t, type MessageKey } from './i18n';
+import { isRecording, recordStep } from './macros/recorder';
+import { beginRecording, endRecording } from './macros/macros';
+import { shortcutOf } from './shortcuts';
+import {
+  commandsVersion,
+  dynamicCommand,
+  dynamicCommands,
+  registerCommand,
+  subscribeCommands,
+  unregisterCommand,
+} from './registry';
+import { exportDocument, importImage, isDesktop, openDocument, saveDocument } from './io';
+import { checkForUpdates } from './updater';
 import * as V from './vectorActions';
 import * as L from './layoutActions';
 import * as S from './symbolActions';
@@ -12,14 +24,19 @@ import * as P from './photo/photoActions';
 import { clearSelection, invertSelection, selectAll, selectFromLayer } from './photo/selection';
 import { images, newPixelLayer, selectedImage } from './photo/pixels';
 import { openPhoto, setPersona } from './photo/persona';
+import { canCutout, removeBackground, selectSubject } from './smart/cutout';
+import { canVectorize } from './smart/vectorize';
 import { addLutPreset, loadLutFile } from './photo/retouchActions';
 import { LUT_PRESETS, type LutPreset } from '@poulpe/core';
 
 export interface Command {
   label: MessageKey;
+  /** Nom affiché d'une commande ajoutée par une macro ou une extension (à la place de `label`). */
+  title?: string;
   /** Raccourci au format « Mod+Shift+Z » (Mod = Ctrl, ou Cmd sur macOS). */
   shortcut?: string;
-  run: () => void;
+  /** Peut renvoyer une promesse (détourage…) : la lecture d'une macro l'attend. */
+  run: () => unknown;
   enabled?: () => boolean;
   /** Commande propre à une Persona : son raccourci n'agit que dans celle-ci, et seulement si elle est disponible. */
   persona?: Persona;
@@ -185,6 +202,17 @@ export const COMMANDS = {
   'layer.invertMask': { label: 'layer.invertMask', run: P.invertMask, enabled: P.hasMask },
   'layer.removeMask': { label: 'layer.removeMask', run: P.removeMask, enabled: P.hasMask },
   'layer.rasterize': { label: 'layer.rasterize', run: P.rasterizeSelection, enabled: P.canRasterize },
+  'image.vectorize': {
+    label: 'image.vectorize',
+    run: () => ui.set({ dialog: 'vectorize' }),
+    enabled: canVectorize,
+  },
+  'image.removeBackground': {
+    label: 'image.removeBackground',
+    run: () => void removeBackground(),
+    enabled: canCutout,
+  },
+  'select.subject': { label: 'select.subject', run: () => void selectSubject(), enabled: canCutout },
   'layer.mergeVisible': { label: 'layer.mergeVisible', shortcut: 'Mod+Alt+Shift+E', run: P.mergeVisible },
   'adjust.auto': { label: 'adjust.auto', run: P.addAutoLevels },
   ...adjustmentCommands(),
@@ -401,12 +429,64 @@ export const COMMANDS = {
     run: () => ui.set({ dialog: 'shortcuts' }),
   },
   'help.about': { label: 'help.about', run: () => ui.set({ dialog: 'about' }) },
+  'help.checkUpdates': {
+    label: 'help.checkUpdates',
+    run: () => void checkForUpdates(),
+    enabled: isDesktop,
+  },
+  'extensions.manage': { label: 'extensions.manage', run: () => ui.set({ dialog: 'extensions' }) },
+  'macro.record': {
+    label: 'macro.recordCommand',
+    run: () => (isRecording() ? void endRecording() : beginRecording()),
+  },
 } satisfies Record<string, Command>;
 
 export type CommandId = keyof typeof COMMANDS;
 
 export function command(id: CommandId): Command {
   return COMMANDS[id];
+}
+
+// ————— Commandes ajoutées pendant l'exécution (macros, extensions) —————
+
+export { registerCommand, unregisterCommand, subscribeCommands, commandsVersion };
+
+/** Toutes les commandes : celles de l'appli puis celles des macros et extensions. */
+export function allCommands(): [string, Command][] {
+  return [...(Object.entries(COMMANDS) as [string, Command][]), ...dynamicCommands()];
+}
+
+export function findCommand(id: string): Command | undefined {
+  return (COMMANDS as Record<string, Command>)[id] ?? dynamicCommand(id);
+}
+
+export function commandTitle(cmd: Command): string {
+  return cmd.title ?? t(cmd.label);
+}
+
+/** Raccourci en vigueur d'une commande (personnalisé ou par défaut). */
+export function commandShortcut(id: string): string | undefined {
+  return shortcutOf(id, findCommand(id)?.shortcut);
+}
+
+/** Commandes qu'une macro ne rejoue pas : fichiers, affichage, aide, historique. */
+function recordable(id: string): boolean {
+  return !/^(file|view|help|persona)\.|^macro[:.]/.test(id) && id !== 'edit.undo' && id !== 'edit.redo';
+}
+
+/**
+ * Exécute une commande (menu, raccourci, bouton), et la note si une macro s'enregistre. Une
+ * commande qui ouvre une boîte de dialogue n'est pas notée : c'est la validation de la boîte qui
+ * l'est (filtre, décalage…), avec ses réglages.
+ */
+export function runCommand(id: string): unknown {
+  const cmd = findCommand(id);
+  if (!cmd || (cmd.enabled && !cmd.enabled())) return undefined;
+  const dialogBefore = ui.get().dialog;
+  const result = cmd.run();
+  if (recordable(id) && !id.startsWith('ext:') && (ui.get().dialog === dialogBefore || !ui.get().dialog))
+    recordStep({ kind: 'command', id });
+  return result;
 }
 
 /** Raccourcis des outils de la Persona Photo. */
@@ -487,7 +567,7 @@ function matches(e: KeyboardEvent, shortcut: string): boolean {
     (key === '1' && (e.code === 'Digit1' || e.code === 'Numpad1')) ||
     (key === 'Enter' && e.key === 'Enter');
   if (shift !== e.shiftKey && !(key === '=' && e.key === '+')) return false;
-  return codeMatch || k === key.toLowerCase();
+  return codeMatch || k.toLowerCase() === key.toLowerCase();
 }
 
 /** Gestion globale du clavier. */
@@ -509,19 +589,22 @@ export function handleKeyDown(e: KeyboardEvent): void {
     return;
   }
   const persona = ui.get().persona;
+  const all = allCommands();
   // Les raccourcis propres à la Persona passent d'abord, s'ils ont quelque chose à faire.
-  for (const cmd of Object.values(COMMANDS) as Command[]) {
-    if (cmd.persona !== persona || !cmd.shortcut || !matches(e, cmd.shortcut)) continue;
+  for (const [id, cmd] of all) {
+    const shortcut = commandShortcut(id);
+    if (cmd.persona !== persona || !shortcut || !matches(e, shortcut)) continue;
     if (cmd.enabled && !cmd.enabled()) continue;
     e.preventDefault();
-    cmd.run();
+    runCommand(id);
     return;
   }
-  for (const cmd of Object.values(COMMANDS) as Command[]) {
+  for (const [id, cmd] of all) {
     if (cmd.persona) continue;
-    if (cmd.shortcut && matches(e, cmd.shortcut)) {
+    const shortcut = commandShortcut(id);
+    if (shortcut && matches(e, shortcut)) {
       e.preventDefault();
-      if (!cmd.enabled || cmd.enabled()) cmd.run();
+      runCommand(id);
       return;
     }
   }

@@ -11,7 +11,6 @@ import {
   type FormatCategory,
 } from '@poulpe/core';
 import { TEMPLATES } from '@poulpe/library';
-import { COMMANDS, TOOL_KEYS, formatShortcut } from '../commands';
 import { discardDraft, getPendingDraft, restoreDraft } from '../drafts';
 import { getLang, useT } from '../i18n';
 import {
@@ -35,8 +34,12 @@ import { updateLayout } from '../layoutActions';
 import { setSettings, ui, useEditor, useUi } from '../store';
 import { NumberField, Select } from './fields';
 import { Icon } from './Icon';
+import { ShortcutsDialog } from './ShortcutsDialog';
+import { UpdateDialog } from './UpdateDialog';
+import { ExtensionParamsDialog, ExtensionsDialog } from '../extensions/ExtensionsDialog';
+import { VectorizeDialog } from '../smart/VectorizeDialog';
 
-function Modal({
+export function Modal({
   title,
   children,
   onClose,
@@ -617,50 +620,6 @@ function BatchDialog() {
   );
 }
 
-function ShortcutsDialog() {
-  const t = useT();
-  const rows = Object.values(COMMANDS).filter((c) => 'shortcut' in c && c.shortcut) as {
-    label: string;
-    shortcut: string;
-  }[];
-  return (
-    <Modal title={t('shortcuts.title')} onClose={close} wide>
-      <div className="shortcuts">
-        <table>
-          <tbody>
-            {Object.entries(TOOL_KEYS).map(([k, tool]) => (
-              <tr key={k}>
-                <td>{t(`tool.${tool}`)}</td>
-                <td>
-                  <kbd>{k.toUpperCase()}</kbd>
-                </td>
-              </tr>
-            ))}
-            <tr>
-              <td>{t('tool.hand')}</td>
-              <td>
-                <kbd>Espace</kbd>
-              </td>
-            </tr>
-          </tbody>
-        </table>
-        <table>
-          <tbody>
-            {rows.map((c) => (
-              <tr key={c.label}>
-                <td>{t(c.label)}</td>
-                <td>
-                  <kbd>{formatShortcut(c.shortcut)}</kbd>
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
-    </Modal>
-  );
-}
-
 /** Décalage du tracé : une copie du contour, agrandie ou rétrécie d'une distance donnée. */
 function OffsetDialog() {
   const t = useT();
@@ -1137,6 +1096,10 @@ export function Dialogs() {
   if (dialog === 'batch') return <BatchDialog />;
   if (dialog === 'filter') return <FilterDialog />;
   if (dialog === 'selectionModify') return <SelectionModifyDialog />;
+  if (dialog === 'vectorize') return <VectorizeDialog />;
+  if (dialog === 'extensions') return <ExtensionsDialog />;
+  if (dialog === 'extensionParams') return <ExtensionParamsDialog />;
+  if (dialog === 'update') return <UpdateDialog />;
   if (dialog === 'imageSize') return <ImageSizeDialog />;
   if (dialog === 'canvasSize') return <CanvasSizeDialog />;
   return null;
