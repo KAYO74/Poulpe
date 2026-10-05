@@ -83,7 +83,8 @@ export type Dialog =
   | 'document'
   | 'batch'
   | 'imageSize'
-  | 'canvasSize';
+  | 'canvasSize'
+  | 'workspace';
 
 export interface Settings {
   theme: Theme;
@@ -163,6 +164,8 @@ export interface UiState {
   cursor: { x: number; y: number } | null;
   /** Panneau glissé au-dessus de sa zone d'ancrage (surbrillance du point de chute). */
   panelDock: PanelId | null;
+  /** Espace de travail modifié dans la boîte « Espace de travail » (null : nouvel espace). */
+  workspaceEdit: string | null;
 }
 
 const SETTINGS_KEY = 'poulpe.settings';
@@ -245,6 +248,7 @@ export const ui = new Store<UiState>({
   toast: null,
   cursor: null,
   panelDock: null,
+  workspaceEdit: null,
 });
 
 export function setSettings(patch: Partial<Settings>): void {

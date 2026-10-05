@@ -72,9 +72,16 @@ export const panels = {
     listeners.add(fn);
     return () => listeners.delete(fn);
   },
+  /** Appelé à chaque enregistrement (fin d'un glissement, ancrage…). */
+  onSave(fn: () => void) {
+    saveListeners.add(fn);
+  },
 };
 
+const saveListeners = new Set<() => void>();
+
 function save(): void {
+  saveListeners.forEach((l) => l());
   try {
     localStorage.setItem(KEY, JSON.stringify(state));
   } catch {

@@ -1,7 +1,8 @@
 import { COMMANDS, formatShortcut, type CommandId } from '../commands';
 import { getLang, setLang, useT } from '../i18n';
 import { setSettings, ui, useEditor, useUi } from '../store';
-import { setPersona } from '../photo/persona';
+import { openPersona, useActiveWorkspace } from '../workspaces';
+import { WorkspaceMenu } from './WorkspaceMenu';
 import { AdjustmentMenu } from './AdjustmentMenu';
 import { Icon, type IconName } from './Icon';
 
@@ -47,39 +48,41 @@ export function Toolbar() {
   const persona = useUi((s) => s.persona);
   const softProof = useUi((s) => s.softProof);
   const photo = persona === 'photo';
+  const custom = useActiveWorkspace();
   return (
     <div className="toolbar" role="toolbar" aria-label="Barre d'outils">
       <div className="personas" role="group" aria-label="Personas">
         <button
           className="persona"
-          aria-pressed={persona === 'draw'}
+          aria-pressed={!custom && persona === 'draw'}
           title={t('persona.draw')}
           aria-label={t('persona.draw')}
           data-testid="persona-draw"
-          onClick={() => setPersona('draw')}
+          onClick={() => openPersona('draw')}
         >
           <Icon name="draw" />
         </button>
         <button
           className="persona"
-          aria-pressed={photo}
+          aria-pressed={!custom && photo}
           title={t('persona.photo')}
           aria-label={t('persona.photo')}
           data-testid="persona-photo"
-          onClick={() => setPersona('photo')}
+          onClick={() => openPersona('photo')}
         >
           <Icon name="photo" />
         </button>
         <button
           className="persona"
-          aria-pressed={persona === 'layout'}
+          aria-pressed={!custom && persona === 'layout'}
           title={t('persona.layout')}
           aria-label={t('persona.layout')}
           data-testid="persona-layout"
-          onClick={() => setPersona('layout')}
+          onClick={() => openPersona('layout')}
         >
           <Icon name="layout" />
         </button>
+        <WorkspaceMenu />
       </div>
       {persona === 'layout' ? (
         <>

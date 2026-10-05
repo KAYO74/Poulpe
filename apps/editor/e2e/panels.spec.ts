@@ -100,3 +100,52 @@ test('redimensionne le Studio ancré et réinitialise les panneaux', async ({ pa
   await page.getByRole('menuitem', { name: 'Réinitialiser les panneaux' }).click();
   expect((await studio.boundingBox())!.width).toBeCloseTo(w0, 0);
 });
+
+test('crée son propre espace de travail et passe de l’un à l’autre', async ({ page }) => {
+  // Détacher les Calques avant de créer l'espace : la disposition est enregistrée avec lui.
+  const tb = (await page.getByTestId('studio-studio-bottom').locator('.studio-tabs').boundingBox())!;
+  await drag(page, [tb.x + 6, tb.y + 10], [500, 300]);
+  await expect(page.getByTestId('float-studio-bottom')).toBeVisible();
+
+  await page.getByTestId('workspace-menu').click();
+  await page.getByTestId('workspace-new').click();
+  await page.getByTestId('workspace-name').fill('Retouche rapide');
+  await page.getByTestId('workspace-base-photo').click();
+  // Ne garder que quelques outils et panneaux.
+  for (const id of ['magicEraser', 'heal', 'clone', 'dodge', 'burn'])
+    await page.getByTestId(`workspace-tool-${id}`).click();
+  await page.getByTestId('workspace-tab-histogram').click();
+  await page.getByTestId('workspace-save').click();
+
+  await expect(page.getByTestId('workspace-menu')).toContainText('Retouche rapide');
+  await expect(page.getByTestId('persona-photo')).toHaveAttribute('aria-pressed', 'false');
+  await expect(page.getByTestId('tool-brush')).toBeVisible();
+  await expect(page.getByTestId('tool-heal')).toHaveCount(0);
+  await expect(page.getByTestId('tab-histogram')).toHaveCount(0);
+  await expect(page.getByTestId('float-studio-bottom')).toBeVisible();
+
+  // Revenir à Dessin rend tous les outils ; la disposition de Dessin vit sa vie à part.
+  await page.getByTestId('persona-draw').click();
+  await expect(page.getByTestId('tool-pen')).toBeVisible();
+  await page.getByTestId('dock-studio-bottom').click();
+  await expect(page.getByTestId('float-studio-bottom')).toHaveCount(0);
+
+  // L'espace est mémorisé et se rouvre avec sa disposition.
+  await page.reload();
+  await page.getByTestId('workspace-menu').click();
+  await page.getByTestId('workspace-Retouche rapide').click();
+  await expect(page.getByTestId('float-studio-bottom')).toBeVisible();
+  await expect(page.getByTestId('tool-heal')).toHaveCount(0);
+
+  // Le modifier puis le supprimer.
+  await page.getByTestId('workspace-menu').click();
+  await page.getByTestId('workspace-edit').click();
+  await page.getByTestId('workspace-tool-heal').click();
+  await page.getByTestId('workspace-save').click();
+  await expect(page.getByTestId('tool-heal')).toBeVisible();
+  await page.getByTestId('workspace-menu').click();
+  await page.getByTestId('workspace-edit').click();
+  await page.getByTestId('workspace-delete').click();
+  await expect(page.getByTestId('workspace-menu')).not.toContainText('Retouche rapide');
+  await expect(page.getByTestId('persona-photo')).toHaveAttribute('aria-pressed', 'true');
+});

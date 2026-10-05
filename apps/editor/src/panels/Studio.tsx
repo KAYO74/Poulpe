@@ -1,7 +1,8 @@
 import { useRef, useState } from 'react';
 import { Icon } from '../components/Icon';
 import { useT, type MessageKey } from '../i18n';
-import { useEditor, useUi } from '../store';
+import { useEditor, useUi, type Persona } from '../store';
+import { useActiveWorkspace } from '../workspaces';
 import { FloatingFrame } from './FloatingFrame';
 import {
   DEFAULT_PANELS,
@@ -151,51 +152,51 @@ interface GroupDef {
   initial?: number;
 }
 
+const TABS: Record<string, Tab> = {
+  color: { id: 'color', label: 'studio.color', render: () => <ColorPanel /> },
+  stroke: { id: 'stroke', label: 'studio.stroke', render: () => <StrokePanel /> },
+  effects: { id: 'effects', label: 'studio.effects', render: () => <EffectsPanel /> },
+  transform: { id: 'transform', label: 'studio.transform', render: () => <TransformPanel /> },
+  character: { id: 'character', label: 'studio.character', render: () => <CharacterPanel /> },
+  brush: { id: 'brush', label: 'studio.brush', render: () => <BrushPanel /> },
+  adjustment: { id: 'adjustment', label: 'studio.adjustment', render: () => <AdjustmentPanel /> },
+  histogram: { id: 'histogram', label: 'studio.histogram', render: () => <HistogramPanel /> },
+  layers: { id: 'layers', label: 'studio.layers', render: () => <LayersPanel /> },
+  history: { id: 'history', label: 'studio.history', render: () => <HistoryPanel /> },
+};
+
+const TOP_DRAW = ['color', 'stroke', 'effects', 'transform', 'character'];
+const TOP_PHOTO = ['color', 'brush', 'adjustment', 'histogram', 'effects'];
+const BOTTOM = ['layers', 'history'];
+
+/** Onglets du Studio d'une Persona, dans l'ordre (pour la boîte « Espace de travail »). */
+export function studioTabsFor(persona: Persona): { id: string; label: MessageKey }[] {
+  return [...(persona === 'photo' ? TOP_PHOTO : TOP_DRAW), ...BOTTOM].map((id) => TABS[id]);
+}
+
 function useGroups(): GroupDef[] {
   const editingText = useUi((s) => s.tool === 'text');
   const persona = useUi((s) => s.persona);
+  const allowed = useActiveWorkspace()?.tabs ?? null;
   const { doc, selection } = useEditor();
   const adjusting = selection.length === 1 && findNode(doc, selection[0])?.node.type === 'adjustment';
-  const bottom: GroupDef = {
-    id: 'studio-bottom',
-    stateKey: 'layers',
-    tabs: [
-      { id: 'layers', label: 'studio.layers', render: () => <LayersPanel /> },
-      { id: 'history', label: 'studio.history', render: () => <HistoryPanel /> },
-    ],
-  };
-  if (persona === 'photo') {
-    return [
-      {
-        id: 'studio-top',
-        stateKey: adjusting ? 'photo-adjust' : 'photo',
-        initial: adjusting ? 2 : 0,
-        tabs: [
-          { id: 'color', label: 'studio.color', render: () => <ColorPanel /> },
-          { id: 'brush', label: 'studio.brush', render: () => <BrushPanel /> },
-          { id: 'adjustment', label: 'studio.adjustment', render: () => <AdjustmentPanel /> },
-          { id: 'histogram', label: 'studio.histogram', render: () => <HistogramPanel /> },
-          { id: 'effects', label: 'studio.effects', render: () => <EffectsPanel /> },
-        ],
-      },
-      bottom,
-    ];
-  }
-  return [
+  const pick = (ids: string[]) => ids.filter((id) => !allowed || allowed.includes(id)).map((id) => TABS[id]);
+  const photo = persona === 'photo';
+  const focus = photo ? (adjusting ? 'adjustment' : null) : editingText ? 'character' : null;
+  const top = pick(photo ? TOP_PHOTO : TOP_DRAW);
+  const groups: GroupDef[] = [
     {
       id: 'studio-top',
-      stateKey: editingText ? 'draw-text' : 'draw',
-      initial: editingText ? 4 : 0,
-      tabs: [
-        { id: 'color', label: 'studio.color', render: () => <ColorPanel /> },
-        { id: 'stroke', label: 'studio.stroke', render: () => <StrokePanel /> },
-        { id: 'effects', label: 'studio.effects', render: () => <EffectsPanel /> },
-        { id: 'transform', label: 'studio.transform', render: () => <TransformPanel /> },
-        { id: 'character', label: 'studio.character', render: () => <CharacterPanel /> },
-      ],
+      stateKey: `${photo ? 'photo' : 'draw'}${focus ? `-${focus}` : ''}`,
+      initial: Math.max(
+        0,
+        top.findIndex((tab) => tab.id === focus),
+      ),
+      tabs: top,
     },
-    bottom,
+    { id: 'studio-bottom', stateKey: 'layers', tabs: pick(BOTTOM) },
   ];
+  return groups.filter((g) => g.tabs.length > 0);
 }
 
 export function Studio() {

@@ -20,3 +20,14 @@ La disposition est mémorisée d'une session à l'autre.
 - `apps/editor/src/panels/FloatingFrame.tsx` : fenêtre flottante avec ses huit poignées.
 - Les panneaux détachables sont `tools`, `studio-top` et `studio-bottom` ; le même identifiant sert dans les trois Personas.
 - Tests : `apps/editor/e2e/panels.spec.ts`.
+
+## Espaces de travail personnalisés
+
+Comme dans Affinity, on peut créer son propre espace à côté des Personas Dessin, Photo et Mise en page.
+
+- Menu à côté des trois Personas (ou **Affichage › Espaces de travail**), puis **Nouvel espace de travail…**.
+- On choisit un nom, un type (**Vectoriel**, **Pixel** ou **Présentation**), les outils affichés et les panneaux du Studio.
+- L'espace enregistre la disposition actuelle des panneaux (ancrés ou flottants, positions, tailles, côtés). Tant qu'il est ouvert, chaque changement de disposition y est retenu.
+- Revenir à une Persona intégrée rend la disposition qu'elle avait avant. **Modifier « nom »…** change le nom, le type, les outils ou les panneaux, ou supprime l'espace.
+
+Code : `apps/editor/src/workspaces.ts` (clé `poulpe.workspaces`), `components/WorkspaceMenu.tsx`, boîte `WorkspaceDialog` dans `components/Dialogs.tsx`. Les raccourcis des outils masqués restent actifs.
