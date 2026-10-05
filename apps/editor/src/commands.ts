@@ -1,0 +1,313 @@
+import { findNode } from '@poulpe/core';
+import * as A from './actions';
+import { beginTextEdit, endTextEdit, isEditingText } from './canvas/textEdit';
+import { getController } from './components/Viewport';
+import { setLang, getLang, type MessageKey } from './i18n';
+import { exportDocument, importImage, openDocument, saveDocument } from './io';
+import { editor, setSettings, setTool, ui, type ToolId } from './store';
+
+export interface Command {
+  label: MessageKey;
+  /** Raccourci au format « Mod+Shift+Z » (Mod = Ctrl, ou Cmd sur macOS). */
+  shortcut?: string;
+  run: () => void;
+  enabled?: () => boolean;
+}
+
+const hasSel = () => editor.selection.length > 0;
+const selType = () =>
+  editor.selection.length === 1 ? findNode(editor.doc, editor.selection[0])?.node.type : undefined;
+
+const zoomBy = (k: number) => {
+  const c = getController();
+  if (c) c.zoomAt(ui.get().view.zoom * k);
+};
+
+export const COMMANDS = {
+  'file.new': { label: 'file.new', shortcut: 'Mod+N', run: () => ui.set({ dialog: 'new' }) },
+  'file.open': { label: 'file.open', shortcut: 'Mod+O', run: () => void openDocument() },
+  'file.save': { label: 'file.save', shortcut: 'Mod+S', run: () => void saveDocument() },
+  'file.saveAs': { label: 'file.saveAs', shortcut: 'Mod+Shift+S', run: () => void saveDocument(true) },
+  'file.importImage': { label: 'file.importImage', shortcut: 'Mod+Shift+I', run: () => void importImage() },
+  'file.export': { label: 'file.export', shortcut: 'Mod+Shift+E', run: () => ui.set({ dialog: 'export' }) },
+  'file.exportPng': {
+    label: 'file.exportPng',
+    run: () =>
+      void exportDocument({
+        kind: 'png',
+        artboardId: editor.getState().activeArtboardId,
+        scale: 1,
+        quality: 0.92,
+        transparent: false,
+      }),
+  },
+
+  'edit.undo': {
+    label: 'edit.undo',
+    shortcut: 'Mod+Z',
+    run: () => editor.undo(),
+    enabled: () => editor.getState().canUndo,
+  },
+  'edit.redo': {
+    label: 'edit.redo',
+    shortcut: 'Mod+Shift+Z',
+    run: () => editor.redo(),
+    enabled: () => editor.getState().canRedo,
+  },
+  'edit.cut': { label: 'edit.cut', shortcut: 'Mod+X', run: A.cutSelection, enabled: hasSel },
+  'edit.copy': { label: 'edit.copy', shortcut: 'Mod+C', run: A.copySelection, enabled: hasSel },
+  'edit.paste': { label: 'edit.paste', shortcut: 'Mod+V', run: A.paste, enabled: A.hasClipboard },
+  'edit.duplicate': {
+    label: 'edit.duplicate',
+    shortcut: 'Mod+J',
+    run: () => A.duplicateSelection(),
+    enabled: hasSel,
+  },
+  'edit.delete': { label: 'edit.delete', shortcut: 'Delete', run: A.deleteSelection, enabled: hasSel },
+  'edit.selectAll': { label: 'edit.selectAll', shortcut: 'Mod+A', run: A.selectAll },
+  'edit.deselect': {
+    label: 'edit.deselect',
+    shortcut: 'Mod+Shift+A',
+    run: () => editor.select([]),
+    enabled: hasSel,
+  },
+
+  'layer.group': { label: 'layer.group', shortcut: 'Mod+G', run: A.groupSelection, enabled: hasSel },
+  'layer.ungroup': {
+    label: 'layer.ungroup',
+    shortcut: 'Mod+Shift+G',
+    run: A.ungroupSelection,
+    enabled: () => selType() === 'group',
+  },
+  'layer.clip': {
+    label: 'layer.clip',
+    shortcut: 'Mod+Alt+G',
+    run: A.toggleClipMask,
+    enabled: () => editor.selection.length > 1 || selType() === 'group',
+  },
+  'layer.lock': {
+    label: 'layer.lock',
+    shortcut: 'Mod+L',
+    run: () => {
+      const lock = !editor.selection.every((id) => findNode(editor.doc, id)?.node.locked);
+      A.updateSelected('history.lock', (n) => void (n.locked = lock));
+    },
+    enabled: hasSel,
+  },
+  'layer.hide': {
+    label: 'layer.hide',
+    shortcut: 'Mod+Shift+H',
+    run: () => {
+      A.updateSelected('history.visibility', (n) => void (n.visible = false));
+      editor.select([]);
+    },
+    enabled: hasSel,
+  },
+
+  'arrange.front': {
+    label: 'arrange.front',
+    shortcut: 'Mod+Shift+]',
+    run: () => A.reorder('front'),
+    enabled: hasSel,
+  },
+  'arrange.forward': {
+    label: 'arrange.forward',
+    shortcut: 'Mod+]',
+    run: () => A.reorder('forward'),
+    enabled: hasSel,
+  },
+  'arrange.backward': {
+    label: 'arrange.backward',
+    shortcut: 'Mod+[',
+    run: () => A.reorder('backward'),
+    enabled: hasSel,
+  },
+  'arrange.back': {
+    label: 'arrange.back',
+    shortcut: 'Mod+Shift+[',
+    run: () => A.reorder('back'),
+    enabled: hasSel,
+  },
+  'arrange.alignLeft': { label: 'arrange.alignLeft', run: () => A.align('left'), enabled: hasSel },
+  'arrange.alignHCenter': { label: 'arrange.alignHCenter', run: () => A.align('hcenter'), enabled: hasSel },
+  'arrange.alignRight': { label: 'arrange.alignRight', run: () => A.align('right'), enabled: hasSel },
+  'arrange.alignTop': { label: 'arrange.alignTop', run: () => A.align('top'), enabled: hasSel },
+  'arrange.alignVCenter': { label: 'arrange.alignVCenter', run: () => A.align('vcenter'), enabled: hasSel },
+  'arrange.alignBottom': { label: 'arrange.alignBottom', run: () => A.align('bottom'), enabled: hasSel },
+  'arrange.distributeH': {
+    label: 'arrange.distributeH',
+    run: () => A.distribute('h'),
+    enabled: () => editor.selection.length > 2,
+  },
+  'arrange.distributeV': {
+    label: 'arrange.distributeV',
+    run: () => A.distribute('v'),
+    enabled: () => editor.selection.length > 2,
+  },
+  'arrange.flipH': { label: 'arrange.flipH', run: () => A.flipSelection('h'), enabled: hasSel },
+  'arrange.flipV': { label: 'arrange.flipV', run: () => A.flipSelection('v'), enabled: hasSel },
+  'arrange.rotateLeft': { label: 'arrange.rotateLeft', run: () => A.rotateSelection(-90), enabled: hasSel },
+  'arrange.rotateRight': { label: 'arrange.rotateRight', run: () => A.rotateSelection(90), enabled: hasSel },
+
+  'document.addArtboard': { label: 'document.addArtboard', run: () => A.addArtboard() },
+  'document.deleteArtboard': {
+    label: 'document.deleteArtboard',
+    run: () => A.deleteArtboard(),
+    enabled: () => editor.doc.artboards.length > 1,
+  },
+
+  'view.zoomIn': { label: 'view.zoomIn', shortcut: 'Mod+=', run: () => zoomBy(1.25) },
+  'view.zoomOut': { label: 'view.zoomOut', shortcut: 'Mod+-', run: () => zoomBy(0.8) },
+  'view.zoomFit': { label: 'view.zoomFit', shortcut: 'Mod+0', run: () => getController()?.zoomToFit() },
+  'view.zoom100': {
+    label: 'view.zoom100',
+    shortcut: 'Mod+1',
+    run: () => getController()?.zoomAt(1),
+  },
+  'view.rulers': {
+    label: 'view.rulers',
+    shortcut: 'Mod+R',
+    run: () => setSettings({ rulers: !ui.get().settings.rulers }),
+  },
+  'view.grid': {
+    label: 'view.grid',
+    shortcut: "Mod+'",
+    run: () => setSettings({ grid: !ui.get().settings.grid }),
+  },
+  'view.clearGuides': {
+    label: 'cmd.clearGuides',
+    enabled: () => !!(editor.doc.guides?.x.length || editor.doc.guides?.y.length),
+    run: () => editor.apply('history.guide', (d) => void delete d.guides),
+  },
+  'view.snapping': {
+    label: 'view.snapping',
+    run: () => setSettings({ snapping: !ui.get().settings.snapping }),
+  },
+  'view.theme': {
+    label: 'view.theme',
+    run: () => setSettings({ theme: ui.get().settings.theme === 'dark' ? 'light' : 'dark' }),
+  },
+  'view.language': { label: 'view.language', run: () => setLang(getLang() === 'fr' ? 'en' : 'fr') },
+  'view.toolsSide': {
+    label: 'view.toolsSide',
+    run: () => setSettings({ toolsSide: ui.get().settings.toolsSide === 'right' ? 'left' : 'right' }),
+  },
+  'view.studioSide': {
+    label: 'view.studioSide',
+    run: () => setSettings({ studioSide: ui.get().settings.studioSide === 'right' ? 'left' : 'right' }),
+  },
+
+  'help.shortcuts': {
+    label: 'help.shortcuts',
+    shortcut: 'Mod+/',
+    run: () => ui.set({ dialog: 'shortcuts' }),
+  },
+  'help.about': { label: 'help.about', run: () => ui.set({ dialog: 'about' }) },
+} satisfies Record<string, Command>;
+
+export type CommandId = keyof typeof COMMANDS;
+
+export function command(id: CommandId): Command {
+  return COMMANDS[id];
+}
+
+/** Raccourcis d'outils, sans modificateur, comme dans Affinity. */
+export const TOOL_KEYS: Record<string, ToolId> = {
+  v: 'select',
+  a: 'direct',
+  b: 'artboard',
+  m: 'rect',
+  e: 'ellipse',
+  g: 'polygon',
+  s: 'star',
+  p: 'line',
+  t: 'text',
+  i: 'eyedropper',
+  h: 'hand',
+  z: 'zoom',
+};
+
+export const isMac = typeof navigator !== 'undefined' && /Mac|iPhone|iPad/.test(navigator.platform);
+
+export function formatShortcut(s: string): string {
+  return s
+    .replace('Mod', isMac ? '⌘' : 'Ctrl')
+    .replace('Shift', isMac ? '⇧' : 'Maj')
+    .replace('Alt', isMac ? '⌥' : 'Alt')
+    .replace('Delete', isMac ? '⌫' : 'Suppr')
+    .replace(/\+/g, isMac ? '' : '+')
+    .replace(/(Ctrl|Maj|Alt)(?=[^+])/g, '$1+');
+}
+
+function matches(e: KeyboardEvent, shortcut: string): boolean {
+  const parts = shortcut.split('+');
+  const key = parts.pop()!;
+  const mod = parts.includes('Mod');
+  const shift = parts.includes('Shift');
+  const alt = parts.includes('Alt');
+  if (mod !== (isMac ? e.metaKey : e.ctrlKey)) return false;
+  if (alt !== e.altKey) return false;
+  const k = e.key.length === 1 ? e.key.toLowerCase() : e.key;
+  if (key === 'Delete') return !mod && (e.key === 'Delete' || e.key === 'Backspace');
+  // Les touches de ponctuation changent avec Maj selon les claviers : on compare aussi le code physique.
+  const codeMatch =
+    (key === ']' && e.code === 'BracketRight') ||
+    (key === '[' && e.code === 'BracketLeft') ||
+    (key === '=' && (e.code === 'Equal' || e.key === '+')) ||
+    (key === '-' && (e.code === 'Minus' || e.code === 'NumpadSubtract')) ||
+    (key === '0' && (e.code === 'Digit0' || e.code === 'Numpad0')) ||
+    (key === '1' && (e.code === 'Digit1' || e.code === 'Numpad1'));
+  if (shift !== e.shiftKey && !(key === '=' && e.key === '+')) return false;
+  return codeMatch || k === key.toLowerCase();
+}
+
+/** Gestion globale du clavier. */
+export function handleKeyDown(e: KeyboardEvent): void {
+  const target = e.target as HTMLElement;
+  if (target.closest('input, textarea, select, [contenteditable="true"]')) return;
+  if (ui.get().dialog) return;
+  if (isEditingText()) {
+    // Le focus a quitté le texte édité (clic dans un panneau) : la touche termine l'édition.
+    endTextEdit();
+    if (e.key === 'Escape') return;
+  }
+  for (const cmd of Object.values(COMMANDS) as Command[]) {
+    if (cmd.shortcut && matches(e, cmd.shortcut)) {
+      e.preventDefault();
+      if (!cmd.enabled || cmd.enabled()) cmd.run();
+      return;
+    }
+  }
+  if (e.ctrlKey || e.metaKey || e.altKey) return;
+  const arrows: Record<string, [number, number]> = {
+    ArrowLeft: [-1, 0],
+    ArrowRight: [1, 0],
+    ArrowUp: [0, -1],
+    ArrowDown: [0, 1],
+  };
+  if (arrows[e.key] && editor.selection.length) {
+    e.preventDefault();
+    const k = e.shiftKey ? 10 : 1;
+    A.nudge(arrows[e.key][0] * k, arrows[e.key][1] * k);
+    return;
+  }
+  if ((e.key === 'Escape' || e.key === 'Enter') && ui.get().cropId) {
+    ui.set({ cropId: null });
+    return;
+  }
+  if (e.key === 'Escape') {
+    editor.select([]);
+    return;
+  }
+  if (e.key === 'Enter' && selType() === 'text') {
+    e.preventDefault();
+    beginTextEdit(editor.selection[0], false);
+    return;
+  }
+  const tool = TOOL_KEYS[e.key.toLowerCase()];
+  if (tool && !e.shiftKey) {
+    e.preventDefault();
+    if (tool === 'image') void importImage();
+    else setTool(tool);
+  }
+}
