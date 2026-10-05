@@ -3,7 +3,7 @@
 </p>
 
 <p align="center">
-  <a href="https://github.com/KAYO74/Poulpe/releases/latest"><img src="https://img.shields.io/badge/version-0.5-FF5F86" alt="Version 0.5"></a>
+  <a href="https://github.com/KAYO74/Poulpe/releases/latest"><img src="https://img.shields.io/badge/version-1.0-FF5F86" alt="Version 1.0"></a>
   <a href="https://github.com/KAYO74/Poulpe/actions/workflows/ci.yml"><img src="https://github.com/KAYO74/Poulpe/actions/workflows/ci.yml/badge.svg" alt="Tests"></a>
   <a href="LICENSE"><img src="https://img.shields.io/badge/licence-MPL--2.0-7B61FF" alt="Licence MPL-2.0"></a>
   <img src="https://img.shields.io/badge/Windows%20%C2%B7%20macOS%20%C2%B7%20Linux-2BA59A" alt="Windows, macOS, Linux">
@@ -28,7 +28,7 @@
 </p>
 
 > [!NOTE]
-> Poulpe est jeune : la version 0.5 réunit dessin vectoriel, retouche photo et mise en page, mais tout n'est pas encore là. Le nom est provisoire.
+> Voici la version 1.0 : dessin vectoriel, retouche photo, mise en page, vectorisation d'images, détourage automatique, macros et extensions, dans une appli qui se met à jour toute seule. Le nom est provisoire.
 
 > [!TIP]
 > **Fait avec l'IA.** Poulpe est un projet de Fred, construit avec l'intelligence artificielle : le code, la documentation et les images de cette page ont été écrits par Claude (Anthropic) à partir de ses demandes, pour offrir à tous une vraie application de design, libre et gratuite. Rien n'est repris de logiciels propriétaires ; voir [Licences et origine du contenu](docs/licences.md).
@@ -68,15 +68,26 @@ L'appli n'est pas encore signée : au premier lancement, Windows et macOS affich
     <td align="center">Mise en page sur plusieurs pages</td>
     <td align="center">Thème clair, interface en anglais</td>
   </tr>
+  <tr>
+    <td width="50%"><img src="docs/images/vectoriser.png" alt="La fenêtre « Vectoriser l'image » : une illustration de poulpe et son aperçu en tracés de six couleurs"></td>
+    <td width="50%"><img src="docs/images/panneaux-libres.png" alt="Les panneaux Calques et Outils détachés en fenêtres flottantes autour d'une affiche"></td>
+  </tr>
+  <tr>
+    <td align="center">Vectoriser une image en un clic</td>
+    <td align="center">Panneaux flottants, comme dans Photoshop</td>
+  </tr>
 </table>
 
-Trois espaces de travail, comme dans Affinity, qu'on change d'un clic en haut à gauche.
+Trois espaces de travail, comme dans Affinity, qu'on change d'un clic en haut à gauche. On peut aussi créer les siens (vectoriel, pixel, présentation), détacher les panneaux en fenêtres flottantes, les déplacer et les redimensionner.
 
 **Dessin**
 
-- **Formes et tracés** : rectangles, ellipses, polygones, étoiles, lignes, plume, crayon et outil Nœud, opérations de géométrie (union, soustraction, intersection…), contours pointillés et flèches.
-- **Texte** : polices fournies et polices de l'ordinateur, styles différents dans un même texte, texte sur un tracé, conversion en courbes.
-- **Couleurs et effets** : dégradés linéaires et radiaux, nuancier, palettes, ombres, lueurs et flou.
+- **Formes et tracés** : rectangles, ellipses, polygones, étoiles, lignes, plume, crayon et outil Nœud, opérations de géométrie (union, soustraction, intersection…), ciseaux, cutter, outil Coin et constructeur de formes.
+- **Contours** pointillés, flèches, contours multiples et à largeur variable.
+- **Texte** : polices fournies et polices de l'ordinateur, styles différents dans un même texte, texte sur un tracé, colonnes, fonctions OpenType (petites capitales, ligatures…), conversion en courbes.
+- **Couleurs et effets** : dégradés linéaires, radiaux et coniques, motifs, nuancier, palettes, ombres, lueurs, flou, biseau et estampage.
+- **Symboles et styles enregistrés** : modifier un symbole met à jour toutes ses copies.
+- **Vectoriser une image** : un logo ou un dessin devient des tracés modifiables, comme dans Illustrator.
 - **Calques** : groupes, masques, opacité et 16 modes de fusion.
 
 **Côté Canva**
@@ -86,8 +97,10 @@ Trois espaces de travail, comme dans Affinity, qu'on change d'un clic en haut à
 
 **Photo**
 
-- **Pinceaux, gomme, sélections** (rectangle, ellipse, lasso, baguette magique) et **gomme magique** qui efface un objet en reconstruisant le fond, sans connexion.
-- **Calques de réglage** (courbes, niveaux, teinte et saturation, balance des blancs…), **filtres** (flou, netteté, bruit, vignettage…), **masques de calque** et histogramme.
+- **Pinceaux, gomme, sélections** (rectangle, ellipse, lasso, lasso polygonal, baguette magique, sélection rapide) et **gomme magique** qui efface un objet en reconstruisant le fond, sans connexion.
+- **Supprimer l'arrière-plan** et **sélectionner le sujet** d'un clic, grâce à une IA qui tourne sur l'ordinateur, sans connexion.
+- **Correcteur, doigt, fluidité**, redressement de l'horizon et de la perspective, taille de l'image et de la zone de travail.
+- **Calques de réglage** (courbes, niveaux, teinte et saturation, balance des blancs, looks LUT…), **filtres** (flou, netteté, bruit, vignettage…), **masques de calque** et histogramme.
 
 **Mise en page et impression**
 
@@ -100,6 +113,12 @@ Trois espaces de travail, comme dans Affinity, qu'on change d'un clic en haut à
 - **Ouverture des fichiers Photoshop (.psd), PDF et Illustrator (.ai)**, import SVG.
 - Vos fichiers restent sur votre ordinateur, l'appli fonctionne sans connexion, en français ou en anglais.
 
+**Gagner du temps**
+
+- **Macros** : on enregistre ses gestes et on les rejoue d'un clic sur une autre image.
+- **Raccourcis clavier** au choix, et **extensions** pour ajouter ses propres commandes.
+- **Mises à jour automatiques** : l'appli propose elle-même la nouvelle version, sans rien réinstaller.
+
 ## Feuille de route
 
 | Version | Contenu                                                                                       | État          |
@@ -109,7 +128,9 @@ Trois espaces de travail, comme dans Affinity, qu'on change d'un clic en haut à
 | v0.3    | Vectoriel pro : plume, nœuds, géométrie, effets (Illustrator, Affinity Designer)              | ✅ Disponible |
 | v0.4    | Retouche photo : pinceaux, sélections, réglages, gomme magique (Photoshop, Affinity Photo)    | ✅ Disponible |
 | v0.5    | Mise en page et impression : pages, CMJN, PDF/X, fichiers PSD, PDF et AI (Affinity Publisher) | ✅ Disponible |
-| v1.0    | Version stable, appli signée avec mises à jour automatiques                                   | 🚧 En cours   |
+| v0.6    | Outils Photoshop et Affinity manquants : correcteur, fluidité, cutter, symboles, LUT…         | ✅ Disponible |
+| v1.0    | Vectorisation, détourage par IA locale, macros, extensions, mises à jour automatiques         | ✅ Disponible |
+| v1.x    | Appli signée (Windows, macOS), Flathub, accessibilité, documentation en anglais               | 🚧 À venir    |
 
 Le détail est dans la [feuille de route des fonctionnalités](docs/feuille-de-route.md).
 
@@ -133,13 +154,15 @@ pnpm desktop:dev    # appli de bureau (Rust et dépendances Tauri requis)
 | `apps/editor`      | Interface façon Affinity (React + Vite)                                 |
 | `apps/desktop`     | Appli de bureau Tauri 2                                                 |
 
-Pour publier une nouvelle version, on change le numéro de version (dans `apps/desktop/src-tauri/tauri.conf.json`, `Cargo.toml` et les `package.json`), puis on ouvre l'onglet **Actions > Installeurs de bureau > Run workflow** et on indique l'étiquette (par exemple `v0.2.0`) ; pousser l'étiquette avec git marche aussi. GitHub fabrique les installeurs et les publie, et les boutons de téléchargement ci-dessus pointent tout seuls vers la nouvelle version.
+Pour publier une nouvelle version, on change le numéro de version (dans `apps/desktop/src-tauri/tauri.conf.json`, `Cargo.toml` et les `package.json`), puis on ouvre l'onglet **Actions > Installeurs de bureau > Run workflow** et on indique l'étiquette (par exemple `v1.1.0`) ; pousser l'étiquette avec git marche aussi. GitHub fabrique les installeurs et les publie, et les boutons de téléchargement ci-dessus pointent tout seuls vers la nouvelle version.
 
 ### Documentation
 
 - [Guide d'installation](docs/installer.md)
 - [Licences et origine du contenu](docs/licences.md)
-- [Moteur d'édition v0.1](docs/moteur-v0.1.md), [Côté Canva v0.2](docs/cote-canva-v0.2.md), [Vectoriel pro v0.3](docs/vectoriel-pro-v0.3.md), [Retouche photo v0.4](docs/retouche-photo-v0.4.md), [Mise en page v0.5](docs/mise-en-page-v0.5.md) et [Impression v0.5](docs/impression-v0.5.md) : état et organisation du code
+- [Moteur d'édition v0.1](docs/moteur-v0.1.md), [Côté Canva v0.2](docs/cote-canva-v0.2.md), [Vectoriel pro v0.3](docs/vectoriel-pro-v0.3.md), [Retouche photo v0.4](docs/retouche-photo-v0.4.md), [Mise en page v0.5](docs/mise-en-page-v0.5.md), [Impression v0.5](docs/impression-v0.5.md), [Outils manquants v0.6](docs/outils-manquants-v0.6.md) et [Version 1.0](docs/version-1.0.md) : état et organisation du code
+- [Panneaux libres et espaces de travail](docs/panneaux-libres.md), [Écrire une extension](docs/extensions.md)
+- [Signature des installeurs et mises à jour automatiques](docs/signature-et-mises-a-jour.md)
 - [Format de fichier `.poulpe`](docs/format-poulpe.md)
 - [Cadrage et architecture](docs/cadrage-architecture.md)
 - [Maquette de l'interface v3](design/maquette-v3.html) (voir [design/README.md](design/README.md))
