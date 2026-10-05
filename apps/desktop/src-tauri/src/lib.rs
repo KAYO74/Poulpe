@@ -1,7 +1,8 @@
 //! Appli de bureau Poulpe : une fenêtre Tauri qui embarque l'éditeur web (`apps/editor`).
 //!
 //! Le côté Rust reste minimal : ouverture des fichiers `.poulpe` par double-clic,
-//! liste des polices installées, et accès aux fichiers via les extensions officielles de Tauri.
+//! liste et données des polices installées, mesure des performances, et accès aux fichiers via
+//! les extensions officielles de Tauri.
 
 use std::path::PathBuf;
 use std::sync::Mutex;
@@ -46,13 +47,62 @@ fn list_fonts() -> Vec<String> {
     families
 }
 
+/// Fichier TrueType d'une police installée, pour l'intégrer dans un PDF. Les polices
+/// PostScript (OpenType CFF) et les collections ne sont pas prises en charge par l'export PDF.
+#[tauri::command]
+fn font_data(family: String, weight: u16, italic: bool) -> Result<tauri::ipc::Response, String> {
+    let mut db = fontdb::Database::new();
+    db.load_system_fonts();
+    let bytes = truetype_face(&db, &family, weight, italic).ok_or("police introuvable")?;
+    Ok(tauri::ipc::Response::new(bytes))
+}
+
+fn truetype_face(db: &fontdb::Database, family: &str, weight: u16, italic: bool) -> Option<Vec<u8>> {
+    let id = db.query(&fontdb::Query {
+        families: &[fontdb::Family::Name(family)],
+        weight: fontdb::Weight(weight),
+        style: if italic { fontdb::Style::Italic } else { fontdb::Style::Normal },
+        stretch: fontdb::Stretch::Normal,
+    })?;
+    // La requête renvoie la face la plus proche, éventuellement d'une autre famille : on vérifie.
+    let face = db.face(id)?;
+    if !face.families.iter().any(|(name, _)| name.eq_ignore_ascii_case(family)) {
+        return None;
+    }
+    db.with_face_data(id, |data, index| {
+        let truetype = data.len() > 4 && (data[..4] == [0, 1, 0, 0] || &data[..4] == b"true");
+        (index == 0 && truetype).then(|| data.to_vec())
+    })?
+}
+
+/// Mode mesure de performances : `POULPE_BENCH=1` lance un scénario de dessin au démarrage.
+#[tauri::command]
+fn bench_mode() -> bool {
+    std::env::var("POULPE_BENCH").map(|v| v == "1").unwrap_or(false)
+}
+
+/// Écrit le rapport de mesure sur la sortie standard, puis ferme l'appli.
+#[tauri::command]
+fn bench_report(app: tauri::AppHandle, report: String) {
+    if bench_mode() {
+        println!("{report}");
+        app.exit(0);
+    }
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     let app = tauri::Builder::default()
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_fs::init())
         .manage(OpenedFile(Mutex::new(poulpe_file_from_args(std::env::args()))))
-        .invoke_handler(tauri::generate_handler![opened_file, list_fonts])
+        .invoke_handler(tauri::generate_handler![
+            opened_file,
+            list_fonts,
+            font_data,
+            bench_mode,
+            bench_report
+        ])
         .build(tauri::generate_context!())
         .expect("impossible de démarrer Poulpe");
 
@@ -94,6 +144,19 @@ mod tests {
         ];
         assert_eq!(poulpe_file_from_args(args), Some(file.to_string_lossy().into_owned()));
         assert_eq!(poulpe_file_from_args(vec!["poulpe".to_string(), "absent.poulpe".to_string()]), None);
+    }
+
+    #[test]
+    fn ne_renvoie_que_la_famille_demandee() {
+        let mut db = fontdb::Database::new();
+        db.load_system_fonts();
+        assert!(truetype_face(&db, "Police qui n'existe pas", 400, false).is_none());
+        let first = db.faces().find_map(|f| f.families.first().map(|(n, _)| n.clone()));
+        if let Some(name) = first {
+            if let Some(bytes) = truetype_face(&db, &name, 400, false) {
+                assert!(bytes[..4] == [0, 1, 0, 0] || &bytes[..4] == b"true");
+            }
+        }
     }
 
     #[test]

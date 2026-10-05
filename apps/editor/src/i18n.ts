@@ -284,6 +284,20 @@ const fr = {
 
   'shortcuts.title': 'Raccourcis clavier',
   'common.close': 'Fermer',
+  'ctx.crop': 'Recadrer',
+  'ctx.cropDone': 'Terminer le recadrage',
+  'ctx.resetCrop': 'Image entière',
+  'hint.crop':
+    'glisser les poignées pour recadrer, glisser l’image pour la déplacer dans le cadre. Entrée ou Échap pour terminer.',
+  'history.crop': 'Recadrage',
+  'history.guide': 'Repère',
+  'cmd.clearGuides': 'Effacer les repères',
+  'draft.title': 'Brouillon retrouvé',
+  'draft.body':
+    'Poulpe a gardé une copie de « {name} » ({date}) qui n’a pas été enregistrée, sans doute parce que la fenêtre s’est fermée. Voulez-vous la rouvrir ?',
+  'draft.restore': 'Rouvrir le brouillon',
+  'draft.discard': 'Ignorer',
+  'export.pdfFontsMissing': 'PDF créé. Police non intégrée, remplacée par une police standard : {fonts}.',
 } as const;
 
 export type MessageKey = keyof typeof fr;
@@ -567,6 +581,20 @@ const en: Record<MessageKey, string> = {
 
   'shortcuts.title': 'Keyboard shortcuts',
   'common.close': 'Close',
+  'ctx.crop': 'Crop',
+  'ctx.cropDone': 'Finish cropping',
+  'ctx.resetCrop': 'Whole image',
+  'hint.crop':
+    'drag the handles to crop, drag the image to move it inside the frame. Enter or Esc to finish.',
+  'history.crop': 'Crop',
+  'history.guide': 'Guide',
+  'cmd.clearGuides': 'Clear guides',
+  'draft.title': 'Draft recovered',
+  'draft.body':
+    'Poulpe kept an unsaved copy of “{name}” ({date}), probably because the window was closed. Do you want to reopen it?',
+  'draft.restore': 'Reopen draft',
+  'draft.discard': 'Discard',
+  'export.pdfFontsMissing': 'PDF created. Font not embedded, replaced by a standard font: {fonts}.',
 };
 
 const dictionaries: Record<Lang, Record<MessageKey, string>> = { fr, en };

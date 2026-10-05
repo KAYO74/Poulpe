@@ -4,7 +4,7 @@
 
 Application libre et gratuite de création graphique qui réunit la puissance d'Affinity, Illustrator et Photoshop (vectoriel, retouche photo, mise en page) et la simplicité de Canva (modèles, glisser-déposer). Interface moderne, épurée et ergonomique, proche d'Affinity.
 
-**Statut :** moteur d'édition v0.1 en cours : formes, texte, calques, couleurs et dégradés, export PNG, JPEG, SVG et PDF, appli de bureau. Le dépôt est privé pour l'instant.
+**Statut :** moteur d'édition v0.1 terminé : formes, texte avec styles par caractère, images recadrables, calques, couleurs et dégradés, repères, brouillons automatiques, export PNG, JPEG, SVG et PDF (polices intégrées), appli de bureau. Le dépôt est privé pour l'instant.
 
 ## En bref
 

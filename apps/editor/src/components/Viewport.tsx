@@ -1,7 +1,16 @@
 import { useEffect, useLayoutEffect, useRef, useState } from 'react';
-import { cssFont, findNode, rgbaToCss, type TextNode } from '@poulpe/core';
+import { caretAt, cssFont, findNode, indexAtPoint, worldToLocal, type TextNode } from '@poulpe/core';
+import { cachedLayout, measureText } from '@poulpe/render';
 import { CanvasController } from '../canvas/controller';
-import { currentEditedText, endTextEdit, setEditedText } from '../canvas/textEdit';
+import {
+  currentEditedText,
+  endTextEdit,
+  keepEditingOnBlur,
+  registerTextInput,
+  resetTypingStyle,
+  setEditedText,
+  setTextSelection,
+} from '../canvas/textEdit';
 import { placeImageBytes } from '../io';
 import { ui, useEditor, useUi } from '../store';
 
@@ -69,8 +78,20 @@ export function Viewport() {
       {rulers && (
         <>
           <div className="ruler-corner" />
-          <canvas ref={rulerX} className="ruler ruler-x" aria-hidden="true" />
-          <canvas ref={rulerY} className="ruler ruler-y" aria-hidden="true" />
+          <canvas
+            ref={rulerX}
+            className="ruler ruler-x"
+            aria-hidden="true"
+            data-testid="ruler-x"
+            onPointerDown={(e) => e.button === 0 && controller?.dragGuide('y', null, e.nativeEvent)}
+          />
+          <canvas
+            ref={rulerY}
+            className="ruler ruler-y"
+            aria-hidden="true"
+            data-testid="ruler-y"
+            onPointerDown={(e) => e.button === 0 && controller?.dragGuide('x', null, e.nativeEvent)}
+          />
         </>
       )}
       <div className="canvas-area">
@@ -134,12 +155,34 @@ function paintRulers(cx: HTMLCanvasElement, cy: HTMLCanvasElement, c: CanvasCont
   draw(cy, c.height, panY, true);
 }
 
-/** Zone de saisie posée sur le texte en cours d'édition, à la même taille et la même police. */
+const notify = () => window.dispatchEvent(new Event('poulpe:textselection'));
+
+/** Point écran (relatif au canevas) vers indice du texte édité. */
+function indexFromEvent(e: { clientX: number; clientY: number }, node: TextNode): number {
+  const c = controller!;
+  const rect = c.canvas.getBoundingClientRect();
+  const local = worldToLocal(node, c.toWorld(e.clientX - rect.left, e.clientY - rect.top));
+  return indexAtPoint(cachedLayout(node), local.x, local.y, measureText);
+}
+
+function wordAt(text: string, i: number): [number, number] {
+  let a = i,
+    b = i;
+  while (a > 0 && /[\p{L}\p{N}_]/u.test(text[a - 1])) a--;
+  while (b < text.length && /[\p{L}\p{N}_]/u.test(text[b])) b++;
+  return a === b ? [i, Math.min(text.length, i + 1)] : [a, b];
+}
+
+/**
+ * Zone de saisie invisible posée sur le texte en cours d'édition. Elle reçoit le clavier
+ * (y compris les méthodes de saisie) ; le texte, le curseur et la sélection sont dessinés par le canevas.
+ */
 function TextEditor() {
   const editingId = useUi((s) => s.editingTextId);
   const state = useEditor();
   useUi((s) => s.view);
-  const ref = useRef<HTMLTextAreaElement>(null);
+  const ref = useRef<HTMLTextAreaElement | null>(null);
+  const anchor = useRef(0);
   const [initial, setInitial] = useState('');
 
   useEffect(() => {
@@ -150,6 +193,7 @@ function TextEditor() {
       if (!el) return;
       el.focus();
       el.select();
+      notify();
     });
   }, [editingId]);
 
@@ -160,11 +204,29 @@ function TextEditor() {
   const frame = node
     ? controller.screenFrame(node)
     : { x: 0, y: 0, width: 10, height: style.fontSize, rotation: 0, zoom: ui.get().view.zoom };
-  const color = node?.fill.type === 'solid' ? rgbaToCss(node.fill.color) : '#888';
   const z = frame.zoom;
+
+  const moveVertically = (el: HTMLTextAreaElement, dir: -1 | 1, extend: boolean) => {
+    if (!node) return;
+    const layout = cachedLayout(node);
+    const focus = el.selectionDirection === 'backward' ? el.selectionStart : el.selectionEnd;
+    const c = caretAt(layout, focus, measureText);
+    const target = layout.lines[c.line + dir];
+    const i = target
+      ? indexAtPoint(layout, c.x, target.top + target.height / 2, measureText)
+      : dir < 0
+        ? 0
+        : node.text.length;
+    const a = extend ? (el.selectionDirection === 'backward' ? el.selectionEnd : el.selectionStart) : i;
+    setTextSelection(a, i);
+  };
+
   return (
     <textarea
-      ref={ref}
+      ref={(el) => {
+        ref.current = el;
+        registerTextInput(el);
+      }}
       className="text-editor"
       data-testid="text-editor"
       defaultValue={initial}
@@ -177,24 +239,80 @@ function TextEditor() {
         width: Math.max(frame.width + 4 * z, 8),
         height: Math.max(frame.height, style.fontSize * style.lineHeight * z),
         transform: frame.rotation ? `rotate(${frame.rotation}deg)` : undefined,
-        font: cssFont({ ...style, fontSize: style.fontSize * z }),
+        fontFamily: cssFont(style).replace(/^.*?px /, ''),
+        fontSize: style.fontSize * z,
+        fontWeight: style.fontWeight,
+        fontStyle: style.italic ? 'italic' : 'normal',
         lineHeight: style.lineHeight,
-        letterSpacing: `${style.letterSpacing * z}px`,
         textAlign: style.align,
-        textTransform: style.uppercase ? 'uppercase' : 'none',
         whiteSpace: node?.autoWidth ? 'pre' : 'pre-wrap',
-        color,
-        caretColor: color,
       }}
-      onChange={(e) => setEditedText(e.target.value)}
-      onBlur={() => endTextEdit()}
+      onChange={(e) => {
+        setEditedText(e.target.value);
+        notify();
+      }}
+      onSelect={notify}
+      onBlur={(e) => {
+        if (!keepEditingOnBlur(e.relatedTarget)) endTextEdit();
+      }}
+      onPointerDown={(e) => {
+        if (!node || e.button !== 0) return;
+        e.preventDefault();
+        const el = e.currentTarget;
+        const i = indexFromEvent(e, node);
+        if (e.detail === 2) {
+          const [a, b] = wordAt(node.text, i);
+          anchor.current = a;
+          setTextSelection(a, b);
+          return;
+        }
+        if (e.detail >= 3) {
+          setTextSelection(0, node.text.length);
+          return;
+        }
+        if (!e.shiftKey) anchor.current = i;
+        setTextSelection(anchor.current, i);
+        el.setPointerCapture(e.pointerId);
+      }}
+      onPointerMove={(e) => {
+        if (!node || !e.currentTarget.hasPointerCapture(e.pointerId)) return;
+        setTextSelection(anchor.current, indexFromEvent(e, node));
+      }}
+      onPointerUp={(e) => {
+        if (e.currentTarget.hasPointerCapture(e.pointerId))
+          e.currentTarget.releasePointerCapture(e.pointerId);
+      }}
       onKeyDown={(e) => {
         e.stopPropagation();
+        const el = e.currentTarget;
         if (e.key === 'Escape') {
           e.preventDefault();
-          (e.target as HTMLTextAreaElement).blur();
+          el.blur();
+          endTextEdit();
+          return;
         }
+        if (e.key === 'ArrowUp' || e.key === 'ArrowDown') {
+          e.preventDefault();
+          moveVertically(el, e.key === 'ArrowUp' ? -1 : 1, e.shiftKey);
+          return;
+        }
+        if ((e.key === 'Home' || e.key === 'End') && node && !e.ctrlKey && !e.metaKey) {
+          e.preventDefault();
+          const layout = cachedLayout(node);
+          const focus = el.selectionDirection === 'backward' ? el.selectionStart : el.selectionEnd;
+          const line = layout.lines[caretAt(layout, focus, measureText).line];
+          const i = e.key === 'Home' ? line.start : line.end;
+          const a = e.shiftKey
+            ? el.selectionDirection === 'backward'
+              ? el.selectionEnd
+              : el.selectionStart
+            : i;
+          setTextSelection(a, i);
+          return;
+        }
+        if (e.key.startsWith('Arrow') || e.key === 'PageUp' || e.key === 'PageDown') resetTypingStyle();
       }}
+      onKeyUp={notify}
     />
   );
 }

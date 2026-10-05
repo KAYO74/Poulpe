@@ -1,4 +1,4 @@
-import { FORMAT_PRESETS, findArtboard, findNode, type SceneNode } from '@poulpe/core';
+import { FORMAT_PRESETS, findArtboard, findNode, localToWorld, type SceneNode } from '@poulpe/core';
 import { setPaint, setTextStyle, updateArtboard, updateSelected } from '../actions';
 import { useFonts } from '../fonts';
 import { useT } from '../i18n';
@@ -60,6 +60,7 @@ export function ContextBar() {
   const { doc, selection, activeArtboardId } = useEditor();
   const tool = useUi((s) => s.tool);
   const defaults = useUi((s) => s.defaults);
+  const cropId = useUi((s) => s.cropId);
   const fonts = useFonts();
   const node = selection.length === 1 ? (findNode(doc, selection[0])?.node ?? null) : null;
   const ab = findArtboard(doc, activeArtboardId);
@@ -165,6 +166,41 @@ export function ContextBar() {
                 : ui.set({ defaults: { ...defaults, sides: Math.round(v) } })
             }
           />
+        )}
+        {shape?.type === 'image' && (
+          <>
+            <button
+              className="btn small"
+              aria-pressed={cropId === shape.id}
+              onClick={() => ui.set({ cropId: cropId === shape.id ? null : shape.id })}
+              data-testid="crop"
+            >
+              {cropId === shape.id ? t('ctx.cropDone') : t('ctx.crop')}
+            </button>
+            <button
+              className="btn small"
+              disabled={!shape.crop}
+              onClick={() => {
+                const n = shape;
+                const c = n.crop;
+                if (!c) return;
+                // Revient à l'image entière, en gardant l'échelle et la position de l'image.
+                updateSelected('history.crop', (m) => {
+                  if (m.type !== 'image') return;
+                  const fw = n.width / c.width,
+                    fh = n.height / c.height;
+                  const center = localToWorld(n, { x: -c.x * fw + fw / 2, y: -c.y * fh + fh / 2 });
+                  m.width = fw;
+                  m.height = fh;
+                  m.x = center.x - fw / 2;
+                  m.y = center.y - fh / 2;
+                  delete m.crop;
+                });
+              }}
+            >
+              {t('ctx.resetCrop')}
+            </button>
+          </>
         )}
         {kind === 'star' && (
           <>

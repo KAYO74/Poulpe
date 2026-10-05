@@ -2,6 +2,8 @@ import {
   artboardAt,
   boxCenter,
   boxesIntersect,
+  caretAt,
+  charX,
   cloneWithNewIds,
   createArtboard,
   createEllipse,
@@ -19,18 +21,26 @@ import {
   reparentToArtboards,
   rotateNode,
   scaleNode,
+  scaleTextSize,
   selectionBounds,
-  shapePath,
   topLevelIds,
   translateNode,
   worldToLocal,
   type Artboard,
   type Box,
+  type ImageNode,
   type PoulpeDocument,
   type SceneNode,
   type Vec,
 } from '@poulpe/core';
-import { ImageCache, drawArtboard, toPath2D } from '@poulpe/render';
+import {
+  ImageCache,
+  cachedLayout,
+  clearLayoutCache,
+  drawArtboard,
+  measureText,
+  nodePath,
+} from '@poulpe/render';
 import { setPaint } from '../actions';
 import { t } from '../i18n';
 import { importImage } from '../io';
@@ -43,7 +53,7 @@ import {
   type SnapGuide,
   type SnapLines,
 } from './snapping';
-import { beginTextEdit } from './textEdit';
+import { beginTextEdit, endTextEdit, isEditingText, textSelection } from './textEdit';
 
 type HandleId = 'nw' | 'n' | 'ne' | 'e' | 'se' | 's' | 'sw' | 'w';
 const HANDLES: Record<HandleId, [number, number]> = {
@@ -91,6 +101,8 @@ type Gesture =
   | { kind: 'marquee'; start: Vec; current: Vec; additive: boolean; base: string[] }
   | { kind: 'create'; tool: ToolId; start: Vec; artboardId: string; nodeId: string | null; lines: SnapLines }
   | { kind: 'artboardCreate'; start: Vec; current: Vec }
+  | { kind: 'cropResize'; handle: HandleId; node: ImageNode; full: Box }
+  | { kind: 'cropPan'; start: Vec; node: ImageNode; full: Box; moved: boolean }
   | { kind: 'artboardMove'; id: string; start: Vec; origin: Vec; moved: boolean };
 
 const SHAPE_TOOLS: ToolId[] = ['rect', 'ellipse', 'polygon', 'star', 'line'];
@@ -117,7 +129,14 @@ export class CanvasController {
     this.ctx = canvas.getContext('2d')!;
     this.images = new ImageCache(() => this.requestDraw());
     this.readColors();
-    this.unsubscribe.push(editor.subscribe(() => this.requestDraw()));
+    this.unsubscribe.push(
+      editor.subscribe(() => {
+        // Le recadrage s'arrête quand l'image n'est plus la sélection.
+        const crop = ui.get().cropId;
+        if (crop && (editor.selection.length !== 1 || editor.selection[0] !== crop)) ui.set({ cropId: null });
+        this.requestDraw();
+      }),
+    );
     this.unsubscribe.push(
       ui.subscribe(() => {
         this.readColors();
@@ -135,6 +154,7 @@ export class CanvasController {
     window.addEventListener('keydown', this.onKey);
     window.addEventListener('keyup', this.onKey);
     window.addEventListener('poulpe:fit', this.zoomToFit);
+    window.addEventListener('poulpe:textselection', this.requestDraw);
     document.fonts?.addEventListener?.('loadingdone', this.onFontsLoaded);
   }
 
@@ -151,10 +171,12 @@ export class CanvasController {
     window.removeEventListener('keydown', this.onKey);
     window.removeEventListener('keyup', this.onKey);
     window.removeEventListener('poulpe:fit', this.zoomToFit);
+    window.removeEventListener('poulpe:textselection', this.requestDraw);
     document.fonts?.removeEventListener?.('loadingdone', this.onFontsLoaded);
   }
 
   private onFontsLoaded = () => {
+    clearLayoutCache();
     editor.normalizeNow();
     this.requestDraw();
   };
@@ -166,6 +188,7 @@ export class CanvasController {
       pasteboard: v('--pasteboard') || '#151518',
       sel: v('--sel') || '#4da3ff',
       guide: v('--guide') || '#ff4fb8',
+      docGuide: v('--doc-guide') || '#20c4d8',
       muted: v('--muted') || '#a3a1ac',
       fg: v('--fg') || '#e7e6ec',
       line: v('--line') || '#3a3a41',
@@ -273,7 +296,7 @@ export class CanvasController {
     const f = this.selectionFrame();
     if (!f || this.anySelectedLocked()) return null;
     const rp = this.toScreen(this.rotateHandle(f));
-    if (Math.hypot(rp.x - sx, rp.y - sy) <= HANDLE_SIZE) return 'rotate';
+    if (!this.cropNode() && Math.hypot(rp.x - sx, rp.y - sy) <= HANDLE_SIZE) return 'rotate';
     const sel = editor.selection;
     const single = sel.length === 1 ? findNode(editor.doc, sel[0])?.node : null;
     for (const { id, p } of this.handlePoints(f)) {
@@ -364,8 +387,9 @@ export class CanvasController {
     const tool = this.effectiveTool();
     const doc = editor.doc;
 
-    if (ui.get().editingTextId) {
+    if (isEditingText()) {
       // Un clic hors du texte termine l'édition (la zone de texte gère elle-même les clics dedans).
+      endTextEdit();
       (document.activeElement as HTMLElement | null)?.blur();
     }
 
@@ -439,8 +463,33 @@ export class CanvasController {
       return;
     }
 
+    // Recadrage : les poignées changent le cadre, un glissement dedans déplace l'image.
+    const crop = this.cropNode();
+    if (crop) {
+      const handle = this.hitHandle(sx, sy);
+      const full = cropFull(crop);
+      const l = worldToLocal(crop, p);
+      if (handle && handle !== 'rotate') {
+        editor.begin();
+        this.gesture = { kind: 'cropResize', handle, node: crop, full };
+        return;
+      }
+      if (l.x >= full.x && l.y >= full.y && l.x <= full.x + full.width && l.y <= full.y + full.height) {
+        editor.begin();
+        this.gesture = { kind: 'cropPan', start: p, node: crop, full, moved: false };
+        return;
+      }
+      ui.set({ cropId: null });
+    }
+
     // Outils de sélection.
     const handle = this.hitHandle(sx, sy);
+    const guide = handle ? null : this.hitGuide(sx, sy);
+    if (guide && (tool === 'select' || tool === 'direct')) {
+      this.canvas.releasePointerCapture(e.pointerId);
+      this.dragGuide(guide.axis, guide.index, e);
+      return;
+    }
     if (handle === 'rotate') {
       const f = this.selectionFrame()!;
       const c = boxCenter(f);
@@ -554,6 +603,10 @@ export class CanvasController {
       }
       case 'create':
         return this.dragCreate(g, p, e.shiftKey, e.altKey, snap);
+      case 'cropResize':
+        return this.dragCropResize(g, p);
+      case 'cropPan':
+        return this.dragCropPan(g, p);
       case 'artboardCreate':
         g.current = p;
         this.requestDraw();
@@ -675,9 +728,11 @@ export class CanvasController {
           h = Math.max(1, Math.abs(y1 - y0));
         const c = localToWorld(f, { x: nx0 + w / 2, y: ny0 + h / 2 });
         if (n.type === 'text' && g.single.type === 'text') {
-          if (n.autoWidth && corner)
-            n.style = { ...n.style, fontSize: Math.max(1, g.single.style.fontSize * Math.abs(sy)) };
-          else if (hx === 0.5) return;
+          if (n.autoWidth && corner) {
+            n.style = g.single.style;
+            n.runs = g.single.runs;
+            scaleTextSize(n, Math.abs(sy));
+          } else if (hx === 0.5) return;
           else n.autoWidth = false;
         }
         n.width = w;
@@ -701,6 +756,134 @@ export class CanvasController {
           fromCenter ? boxCenter(f) : origin,
           keepRatio,
         );
+    });
+  }
+
+  // ————— Repères —————
+
+  /** Repère sous le point écran, à 4 px près. */
+  private hitGuide(sx: number, sy: number): { axis: 'x' | 'y'; index: number } | null {
+    const g = editor.doc.guides;
+    if (!g || !ui.get().settings.rulers) return null;
+    const v = this.view;
+    const ix = g.x.findIndex((x) => Math.abs(x * v.zoom + v.panX - sx) <= 4);
+    if (ix >= 0) return { axis: 'x', index: ix };
+    const iy = g.y.findIndex((y) => Math.abs(y * v.zoom + v.panY - sy) <= 4);
+    return iy >= 0 ? { axis: 'y', index: iy } : null;
+  }
+
+  /**
+   * Glisse un repère : nouveau (`index` null, tiré depuis une règle) ou existant. Relâché hors
+   * du canevas (sur une règle), le repère est supprimé.
+   */
+  dragGuide(axis: 'x' | 'y', index: number | null, e: PointerEvent): void {
+    const target = e.target as Element;
+    target.setPointerCapture?.(e.pointerId);
+    editor.begin();
+    let idx = index;
+    const pos = (ev: PointerEvent) => {
+      const r = this.canvas.getBoundingClientRect();
+      const p = this.toWorld(ev.clientX - r.left, ev.clientY - r.top);
+      let v = axis === 'x' ? p.x : p.y;
+      if (this.snapping() && !ev.ctrlKey) {
+        const lines = collectSnapLines(editor.doc, new Set(), false);
+        const s = snapPoint(p, lines, this.snapThreshold(), this.gridStep());
+        v = axis === 'x' ? s.x : s.y;
+      }
+      return Math.round(v * 100) / 100;
+    };
+    const inside = (ev: PointerEvent) => {
+      const r = this.canvas.getBoundingClientRect();
+      return ev.clientX >= r.left && ev.clientY >= r.top && ev.clientX <= r.right && ev.clientY <= r.bottom;
+    };
+    const move = (ev: PointerEvent) => {
+      const v = pos(ev);
+      const show = inside(ev);
+      editor.preview((d) => {
+        const g = (d.guides ??= { x: [], y: [] });
+        const list = g[axis];
+        if (idx === null) {
+          if (!show) return;
+          list.push(v);
+        } else if (show) list[idx] = v;
+        else list.splice(idx, 1);
+      });
+    };
+    const up = (ev: PointerEvent) => {
+      target.removeEventListener('pointermove', move as EventListener);
+      target.removeEventListener('pointerup', up as EventListener);
+      target.removeEventListener('pointercancel', up as EventListener);
+      if (ev.type === 'pointercancel' || (idx === null && !inside(ev))) {
+        editor.cancel();
+        return;
+      }
+      move(ev);
+      editor.commit('history.guide');
+    };
+    target.addEventListener('pointermove', move as EventListener);
+    target.addEventListener('pointerup', up as EventListener);
+    target.addEventListener('pointercancel', up as EventListener);
+  }
+
+  /** Image en cours de recadrage, si elle est toujours seule sélectionnée. */
+  cropNode(): ImageNode | null {
+    const id = ui.get().cropId;
+    if (!id || editor.selection.length !== 1 || editor.selection[0] !== id) return null;
+    const n = findNode(editor.doc, id)?.node;
+    return n?.type === 'image' && !n.locked ? n : null;
+  }
+
+  private dragCropResize(g: Extract<Gesture, { kind: 'cropResize' }>, p: Vec) {
+    const o = g.node;
+    const full = g.full;
+    const [hx, hy] = HANDLES[g.handle];
+    const l = worldToLocal(o, p);
+    let x0 = 0,
+      y0 = 0,
+      x1 = o.width,
+      y1 = o.height;
+    const clampX = (v: number) => Math.min(full.x + full.width, Math.max(full.x, v));
+    const clampY = (v: number) => Math.min(full.y + full.height, Math.max(full.y, v));
+    if (hx === 0) x0 = Math.min(clampX(l.x), x1 - 1);
+    if (hx === 1) x1 = Math.max(clampX(l.x), x0 + 1);
+    if (hy === 0) y0 = Math.min(clampY(l.y), y1 - 1);
+    if (hy === 1) y1 = Math.max(clampY(l.y), y0 + 1);
+    const c = localToWorld(o, { x: (x0 + x1) / 2, y: (y0 + y1) / 2 });
+    editor.preview((d) => {
+      const n = findNode(d, o.id)!.node;
+      if (n.type !== 'image') return;
+      n.width = x1 - x0;
+      n.height = y1 - y0;
+      n.x = c.x - n.width / 2;
+      n.y = c.y - n.height / 2;
+      n.crop = {
+        x: (x0 - full.x) / full.width,
+        y: (y0 - full.y) / full.height,
+        width: (x1 - x0) / full.width,
+        height: (y1 - y0) / full.height,
+      };
+    });
+  }
+
+  private dragCropPan(g: Extract<Gesture, { kind: 'cropPan' }>, p: Vec) {
+    const o = g.node;
+    const a = worldToLocal(o, g.start);
+    const b = worldToLocal(o, p);
+    if (!g.moved && Math.hypot(b.x - a.x, b.y - a.y) * this.view.zoom < 2) return;
+    g.moved = true;
+    const full = g.full;
+    // Le cadre reste à l'intérieur de l'image.
+    const fx = Math.min(0, Math.max(o.width - full.width, full.x + b.x - a.x));
+    const fy = Math.min(0, Math.max(o.height - full.height, full.y + b.y - a.y));
+    editor.preview((d) => {
+      const n = findNode(d, o.id)!.node;
+      if (n.type !== 'image') return;
+      n.crop = {
+        x: -fx / full.width,
+        y: -fy / full.height,
+        width: o.width / full.width,
+        height: o.height / full.height,
+      };
     });
   }
 
@@ -822,6 +1005,13 @@ export class CanvasController {
         break;
       case 'marquee':
         break;
+      case 'cropResize':
+        editor.commit('history.crop');
+        break;
+      case 'cropPan':
+        if (g.moved) editor.commit('history.crop');
+        else editor.cancel();
+        break;
       case 'artboardMove':
         if (g.moved) editor.commit('history.artboard');
         else editor.cancel();
@@ -908,6 +1098,11 @@ export class CanvasController {
       beginTextEdit(hit.id, false);
       return;
     }
+    if (hit.type === 'image') {
+      editor.select([hit.id]);
+      ui.set({ cropId: hit.id });
+      return;
+    }
     // Double-clic dans un groupe : sélectionne l'objet à l'intérieur.
     editor.select([hit.id]);
   };
@@ -945,9 +1140,22 @@ export class CanvasController {
     const tool = this.effectiveTool();
     let hover: string | null = null;
     let cursor = '';
+    const crop = tool === 'select' || tool === 'direct' ? this.cropNode() : null;
+    if (crop) {
+      const h = this.hitHandle(sx, sy);
+      const full = cropFull(crop);
+      const l = worldToLocal(crop, p);
+      const inside =
+        l.x >= full.x && l.y >= full.y && l.x <= full.x + full.width && l.y <= full.y + full.height;
+      this.canvas.style.cursor =
+        h && h !== 'rotate' ? handleCursor(h, crop.rotation) : inside ? 'move' : 'default';
+      return;
+    }
     if (tool === 'select' || tool === 'direct') {
       const h = this.hitHandle(sx, sy);
-      if (h === 'rotate') cursor = 'grab';
+      const guide = h ? null : this.hitGuide(sx, sy);
+      if (guide) cursor = guide.axis === 'x' ? 'col-resize' : 'row-resize';
+      else if (h === 'rotate') cursor = 'grab';
       else if (h) cursor = handleCursor(h, this.selectionFrame()?.rotation ?? 0);
       else hover = this.hitTest(p, tool === 'direct')?.id ?? null;
     }
@@ -989,7 +1197,6 @@ export class CanvasController {
     ctx.fillStyle = this.colors.pasteboard;
     ctx.fillRect(0, 0, this.width, this.height);
     ctx.setTransform(dpr * view.zoom, 0, 0, dpr * view.zoom, dpr * view.panX, dpr * view.panY);
-    const hidden = editingTextId ? new Set([editingTextId]) : undefined;
     for (const ab of doc.artboards) {
       ctx.save();
       ctx.shadowColor = 'rgba(0,0,0,0.35)';
@@ -999,12 +1206,13 @@ export class CanvasController {
       ctx.fillRect(ab.x, ab.y, ab.width, ab.height);
       ctx.restore();
       if (ab.background.type === 'none') this.drawChecker(ab);
-      drawArtboard(ctx, doc, ab, { images: this.images, hidden });
+      drawArtboard(ctx, doc, ab, { images: this.images });
       if (settings.grid) this.drawGrid(ab);
     }
     // Calques d'interface, en pixels d'écran.
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
     this.drawArtboardLabels(doc, activeArtboardId);
+    if (doc.guides && settings.rulers) this.drawDocGuides(doc.guides);
     const tool = ui.get().tool;
     if (this.hoverId && !selection.includes(this.hoverId)) {
       const n = findNode(doc, this.hoverId)?.node;
@@ -1014,6 +1222,9 @@ export class CanvasController {
       const n = findNode(doc, id)?.node;
       if (n) this.outline(n, this.colors.sel, 1);
     }
+    if (editingTextId) this.drawTextSelection(doc, editingTextId);
+    const crop = this.cropNode();
+    if (crop) this.drawCropGhost(doc, crop);
     if (!editingTextId && (tool === 'select' || tool === 'direct' || SHAPE_TOOLS.includes(tool)))
       this.drawHandles();
     const g = this.gesture;
@@ -1048,6 +1259,26 @@ export class CanvasController {
       ctx.restore();
     }
     window.dispatchEvent(new Event('poulpe:drawn'));
+  }
+
+  private drawDocGuides(guides: { x: number[]; y: number[] }) {
+    const ctx = this.ctx;
+    ctx.save();
+    ctx.strokeStyle = this.colors.docGuide;
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    for (const gx of guides.x) {
+      const x = Math.round(this.toScreen({ x: gx, y: 0 }).x) + 0.5;
+      ctx.moveTo(x, 0);
+      ctx.lineTo(x, this.height);
+    }
+    for (const gy of guides.y) {
+      const y = Math.round(this.toScreen({ x: 0, y: gy }).y) + 0.5;
+      ctx.moveTo(0, y);
+      ctx.lineTo(this.width, y);
+    }
+    ctx.stroke();
+    ctx.restore();
   }
 
   private drawChecker(ab: Artboard) {
@@ -1123,7 +1354,67 @@ export class CanvasController {
       ctx.rotate((n.rotation * Math.PI) / 180);
       ctx.translate(-n.width / 2, -n.height / 2);
       ctx.lineWidth = width / v.zoom;
-      ctx.stroke(toPath2D(shapePath(n)));
+      ctx.stroke(nodePath(n));
+    }
+    ctx.restore();
+  }
+
+  /** Partie masquée de l'image recadrée, en transparence autour du cadre. */
+  private drawCropGhost(doc: PoulpeDocument, n: ImageNode) {
+    const img = this.images.get(doc, n.assetId);
+    const full = cropFull(n);
+    const ctx = this.ctx;
+    const v = this.view;
+    ctx.save();
+    ctx.translate(v.panX, v.panY);
+    ctx.scale(v.zoom, v.zoom);
+    ctx.translate(n.x + n.width / 2, n.y + n.height / 2);
+    ctx.rotate((n.rotation * Math.PI) / 180);
+    ctx.translate(-n.width / 2, -n.height / 2);
+    ctx.beginPath();
+    ctx.rect(full.x, full.y, full.width, full.height);
+    ctx.rect(0, 0, n.width, n.height);
+    ctx.save();
+    ctx.clip('evenodd');
+    ctx.globalAlpha = 0.4;
+    if (img) ctx.drawImage(img, full.x, full.y, full.width, full.height);
+    ctx.restore();
+    ctx.setLineDash([4 / v.zoom, 3 / v.zoom]);
+    ctx.lineWidth = 1 / v.zoom;
+    ctx.strokeStyle = this.colors.sel;
+    ctx.strokeRect(full.x, full.y, full.width, full.height);
+    ctx.restore();
+  }
+
+  /** Sélection et curseur du texte en cours d'édition. */
+  private drawTextSelection(doc: PoulpeDocument, id: string) {
+    const n = findNode(doc, id)?.node;
+    const sel = textSelection();
+    if (n?.type !== 'text' || !sel) return;
+    const ctx = this.ctx;
+    const v = this.view;
+    const layout = cachedLayout(n);
+    ctx.save();
+    ctx.translate(v.panX, v.panY);
+    ctx.scale(v.zoom, v.zoom);
+    ctx.translate(n.x + n.width / 2, n.y + n.height / 2);
+    ctx.rotate((n.rotation * Math.PI) / 180);
+    ctx.translate(-n.width / 2, -n.height / 2);
+    if (sel.start === sel.end) {
+      const c = caretAt(layout, sel.start, measureText);
+      ctx.fillStyle = this.colors.sel;
+      ctx.fillRect(c.x - 0.75 / v.zoom, c.top, 1.5 / v.zoom, c.height);
+    } else {
+      ctx.fillStyle = 'rgba(77,163,255,0.35)';
+      for (const line of layout.lines) {
+        const a = Math.max(sel.start, line.start);
+        const b = Math.min(sel.end, line.stop);
+        if (b < a || (b === a && !(line.start === line.stop && sel.start <= a && a < sel.end))) continue;
+        const x0 = charX(line, a, measureText);
+        // Une fin de ligne sélectionnée (retour à la ligne compris) se voit par un petit débord.
+        const x1 = charX(line, b, measureText) + (sel.end > line.end ? line.size * 0.25 : 0);
+        ctx.fillRect(x0, line.top, Math.max(x1 - x0, 1 / v.zoom), line.height);
+      }
     }
     ctx.restore();
   }
@@ -1149,17 +1440,19 @@ export class CanvasController {
       ctx.restore();
       return;
     }
-    const top = this.toScreen(localToWorld(f, { x: f.width / 2, y: 0 }));
-    const rot = this.toScreen(this.rotateHandle(f));
-    ctx.beginPath();
-    ctx.moveTo(top.x, top.y);
-    ctx.lineTo(rot.x, rot.y);
-    ctx.stroke();
     ctx.fillStyle = '#ffffff';
-    ctx.beginPath();
-    ctx.arc(rot.x, rot.y, 4.5, 0, Math.PI * 2);
-    ctx.fill();
-    ctx.stroke();
+    if (!this.cropNode()) {
+      const top = this.toScreen(localToWorld(f, { x: f.width / 2, y: 0 }));
+      const rot = this.toScreen(this.rotateHandle(f));
+      ctx.beginPath();
+      ctx.moveTo(top.x, top.y);
+      ctx.lineTo(rot.x, rot.y);
+      ctx.stroke();
+      ctx.beginPath();
+      ctx.arc(rot.x, rot.y, 4.5, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.stroke();
+    }
     const s = HANDLE_SIZE;
     for (const { p } of this.handlePoints(f)) {
       const q = this.toScreen(p);
@@ -1209,4 +1502,12 @@ function handleCursor(h: HandleId, rotation: number): string {
   const a = (((base[h] + rotation) % 180) + 180) % 180;
   const names = ['ew-resize', 'nwse-resize', 'ns-resize', 'nesw-resize'];
   return names[Math.round(a / 45) % 4];
+}
+
+/** Image entière dans le repère local d'une image recadrée. */
+export function cropFull(n: ImageNode): Box {
+  const c = n.crop ?? { x: 0, y: 0, width: 1, height: 1 };
+  const width = n.width / c.width,
+    height = n.height / c.height;
+  return { x: -c.x * width, y: -c.y * height, width, height };
 }

@@ -25,13 +25,14 @@ export function StatusBar() {
   const zoom = useUi((s) => s.view.zoom);
   const cursor = useUi((s) => s.cursor);
   const toastMsg = useUi((s) => s.toast);
+  const cropping = useUi((s) => s.cropId !== null);
   const { doc, selection, activeArtboardId } = useEditor();
   const ab = findArtboard(doc, activeArtboardId);
   const b = selection.length ? boundsOf(doc, selection) : null;
   return (
     <footer className="statusbar">
       <span className="hint">
-        <b>{t(`tool.${tool}`)}</b> : {t(HINTS[tool])}
+        <b>{cropping ? t('ctx.crop') : t(`tool.${tool}`)}</b> : {t(cropping ? 'hint.crop' : HINTS[tool])}
       </span>
       <span className="spacer" />
       {toastMsg && (

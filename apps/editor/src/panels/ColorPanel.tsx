@@ -4,7 +4,8 @@ import { addSwatch, removeSwatch, setPaint } from '../actions';
 import { NumberField, paintPreview } from '../components/fields';
 import { Icon } from '../components/Icon';
 import { useT } from '../i18n';
-import { editor, pushRecentColor, ui, useEditor, useUi } from '../store';
+import { editingStyle, isEditingText } from '../canvas/textEdit';
+import { editor, pushRecentColor, ui, useEditor, useTextSelection, useUi } from '../store';
 import { ColorPicker, type Phase } from './ColorPicker';
 
 const DEFAULT_STOPS = (c: string): GradientStop[] => [
@@ -17,6 +18,10 @@ export function useCurrentPaint(): { paint: Paint; target: 'fill' | 'stroke'; ha
   const { doc, selection } = useEditor();
   const target = useUi((s) => s.colorTarget);
   const defaults = useUi((s) => s.defaults);
+  useTextSelection();
+  const editing = editingStyle();
+  if (editing?.color && target === 'fill')
+    return { paint: { type: 'solid', color: editing.color }, target, hasSelection: true };
   let node = selection.length ? findNode(doc, selection[0])?.node : null;
   while (node?.type === 'group') node = node.children[node.children.length - 1];
   if (node && node.type !== 'image') {
@@ -27,7 +32,8 @@ export function useCurrentPaint(): { paint: Paint; target: 'fill' | 'stroke'; ha
 
 /** Applique une peinture ; pendant un glissement, un seul pas d'historique pour tout le geste. */
 export function applyPaint(target: 'fill' | 'stroke', paint: Paint, phase: Phase): void {
-  const live = editor.selection.length > 0;
+  // Pendant l'édition d'un texte, la session d'édition forme déjà un seul pas d'historique.
+  const live = editor.selection.length > 0 && !isEditingText();
   if (live && phase === 'start') editor.begin();
   setPaint(target, paint, live && (phase === 'start' || phase === 'move' || phase === 'end'));
   if (live && phase === 'end') editor.commit('history.style');

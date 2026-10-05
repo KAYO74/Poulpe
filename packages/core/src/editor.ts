@@ -37,7 +37,7 @@ export class Editor {
   private past: HistoryEntry[] = [];
   private future: HistoryEntry[] = [];
   private gesture: { base: PoulpeDocument; selection: string[] } | null = null;
-  private savedDoc: PoulpeDocument;
+  private savedDoc: PoulpeDocument | null;
   private listeners = new Set<() => void>();
   private state: EditorState;
   private currentLabel = 'history.open';
@@ -195,14 +195,17 @@ export class Editor {
     this.set(this.state.doc, this.state.selection, id);
   }
 
-  /** Remplace le document (ouverture d'un fichier) et vide l'historique. */
-  load(doc: PoulpeDocument): void {
+  /**
+   * Remplace le document (ouverture d'un fichier) et vide l'historique. `unsaved` : le document
+   * n'existe pas sur le disque tel quel (brouillon récupéré).
+   */
+  load(doc: PoulpeDocument, opts: { unsaved?: boolean } = {}): void {
     this.past = [];
     this.future = [];
     this.gesture = null;
     this.currentLabel = 'history.open';
     const frozen = freeze(doc, true);
-    this.savedDoc = frozen;
+    this.savedDoc = opts.unsaved ? null : frozen;
     this.set(frozen, [], frozen.artboards[0]?.id ?? '');
     this.normalizeNow();
   }

@@ -3,10 +3,11 @@ import { createRoot } from 'react-dom/client';
 import { layoutText } from '@poulpe/core';
 import { measureText } from '@poulpe/render';
 import { App } from './App';
+import { startDrafts } from './drafts';
 import { loadSystemFonts } from './fonts';
 import { getLang } from './i18n';
 import { isDesktop, openPath } from './io';
-import { editor } from './store';
+import { editor, ui } from './store';
 import './styles.css';
 
 document.documentElement.lang = getLang();
@@ -39,6 +40,9 @@ createRoot(document.getElementById('root')!).render(
 );
 
 void loadSystemFonts();
+void startDrafts();
+if (isDesktop() || location.search.includes('bench'))
+  void import('./bench').then((b) => b.maybeRunBenchmark(isDesktop()));
 
 if (isDesktop()) {
   // Fichier passé au lancement (double-clic sur un .poulpe) ou ouvert pendant que l'appli tourne.
@@ -52,4 +56,4 @@ if (isDesktop()) {
 }
 
 // Accès pour les tests de bout en bout.
-(window as unknown as { poulpe: unknown }).poulpe = { editor };
+(window as unknown as { poulpe: unknown }).poulpe = { editor, ui };

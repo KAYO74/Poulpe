@@ -4,15 +4,18 @@ import { NumberField, Select } from '../components/fields';
 import { Icon, type IconName } from '../components/Icon';
 import { WEIGHTS, useFonts } from '../fonts';
 import { useT } from '../i18n';
-import { useEditor, useUi } from '../store';
+import { editingStyle } from '../canvas/textEdit';
+import { useEditor, useTextSelection, useUi } from '../store';
 
 export function CharacterPanel() {
   const t = useT();
   const fonts = useFonts();
   const { doc, selection } = useEditor();
   const defaults = useUi((s) => s.defaults);
+  useTextSelection();
   const text = selection.map((id) => findNode(doc, id)?.node).find((n): n is TextNode => n?.type === 'text');
-  const st: TextStyle = text?.style ?? defaults.text;
+  // Pendant l'édition, les réglages montrés sont ceux du début de la sélection.
+  const st: TextStyle = editingStyle() ?? text?.style ?? defaults.text;
   const toggle = (key: 'italic' | 'underline' | 'strike' | 'uppercase', icon: IconName, label: string) => (
     <button
       className="ib"

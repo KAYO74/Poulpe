@@ -1,6 +1,15 @@
 import { boxCenter, boxContains, nodeBounds, rotatePoint, unionBoxes, type Box, type Vec } from './geometry';
 import { newId } from './ids';
-import type { Artboard, GroupNode, Parent, PoulpeDocument, SceneNode } from './types';
+import type { Artboard, GroupNode, Parent, PoulpeDocument, SceneNode, TextNode } from './types';
+
+/** Multiplie les tailles de police d'un texte, plages comprises. */
+export function scaleTextSize(node: TextNode, k: number): void {
+  node.style = { ...node.style, fontSize: Math.max(1, node.style.fontSize * k) };
+  if (node.runs)
+    node.runs = node.runs.map((r) =>
+      r.style.fontSize ? { ...r, style: { ...r.style, fontSize: Math.max(1, r.style.fontSize * k) } } : r,
+    );
+}
 
 /*
  * Opérations sur l'arbre du document. Elles modifient l'objet reçu en place :
@@ -171,8 +180,7 @@ export function scaleNode(node: SceneNode, sx: number, sy: number, origin: Vec, 
   if (node.type === 'line' && Math.sign(sx) * Math.sign(sy) < 0)
     node.direction = node.direction === 1 ? -1 : 1;
   if (node.type === 'text' && scaleText) {
-    const k = Math.sqrt(Math.abs(sx * sy));
-    node.style = { ...node.style, fontSize: Math.max(1, node.style.fontSize * k) };
+    scaleTextSize(node, Math.sqrt(Math.abs(sx * sy)));
   }
 }
 
