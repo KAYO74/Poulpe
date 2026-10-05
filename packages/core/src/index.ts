@@ -22,3 +22,6 @@ export * from './pages';
 export * from './adjust';
 export * from './pixelMask';
 export * from './inpaint';
+export * from './cmyk';
+export * from './icc';
+export * from './pdfPrint';

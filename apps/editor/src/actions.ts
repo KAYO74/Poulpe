@@ -23,6 +23,7 @@ import {
   walkDocument,
   type AlignMode,
   type Artboard,
+  type Cmyk,
   type Paint,
   type PoulpeDocument,
   type SceneNode,
@@ -239,6 +240,33 @@ export function updateSelected(
   });
 }
 
+/** Couleur choisie en CMJN pendant `withCmyk` : ses valeurs exactes vont dans le document. */
+let cmykNote: { hex: string; value: Cmyk } | null = null;
+
+/** Exécute un changement de couleur en retenant les valeurs CMJN exactes de la nouvelle couleur. */
+export function withCmyk(hex: string, value: Cmyk, fn: () => void): void {
+  cmykNote = { hex: hex.toLowerCase(), value };
+  try {
+    fn();
+  } finally {
+    // Changement qui n'est pas passé par un objet (édition de texte, réglage par défaut).
+    if (cmykNote) editor.apply('history.style', recordCmyk);
+    cmykNote = null;
+  }
+}
+
+function recordCmyk(doc: PoulpeDocument): void {
+  if (!cmykNote) return;
+  doc.layout ??= {};
+  const map = { ...(doc.layout.cmyk ?? {}) };
+  delete map[cmykNote.hex];
+  map[cmykNote.hex] = cmykNote.value;
+  // On garde les 200 dernières couleurs choisies en CMJN.
+  const keys = Object.keys(map);
+  for (const k of keys.slice(0, Math.max(0, keys.length - 200))) delete map[k];
+  doc.layout.cmyk = map;
+}
+
 export function setPaint(target: 'fill' | 'stroke', paint: Paint, gesture = false): void {
   if (isEditingText()) {
     // Pendant l'édition d'un texte, une couleur unie va aux caractères sélectionnés.
@@ -265,6 +293,10 @@ export function setPaint(target: 'fill' | 'stroke', paint: Paint, gesture = fals
       };
       const n = findNode(doc, id)?.node;
       if (n) visit(n);
+    }
+    if (cmykNote) {
+      recordCmyk(doc);
+      cmykNote = null;
     }
   };
   if (gesture) editor.preview(recipe);

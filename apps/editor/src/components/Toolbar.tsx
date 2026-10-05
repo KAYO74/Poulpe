@@ -45,6 +45,7 @@ export function Toolbar() {
   const t = useT();
   const settings = useUi((s) => s.settings);
   const persona = useUi((s) => s.persona);
+  const softProof = useUi((s) => s.softProof);
   const photo = persona === 'photo';
   return (
     <div className="toolbar" role="toolbar" aria-label="Barre d'outils">
@@ -90,6 +91,13 @@ export function Toolbar() {
           <CmdButton id="text.link" icon="link" />
           <CmdButton id="text.unlink" icon="unlink" />
           <CmdButton id="text.pageNumber" icon="pageNumber" />
+          <span className="tsep" />
+          <Toggle
+            on={softProof}
+            icon="proof"
+            label={t('view.softProof')}
+            onClick={() => ui.set({ softProof: !softProof })}
+          />
         </>
       ) : (
         <Toggle

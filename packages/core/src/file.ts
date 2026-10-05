@@ -101,6 +101,9 @@ const MIGRATIONS: Record<number, (doc: Record<string, unknown>) => Record<string
   // Version 5 : mise en page (pages maîtres, cadres de texte liés, numéros de page, fond perdu,
   // marges, résolution). Tous facultatifs : rien à convertir.
   4: (doc) => doc,
+  // Version 6 : impression (mode colorimétrique `colorMode` et valeurs CMJN exactes `cmyk` de
+  // `layout`). Facultatifs : rien à convertir.
+  5: (doc) => doc,
 };
 
 export function migrate(raw: Record<string, unknown>): PoulpeDocument {

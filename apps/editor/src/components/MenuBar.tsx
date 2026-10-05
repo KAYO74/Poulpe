@@ -56,6 +56,7 @@ export function MenuBar() {
   const t = useT();
   const settings = useUi((s) => s.settings);
   const persona = useUi((s) => s.persona);
+  const softProof = useUi((s) => s.softProof);
   const { activeArtboardId } = useEditor();
   const quickExport = (kind: 'png' | 'jpeg' | 'svg' | 'pdf') =>
     void exportDocument({
@@ -78,6 +79,7 @@ export function MenuBar() {
         <Item id="file.importImage" />
         <Sep />
         <Item id="file.export" />
+        <Item id="file.batchExport" />
         <Sub label={t('file.export')}>
           {(['png', 'jpeg', 'svg', 'pdf'] as const).map((k) => (
             <Menu.Item key={k} className="menu-item" onSelect={() => quickExport(k)}>
@@ -244,6 +246,7 @@ export function MenuBar() {
         <Item id="view.rulers" checked={settings.rulers} />
         <Item id="view.clearGuides" />
         <Item id="view.grid" checked={settings.grid} />
+        <Item id="view.softProof" checked={softProof} />
         <Item id="view.snapping" checked={settings.snapping} />
         <Sep />
         <Sub label={t('view.theme')}>
