@@ -34,8 +34,9 @@ import { updateLayout } from '../layoutActions';
 import { setSettings, ui, useEditor, useUi } from '../store';
 import { NumberField, Select } from './fields';
 import { Icon } from './Icon';
+import { VectorizeDialog } from '../smart/VectorizeDialog';
 
-function Modal({
+export function Modal({
   title,
   children,
   onClose,
@@ -996,5 +997,6 @@ export function Dialogs() {
   if (dialog === 'batch') return <BatchDialog />;
   if (dialog === 'filter') return <FilterDialog />;
   if (dialog === 'selectionModify') return <SelectionModifyDialog />;
+  if (dialog === 'vectorize') return <VectorizeDialog />;
   return null;
 }

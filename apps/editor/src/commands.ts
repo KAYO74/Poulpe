@@ -11,6 +11,8 @@ import * as P from './photo/photoActions';
 import { clearSelection, invertSelection, selectAll, selectFromLayer } from './photo/selection';
 import { images, newPixelLayer, selectedImage } from './photo/pixels';
 import { openPhoto, setPersona } from './photo/persona';
+import { canCutout, removeBackground, selectSubject } from './smart/cutout';
+import { canVectorize } from './smart/vectorize';
 
 export interface Command {
   label: MessageKey;
@@ -174,6 +176,17 @@ export const COMMANDS = {
   'layer.invertMask': { label: 'layer.invertMask', run: P.invertMask, enabled: P.hasMask },
   'layer.removeMask': { label: 'layer.removeMask', run: P.removeMask, enabled: P.hasMask },
   'layer.rasterize': { label: 'layer.rasterize', run: P.rasterizeSelection, enabled: P.canRasterize },
+  'image.vectorize': {
+    label: 'image.vectorize',
+    run: () => ui.set({ dialog: 'vectorize' }),
+    enabled: canVectorize,
+  },
+  'image.removeBackground': {
+    label: 'image.removeBackground',
+    run: () => void removeBackground(),
+    enabled: canCutout,
+  },
+  'select.subject': { label: 'select.subject', run: () => void selectSubject(), enabled: canCutout },
   'layer.mergeVisible': { label: 'layer.mergeVisible', shortcut: 'Mod+Alt+Shift+E', run: P.mergeVisible },
   'adjust.auto': { label: 'adjust.auto', run: P.addAutoLevels },
   ...adjustmentCommands(),
