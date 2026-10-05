@@ -1,5 +1,5 @@
 /**
- * Modèle de document Poulpe (format `.poulpe`, version 1).
+ * Modèle de document Poulpe (format `.poulpe`, version 2).
  *
  * Toutes les coordonnées sont en pixels, dans l'espace du document (« monde ») :
  * les objets d'un plan de travail ne sont pas relatifs à ce plan de travail.
@@ -144,6 +144,20 @@ export interface TextNode extends NodeBase, Styled {
   autoWidth: boolean;
 }
 
+/**
+ * Tracé libre (icônes, formes de la bibliothèque) : données de tracé SVG exprimées dans `viewBox`,
+ * étirées pour remplir la boîte de l'objet.
+ */
+export interface PathNode extends NodeBase, Styled {
+  type: 'path';
+  /** Attribut `d` d'un tracé SVG. */
+  d: string;
+  /** Repère des données `d` : ce rectangle est ramené sur la boîte de l'objet. */
+  viewBox: { x: number; y: number; width: number; height: number };
+  /** Règle de remplissage des tracés qui se recoupent (`nonzero` par défaut). */
+  fillRule?: 'nonzero' | 'evenodd';
+}
+
 /** Rectangle en fractions (0 à 1) de l'image source. */
 export interface Crop {
   x: number;
@@ -167,7 +181,7 @@ export interface GroupNode extends NodeBase {
   clip: boolean;
 }
 
-export type ShapeNode = RectNode | EllipseNode | PolygonNode | StarNode | LineNode;
+export type ShapeNode = RectNode | EllipseNode | PolygonNode | StarNode | LineNode | PathNode;
 export type SceneNode = ShapeNode | TextNode | ImageNode | GroupNode;
 export type NodeType = SceneNode['type'];
 

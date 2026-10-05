@@ -88,7 +88,11 @@ export function encodePoulpe(
 }
 
 /** Migrations d'un document d'une version du format à la suivante (`MIGRATIONS[v]` passe de v à v+1). */
-const MIGRATIONS: Record<number, (doc: Record<string, unknown>) => Record<string, unknown>> = {};
+const MIGRATIONS: Record<number, (doc: Record<string, unknown>) => Record<string, unknown>> = {
+  // Version 2 : ajout des tracés libres (`path`). Rien à convertir, mais une ancienne version de
+  // Poulpe refuse ainsi proprement un document qui en contient.
+  1: (doc) => doc,
+};
 
 export function migrate(raw: Record<string, unknown>): PoulpeDocument {
   let doc = raw;

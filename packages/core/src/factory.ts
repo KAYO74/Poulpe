@@ -6,6 +6,7 @@ import type {
   ImageNode,
   LineNode,
   Paint,
+  PathNode,
   PoulpeDocument,
   PolygonNode,
   RectNode,
@@ -16,25 +17,47 @@ import type {
   TextStyle,
 } from './types';
 
-export const FORMAT_VERSION = 1;
+export const FORMAT_VERSION = 2;
+
+export type FormatCategory = 'social' | 'print' | 'screen';
 
 export interface FormatPreset {
   id: string;
+  category: FormatCategory;
   width: number;
   height: number;
 }
 
-/** Formats prédéfinis ; leur nom affiché vient des traductions de l'interface (`format.<id>`). */
+/**
+ * Formats prédéfinis ; leur nom affiché vient des traductions de l'interface (`format.<id>`).
+ * Les formats d'impression sont à 300 dpi.
+ */
 export const FORMAT_PRESETS: FormatPreset[] = [
-  { id: 'instagram', width: 1080, height: 1080 },
-  { id: 'portrait', width: 1080, height: 1350 },
-  { id: 'story', width: 1080, height: 1920 },
-  { id: 'youtube', width: 1280, height: 720 },
-  { id: 'presentation', width: 1920, height: 1080 },
-  { id: 'a4', width: 2480, height: 3508 },
-  { id: 'a5', width: 1748, height: 2480 },
-  { id: 'businessCard', width: 1050, height: 600 },
+  { id: 'instagram', category: 'social', width: 1080, height: 1080 },
+  { id: 'portrait', category: 'social', width: 1080, height: 1350 },
+  { id: 'story', category: 'social', width: 1080, height: 1920 },
+  { id: 'facebookPost', category: 'social', width: 1200, height: 630 },
+  { id: 'facebookCover', category: 'social', width: 1640, height: 624 },
+  { id: 'linkedinPost', category: 'social', width: 1200, height: 627 },
+  { id: 'xPost', category: 'social', width: 1600, height: 900 },
+  { id: 'pinterest', category: 'social', width: 1000, height: 1500 },
+  { id: 'youtube', category: 'social', width: 1280, height: 720 },
+  { id: 'youtubeBanner', category: 'social', width: 2560, height: 1440 },
+  { id: 'a4', category: 'print', width: 2480, height: 3508 },
+  { id: 'a5', category: 'print', width: 1748, height: 2480 },
+  { id: 'a3', category: 'print', width: 3508, height: 4961 },
+  { id: 'letter', category: 'print', width: 2550, height: 3300 },
+  { id: 'businessCard', category: 'print', width: 1050, height: 600 },
+  { id: 'postcard', category: 'print', width: 1800, height: 1200 },
+  { id: 'invitation', category: 'print', width: 1500, height: 2100 },
+  { id: 'presentation', category: 'screen', width: 1920, height: 1080 },
+  { id: 'logo', category: 'screen', width: 1000, height: 1000 },
+  { id: 'wallpaper', category: 'screen', width: 1170, height: 2532 },
 ];
+
+export function findFormat(id: string): FormatPreset | undefined {
+  return FORMAT_PRESETS.find((f) => f.id === id);
+}
 
 export const solid = (color: string): Paint => ({ type: 'solid', color });
 export const NONE: Paint = { type: 'none' };
@@ -146,6 +169,21 @@ export function createText(
     fill: solid('#1a1a1d'),
     stroke: { paint: NONE, width: d.stroke.width },
     autoWidth: b.autoWidth ?? true,
+  };
+}
+
+export function createPath(
+  b: BoxArgs & { d: string; viewBox: PathNode['viewBox']; fillRule?: PathNode['fillRule'] },
+  d = defaultStyle(),
+): PathNode {
+  return {
+    ...base(b.name ?? 'Tracé', b.x, b.y, b.width, b.height),
+    type: 'path',
+    fill: d.fill,
+    stroke: d.stroke,
+    d: b.d,
+    viewBox: { ...b.viewBox },
+    ...(b.fillRule ? { fillRule: b.fillRule } : {}),
   };
 }
 

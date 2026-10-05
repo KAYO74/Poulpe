@@ -1,3 +1,4 @@
+import { cachedSvgPath, fitCommands } from './path';
 import type { SceneNode, Artboard, Paint } from './types';
 
 export interface Vec {
@@ -186,6 +187,8 @@ export function shapePath(node: SceneNode): PathCommand[] {
             ],
             false,
           );
+    case 'path':
+      return fitCommands(cachedSvgPath(node.d), node.viewBox, { x: 0, y: 0, width: w, height: h });
     case 'text':
     case 'image':
     case 'group':

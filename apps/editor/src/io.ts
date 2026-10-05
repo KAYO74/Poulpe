@@ -110,7 +110,7 @@ async function pickFile(
   });
 }
 
-function confirmDiscard(): boolean {
+export function confirmDiscard(): boolean {
   return !editor.getState().dirty || window.confirm(t('file.unsaved'));
 }
 
@@ -125,7 +125,7 @@ export function loadBytes(name: string, bytes: Uint8Array): void {
   try {
     const doc = decodePoulpe(bytes);
     editor.load({ ...doc, name: baseName(name) });
-    ui.set({ filePath: name });
+    ui.set({ filePath: name, dialog: null });
     requestAnimationFrame(() => window.dispatchEvent(new Event('poulpe:fit')));
   } catch (e) {
     window.alert(e instanceof PoulpeFileError && e.code === 'tooNew' ? t('file.tooNew') : t('file.invalid'));
