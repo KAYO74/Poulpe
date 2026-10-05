@@ -3,7 +3,13 @@ import {
   boxCenter,
   boxesIntersect,
   caretAt,
+  chainHead,
   charX,
+  isLinked,
+  masterOf,
+  needsFlow,
+  isLeftPage,
+  pageMargins,
   cloneWithNewIds,
   createArtboard,
   createEllipse,
@@ -31,11 +37,13 @@ import {
   type ImageNode,
   type PoulpeDocument,
   type SceneNode,
+  type TextNode,
   type Vec,
+  pageFields as pageFieldsOf,
 } from '@poulpe/core';
 import {
   ImageCache,
-  cachedLayout,
+  cachedFlow,
   clearLayoutCache,
   drawArtboard,
   measureText,
@@ -54,7 +62,16 @@ import {
   type SnapLines,
 } from './snapping';
 import { PathTools } from './pathTools';
-import { beginTextEdit, endTextEdit, isEditingText, textSelection } from './textEdit';
+import {
+  beginTextEdit,
+  editedTextId,
+  endTextEdit,
+  isEditingText,
+  setTextSelection,
+  textSelection,
+} from './textEdit';
+import { editParts, indexAtWorld, partAt } from './textParts';
+import { linkTextFrames } from '../layoutActions';
 
 type HandleId = 'nw' | 'n' | 'ne' | 'e' | 'se' | 's' | 'sw' | 'w';
 const HANDLES: Record<HandleId, [number, number]> = {
@@ -316,8 +333,8 @@ export class CanvasController {
     const sel = editor.selection;
     const single = sel.length === 1 ? findNode(editor.doc, sel[0])?.node : null;
     for (const { id, p } of this.handlePoints(f)) {
-      // La hauteur d'un texte suit son contenu : pas de poignées haut et bas.
-      if (single?.type === 'text' && (id === 'n' || id === 's')) continue;
+      // La hauteur d'un texte suit son contenu : pas de poignées haut et bas (sauf un cadre de texte).
+      if (single?.type === 'text' && !isFrameText(editor.doc, single) && (id === 'n' || id === 's')) continue;
       const s = this.toScreen(p);
       if (Math.abs(s.x - sx) <= HANDLE_SIZE && Math.abs(s.y - sy) <= HANDLE_SIZE) return id;
     }
@@ -404,9 +421,33 @@ export class CanvasController {
     const doc = editor.doc;
 
     if (isEditingText()) {
+      // Un clic dans un autre cadre de la même chaîne y place le curseur.
+      const parts = editParts(doc, editedTextId()!);
+      const i = parts.length > 1 ? indexAtWorld(parts, p, false) : null;
+      if (i !== null) {
+        const sel = textSelection();
+        setTextSelection(e.shiftKey && sel ? sel.start : i, i);
+        this.requestDraw();
+        return;
+      }
       // Un clic hors du texte termine l'édition (la zone de texte gère elle-même les clics dedans).
       endTextEdit();
       (document.activeElement as HTMLElement | null)?.blur();
+    }
+
+    // Choix du cadre suivant d'un texte qui déborde : un cadre existant, ou un nouveau cadre ici.
+    const linkFrom = ui.get().linkFrom;
+    if (linkFrom) {
+      ui.set({ linkFrom: null });
+      const hit = this.hitTest(p, true);
+      linkTextFrames(linkFrom, hit?.type === 'text' ? hit.id : null, p);
+      this.requestDraw();
+      return;
+    }
+    if ((tool === 'select' || tool === 'text') && this.hitOverflow(sx, sy)) {
+      ui.set({ linkFrom: this.hitOverflow(sx, sy) });
+      this.updateCursor();
+      return;
     }
 
     if (tool === 'zoom') {
@@ -756,7 +797,7 @@ export class CanvasController {
             n.style = g.single.style;
             n.runs = g.single.runs;
             scaleTextSize(n, Math.abs(sy));
-          } else if (hx === 0.5) return;
+          } else if (hx === 0.5 && !isFrameText(d, n)) return;
           else n.autoWidth = false;
         }
         n.width = w;
@@ -970,7 +1011,11 @@ export class CanvasController {
       n.width = Math.max(1, box.width);
       n.height = g.tool === 'line' ? box.height : Math.max(1, box.height);
       if (n.type === 'line') n.direction = dir;
-      if (n.type === 'text') n.autoWidth = false;
+      if (n.type === 'text') {
+        n.autoWidth = false;
+        // Persona Mise en page : l'outil Texte trace des cadres de texte.
+        if (ui.get().persona === 'layout') n.frame = true;
+      }
       return [id];
     });
   }
@@ -1197,6 +1242,7 @@ export class CanvasController {
   }
 
   private toolCursor(tool: ToolId): string {
+    if (ui.get().linkFrom) return 'copy';
     switch (tool) {
       case 'hand':
         return 'grab';
@@ -1236,11 +1282,12 @@ export class CanvasController {
       ctx.fillRect(ab.x, ab.y, ab.width, ab.height);
       ctx.restore();
       if (ab.background.type === 'none') this.drawChecker(ab);
-      drawArtboard(ctx, doc, ab, { images: this.images });
+      drawArtboard(ctx, doc, ab, { images: this.images, editingId: editingTextId });
       if (settings.grid) this.drawGrid(ab);
     }
     // Calques d'interface, en pixels d'écran.
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    if (settings.rulers) this.drawPageGuides(doc);
     this.drawArtboardLabels(doc, activeArtboardId);
     if (doc.guides && settings.rulers) this.drawDocGuides(doc.guides);
     const tool = ui.get().tool;
@@ -1252,6 +1299,7 @@ export class CanvasController {
       const n = findNode(doc, id)?.node;
       if (n) this.outline(n, this.colors.sel, 1);
     }
+    this.drawFrames(doc, selection);
     if (editingTextId) this.drawTextSelection(doc, editingTextId);
     const crop = this.cropNode();
     if (crop) this.drawCropGhost(doc, crop);
@@ -1358,8 +1406,13 @@ export class CanvasController {
       const p = this.toScreen(ab);
       ctx.fillStyle = ab.id === activeId ? this.colors.fg : this.colors.muted;
       ctx.font = `${ab.id === activeId ? 600 : 400} 11px "Inter", system-ui, sans-serif`;
-      ctx.fillText(ab.name, p.x, p.y - 6);
-      const w = ctx.measureText(ab.name).width;
+      const label = ab.master
+        ? `${ab.name} · ${t('pages.masterTag')}`
+        : masterOf(doc, ab)
+          ? `${ab.name} · ${masterOf(doc, ab)!.name}`
+          : ab.name;
+      ctx.fillText(label, p.x, p.y - 6);
+      const w = ctx.measureText(label).width;
       ctx.fillStyle = this.colors.muted;
       ctx.font = '400 11px "Inter", system-ui, sans-serif';
       ctx.fillText(`${Math.round(ab.width)} × ${Math.round(ab.height)} px`, p.x + w + 8, p.y - 6);
@@ -1417,34 +1470,154 @@ export class CanvasController {
     ctx.restore();
   }
 
-  /** Sélection et curseur du texte en cours d'édition. */
+  /** Sélection et curseur du texte en cours d'édition, dans chaque cadre de sa chaîne. */
   private drawTextSelection(doc: PoulpeDocument, id: string) {
-    const n = findNode(doc, id)?.node;
+    const head = findNode(doc, id)?.node;
     const sel = textSelection();
-    if (n?.type !== 'text' || !sel || n.path) return;
+    if (head?.type !== 'text' || !sel || head.path) return;
     const ctx = this.ctx;
     const v = this.view;
-    const layout = cachedLayout(n);
+    const parts = editParts(doc, id);
+    const caretPart = sel.start === sel.end ? partAt(parts, sel.start) : null;
+    for (const { node: n, layout } of parts) {
+      if (caretPart && caretPart.node !== n) continue;
+      ctx.save();
+      ctx.translate(v.panX, v.panY);
+      ctx.scale(v.zoom, v.zoom);
+      ctx.translate(n.x + n.width / 2, n.y + n.height / 2);
+      ctx.rotate((n.rotation * Math.PI) / 180);
+      ctx.translate(-n.width / 2, -n.height / 2);
+      if (caretPart) {
+        const c = caretAt(layout, sel.start, measureText);
+        ctx.fillStyle = this.colors.sel;
+        ctx.fillRect(c.x - 0.75 / v.zoom, c.top, 1.5 / v.zoom, c.height);
+      } else {
+        ctx.fillStyle = 'rgba(77,163,255,0.35)';
+        for (const line of layout.lines) {
+          const a = Math.max(sel.start, line.start);
+          const b = Math.min(sel.end, line.stop);
+          if (b < a || (b === a && !(line.start === line.stop && sel.start <= a && a < sel.end))) continue;
+          const x0 = charX(line, a, measureText);
+          // Une fin de ligne sélectionnée (retour à la ligne compris) se voit par un petit débord.
+          const x1 = charX(line, b, measureText) + (sel.end > line.end ? line.size * 0.25 : 0);
+          ctx.fillRect(x0, line.top, Math.max(x1 - x0, 1 / v.zoom), line.height);
+        }
+      }
+      ctx.restore();
+    }
+  }
+
+  /** Cadres de texte : contour pointillé, liens entre cadres de la sélection et indicateur de débordement. */
+  private drawFrames(doc: PoulpeDocument, selection: string[]) {
+    const ctx = this.ctx;
+    const v = this.view;
+    const sel = new Set(selection);
+    const linkFrom = ui.get().linkFrom;
+    this.overflowMarks = [];
+    for (const { node: n } of walkTexts(doc)) {
+      if (!isFrameText(doc, n) || !n.visible) continue;
+      const head = chainHead(doc, n.id);
+      const chain = head ? editPartsChain(doc, head.id) : null;
+      const inSel = !!chain?.nodes.some((c) => sel.has(c.id));
+      ctx.save();
+      ctx.translate(v.panX, v.panY);
+      ctx.scale(v.zoom, v.zoom);
+      ctx.translate(n.x + n.width / 2, n.y + n.height / 2);
+      ctx.rotate((n.rotation * Math.PI) / 180);
+      ctx.translate(-n.width / 2, -n.height / 2);
+      ctx.lineWidth = 1 / v.zoom;
+      ctx.setLineDash([3 / v.zoom, 3 / v.zoom]);
+      ctx.strokeStyle = inSel ? this.colors.sel : 'rgba(120,120,130,0.55)';
+      ctx.strokeRect(0, 0, n.width, n.height);
+      ctx.restore();
+      // Débordement : petit carré rouge « + » en bas à droite du dernier cadre.
+      const last = chain?.nodes[chain.nodes.length - 1];
+      const overflow = last?.id === n.id && chain!.overflow;
+      if (overflow || linkFrom === n.id || (inSel && last?.id === n.id)) {
+        const q = this.toScreen(localToWorld(n, { x: n.width, y: n.height }));
+        const s = 12;
+        ctx.save();
+        ctx.fillStyle = overflow ? '#e5484d' : this.colors.sel;
+        ctx.fillRect(q.x - s / 2, q.y - s / 2, s, s);
+        ctx.strokeStyle = '#fff';
+        ctx.lineWidth = 1.5;
+        ctx.beginPath();
+        ctx.moveTo(q.x - 3.5, q.y);
+        ctx.lineTo(q.x + 3.5, q.y);
+        ctx.moveTo(q.x, q.y - 3.5);
+        ctx.lineTo(q.x, q.y + 3.5);
+        ctx.stroke();
+        ctx.restore();
+        this.overflowMarks.push({ id: n.id, x: q.x, y: q.y });
+      }
+    }
+    // Liens entre les cadres de la chaîne sélectionnée.
+    for (const id of selection) {
+      const n = findNode(doc, id)?.node;
+      if (n?.type !== 'text' || !isLinked(doc, id)) continue;
+      const head = chainHead(doc, id)!;
+      const nodes = editPartsChain(doc, head.id).nodes;
+      ctx.save();
+      ctx.strokeStyle = this.colors.sel;
+      ctx.setLineDash([5, 4]);
+      ctx.lineWidth = 1;
+      ctx.beginPath();
+      for (let k = 0; k + 1 < nodes.length; k++) {
+        const a = this.toScreen(localToWorld(nodes[k], { x: nodes[k].width, y: nodes[k].height }));
+        const b = this.toScreen(localToWorld(nodes[k + 1], { x: 0, y: 0 }));
+        ctx.moveTo(a.x, a.y);
+        ctx.lineTo(b.x, b.y);
+      }
+      ctx.stroke();
+      ctx.restore();
+      break;
+    }
+  }
+
+  private overflowMarks: { id: string; x: number; y: number }[] = [];
+
+  /** Indicateur de débordement (ou de lien) sous le pointeur. */
+  private hitOverflow(sx: number, sy: number): string | null {
+    for (const m of this.overflowMarks) if (Math.abs(m.x - sx) <= 8 && Math.abs(m.y - sy) <= 8) return m.id;
+    return null;
+  }
+
+  /** Marges des pages et limite du fond perdu (sur les pages, pas sur le reste du plan de travail). */
+  private drawPageGuides(doc: PoulpeDocument) {
+    const layout = doc.layout;
+    if (!layout?.margins && !layout?.bleed) return;
+    const ctx = this.ctx;
     ctx.save();
-    ctx.translate(v.panX, v.panY);
-    ctx.scale(v.zoom, v.zoom);
-    ctx.translate(n.x + n.width / 2, n.y + n.height / 2);
-    ctx.rotate((n.rotation * Math.PI) / 180);
-    ctx.translate(-n.width / 2, -n.height / 2);
-    if (sel.start === sel.end) {
-      const c = caretAt(layout, sel.start, measureText);
-      ctx.fillStyle = this.colors.sel;
-      ctx.fillRect(c.x - 0.75 / v.zoom, c.top, 1.5 / v.zoom, c.height);
-    } else {
-      ctx.fillStyle = 'rgba(77,163,255,0.35)';
-      for (const line of layout.lines) {
-        const a = Math.max(sel.start, line.start);
-        const b = Math.min(sel.end, line.stop);
-        if (b < a || (b === a && !(line.start === line.stop && sel.start <= a && a < sel.end))) continue;
-        const x0 = charX(line, a, measureText);
-        // Une fin de ligne sélectionnée (retour à la ligne compris) se voit par un petit débord.
-        const x1 = charX(line, b, measureText) + (sel.end > line.end ? line.size * 0.25 : 0);
-        ctx.fillRect(x0, line.top, Math.max(x1 - x0, 1 / v.zoom), line.height);
+    ctx.lineWidth = 1;
+    for (const ab of doc.artboards) {
+      const m = pageMargins(doc, ab);
+      if (m) {
+        const a = this.toScreen({ x: ab.x + m.left, y: ab.y + m.top });
+        const b = this.toScreen({ x: ab.x + ab.width - m.right, y: ab.y + ab.height - m.bottom });
+        ctx.strokeStyle = 'rgba(214,92,214,0.8)';
+        ctx.strokeRect(
+          Math.round(a.x) + 0.5,
+          Math.round(a.y) + 0.5,
+          Math.round(b.x - a.x),
+          Math.round(b.y - a.y),
+        );
+      }
+      if (layout.bleed && !ab.master) {
+        const k = layout.bleed;
+        // En vis-à-vis, pas de fond perdu du côté de la reliure.
+        const left = isLeftPage(doc, ab);
+        const facing = !!layout.facing;
+        const a = this.toScreen({ x: ab.x - (facing && !left ? 0 : k), y: ab.y - k });
+        const b = this.toScreen({ x: ab.x + ab.width + (facing && left ? 0 : k), y: ab.y + ab.height + k });
+        ctx.strokeStyle = 'rgba(229,72,77,0.7)';
+        ctx.setLineDash([4, 3]);
+        ctx.strokeRect(
+          Math.round(a.x) + 0.5,
+          Math.round(a.y) + 0.5,
+          Math.round(b.x - a.x),
+          Math.round(b.y - a.y),
+        );
+        ctx.setLineDash([]);
       }
     }
     ctx.restore();
@@ -1542,4 +1715,28 @@ export function cropFull(n: ImageNode): Box {
   const width = n.width / c.width,
     height = n.height / c.height;
   return { x: -c.x * width, y: -c.y * height, width, height };
+}
+
+/** Cadre de texte (hauteur fixe) ou cadre d'une chaîne de cadres liés. */
+function isFrameText(doc: PoulpeDocument, n: SceneNode): boolean {
+  return n.type === 'text' && !n.path && (!!n.frame || !!n.next || isLinked(doc, n.id));
+}
+
+function* walkTexts(doc: PoulpeDocument): Generator<{ node: TextNode }> {
+  const visit = function* (nodes: SceneNode[]): Generator<{ node: TextNode }> {
+    for (const n of nodes) {
+      if (n.type === 'group') yield* visit(n.children);
+      else if (n.type === 'text') yield { node: n };
+    }
+  };
+  for (const ab of doc.artboards) yield* visit(ab.children);
+}
+
+/** Cadres d'une chaîne et débordement, d'après la répartition du texte. */
+function editPartsChain(doc: PoulpeDocument, headId: string): { nodes: TextNode[]; overflow: boolean } {
+  const head = findNode(doc, headId)?.node;
+  if (head?.type !== 'text' || !needsFlow(doc, head)) return { nodes: [], overflow: false };
+  const page = findNode(doc, headId)!.artboard;
+  const flow = cachedFlow(doc, headId, ui.get().editingTextId === headId ? null : pageFieldsOf(doc, page));
+  return { nodes: flow.parts.map((p) => p.node), overflow: flow.overflow };
 }

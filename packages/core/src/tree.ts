@@ -1,3 +1,4 @@
+import { current, isDraft } from 'immer';
 import { boxCenter, boxContains, nodeBounds, rotatePoint, unionBoxes, type Box, type Vec } from './geometry';
 import { newId } from './ids';
 import type { Artboard, GroupNode, Parent, PoulpeDocument, SceneNode, TextNode } from './types';
@@ -117,6 +118,11 @@ export function insertNode(parent: Parent, node: SceneNode, index = parent.child
 export function removeNodes(doc: PoulpeDocument, ids: string[]): SceneNode[] {
   const removed: SceneNode[] = [];
   const set = new Set(ids);
+  for (const loc of walkDocument(doc)) {
+    if (set.has(loc.node.id) && loc.node.type === 'group')
+      for (const d of walk(loc.node.children, loc.node, loc.artboard)) set.add(d.node.id);
+  }
+  closeTextChains(doc, set);
   const strip = (p: Parent) => {
     p.children = p.children.filter((n) => {
       if (set.has(n.id)) {
@@ -184,15 +190,82 @@ export function scaleNode(node: SceneNode, sx: number, sy: number, origin: Vec, 
   }
 }
 
-/** Copie profonde avec de nouveaux identifiants. */
+/**
+ * Avant de retirer des cadres de texte liés : la chaîne se referme sans eux, et si le premier
+ * cadre disparaît, son texte passe au premier cadre qui reste.
+ */
+function closeTextChains(doc: PoulpeDocument, removed: Set<string>): void {
+  const texts = new Map<string, TextNode>();
+  for (const { node } of walkDocument(doc)) if (node.type === 'text') texts.set(node.id, node);
+  const hasPrev = new Set<string>();
+  for (const t of texts.values()) if (t.next && texts.has(t.next)) hasPrev.add(t.next);
+  for (const head of texts.values()) {
+    if (hasPrev.has(head.id) || !head.next) continue;
+    const chain: TextNode[] = [];
+    const seen = new Set<string>();
+    for (
+      let n: TextNode | undefined = head;
+      n && !seen.has(n.id);
+      n = n.next ? texts.get(n.next) : undefined
+    ) {
+      seen.add(n.id);
+      chain.push(n);
+    }
+    const kept = chain.filter((n) => !removed.has(n.id));
+    if (kept.length === chain.length || !kept.length) continue;
+    const first = kept[0];
+    if (first !== head) {
+      first.text = head.text;
+      first.style = head.style;
+      first.fill = head.fill;
+      first.stroke = head.stroke;
+      if (head.runs) first.runs = head.runs;
+      else delete first.runs;
+    }
+    kept.forEach((n, i) => {
+      if (kept[i + 1]) n.next = kept[i + 1].id;
+      else delete n.next;
+    });
+  }
+}
+
+/** Copie profonde avec de nouveaux identifiants. Une copie de cadre de texte n'est liée à rien. */
 export function cloneWithNewIds<T extends SceneNode>(node: T): T {
   const copy = structuredClone(node) as T;
   const renew = (n: SceneNode) => {
     n.id = newId();
+    if (n.type === 'text') delete n.next;
     if (n.type === 'group') n.children.forEach(renew);
   };
   renew(copy);
   return copy;
+}
+
+/**
+ * Copie de plusieurs objets avec de nouveaux identifiants ; les liens entre cadres de texte copiés
+ * ensemble sont conservés (ils pointent vers les copies).
+ */
+export function cloneNodesKeepLinks(nodes: SceneNode[]): SceneNode[] {
+  const map = new Map<string, string>();
+  const links: [TextNode, string][] = [];
+  const copies = nodes.map((node) => {
+    const copy = structuredClone(isDraft(node) ? current(node) : node) as SceneNode;
+    const renew = (n: SceneNode) => {
+      const id = newId();
+      map.set(n.id, id);
+      n.id = id;
+      if (n.type === 'text' && n.next) links.push([n, n.next]);
+      if (n.type === 'group') n.children.forEach(renew);
+    };
+    renew(copy);
+    return copy;
+  });
+  for (const [t, next] of links) {
+    const m = map.get(next);
+    if (m) t.next = m;
+    else delete t.next;
+  }
+  return copies;
 }
 
 export type ZOrder = 'forward' | 'backward' | 'front' | 'back';

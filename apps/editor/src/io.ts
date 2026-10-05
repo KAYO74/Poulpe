@@ -1,6 +1,11 @@
 import {
   POULPE_EXTENSION,
   PoulpeFileError,
+  arrangePages,
+  insertPage,
+  masterOf,
+  printablePages,
+  pxToPt,
   activeEffects,
   artboardToSvg,
   effectMargin,
@@ -119,10 +124,25 @@ export function confirmDiscard(): boolean {
   return !editor.getState().dirty || window.confirm(t('file.unsaved'));
 }
 
-export function newDocument(width: number, height: number): void {
+export function newDocument(
+  width: number,
+  height: number,
+  opts: { dpi?: number; pages?: number; facing?: boolean } = {},
+): void {
   if (!confirmDiscard()) return;
-  editor.load(createDocument({ name: t('app.untitled'), width, height }));
-  ui.set({ filePath: null, dialog: null });
+  const doc = createDocument({ name: t('app.untitled'), width, height });
+  const pages = Math.max(1, Math.round(opts.pages ?? 1));
+  if (opts.dpi || opts.facing || pages > 1) {
+    doc.layout = {};
+    if (opts.dpi) doc.layout.dpi = opts.dpi;
+    if (opts.facing) doc.layout.facing = true;
+    doc.artboards[0].name = t('pages.pageName', { n: 1 });
+    for (let i = 2; i <= pages; i++) insertPage(doc, { name: t('pages.pageName', { n: i }) });
+    arrangePages(doc);
+  }
+  editor.load(doc);
+  // Un document de plusieurs pages s'ouvre dans la Persona Mise en page.
+  ui.set({ filePath: null, dialog: null, ...(pages > 1 ? { persona: 'layout' as const } : {}) });
   requestAnimationFrame(() => window.dispatchEvent(new Event('poulpe:fit')));
 }
 
@@ -217,11 +237,33 @@ export async function placeImageBytes(
 
 export interface ExportOptions {
   kind: 'png' | 'jpeg' | 'svg' | 'pdf';
-  /** `all` : tous les plans de travail (PDF multipage ; un fichier par plan sinon). */
-  artboardId: string | 'all';
+  /**
+   * `all` : toutes les pages (PDF multipage ; un fichier par page sinon, sans les pages maîtres).
+   * `range` : les pages données par `pages` (PDF).
+   */
+  artboardId: string | 'all' | 'range';
   scale: number;
   quality: number;
   transparent: boolean;
+  /** Plage de pages, par ex. « 1-3, 5 » (avec `artboardId: 'range'`). */
+  pages?: string;
+  /** PDF : ajouter le fond perdu du document autour de chaque page. */
+  bleed?: boolean;
+  /** PDF : traits de coupe aux coins des pages. */
+  marks?: boolean;
+}
+
+/** Pages d'une plage « 1-3, 5 » (numéros à partir de 1), dans l'ordre du document. */
+export function parsePageRange(range: string, count: number): number[] {
+  const out = new Set<number>();
+  for (const part of range.split(/[,;\s]+/).filter(Boolean)) {
+    const m = /^(\d+)(?:-(\d*))?$/.exec(part);
+    if (!m) continue;
+    const a = Number(m[1]);
+    const b = m[2] === undefined ? a : m[2] === '' ? count : Number(m[2]);
+    for (let i = Math.max(1, Math.min(a, b)); i <= Math.min(count, Math.max(a, b)); i++) out.add(i - 1);
+  }
+  return [...out].sort((x, y) => x - y);
 }
 
 /**
@@ -257,23 +299,31 @@ async function rasterizedEffects(doc: PoulpeDocument, ab: Artboard): Promise<Map
     );
   };
   for (const n of ab.children) await visit(n);
+  for (const n of masterOf(doc, ab)?.children ?? []) await visit(n);
   return out;
 }
 
+/**
+ * PDF à la taille réelle des pages (d'après la résolution du document), avec fond perdu et traits
+ * de coupe si demandé. Les boîtes TrimBox et BleedBox indiquent à l'imprimeur où couper.
+ */
 async function svgToPdf(
   doc: PoulpeDocument,
   artboards: Artboard[],
+  opts: { bleed?: boolean; marks?: boolean } = {},
 ): Promise<{ bytes: Uint8Array; missingFonts: string[] }> {
   const [{ jsPDF }, { svg2pdf }] = await Promise.all([import('jspdf'), import('svg2pdf.js')]);
-  const first = artboards[0];
+  const pt = (px: number) => pxToPt(doc, px);
+  const bleedPx = opts.bleed ? Math.max(0, doc.layout?.bleed ?? 0) : 0;
+  const bp = pt(bleedPx);
+  // Les traits de coupe commencent 3 pt après le fond perdu et mesurent 12 pt.
+  const MARK_GAP = 3,
+    MARK_LEN = 12;
+  const pad = opts.marks ? bp + MARK_GAP + MARK_LEN + 3 : bp;
+  const size = (ab: Artboard): [number, number] => [pt(ab.width) + 2 * pad, pt(ab.height) + 2 * pad];
   const orientation = (ab: Artboard) => (ab.width > ab.height ? 'landscape' : 'portrait');
-  // 1 px = 0,75 pt (96 ppp), comme les navigateurs.
-  const pt = (px: number) => px * 0.75;
-  const pdf = new jsPDF({
-    unit: 'pt',
-    format: [pt(first.width), pt(first.height)],
-    orientation: orientation(first),
-  });
+  const first = artboards[0];
+  const pdf = new jsPDF({ unit: 'pt', format: size(first), orientation: orientation(first) });
   const { embedFonts } = await import('./pdfFonts');
   const missingFonts = await embedFonts(pdf, doc, artboards);
   const host = document.createElement('div');
@@ -282,12 +332,44 @@ async function svgToPdf(
   try {
     for (let i = 0; i < artboards.length; i++) {
       const ab = artboards[i];
-      if (i > 0) pdf.addPage([pt(ab.width), pt(ab.height)], orientation(ab));
+      if (i > 0) pdf.addPage(size(ab), orientation(ab));
       await exportImages.ready(doc);
       const fx = await rasterizedEffects(doc, ab);
-      host.innerHTML = artboardToSvg(doc, ab, { measureText, override: (n) => fx.get(n.id) ?? null });
+      host.innerHTML = artboardToSvg(doc, ab, {
+        measureText,
+        bleed: bleedPx,
+        override: (n) => fx.get(n.id) ?? null,
+      });
       const svg = host.querySelector('svg')!;
-      await svg2pdf(svg, pdf, { x: 0, y: 0, width: pt(ab.width), height: pt(ab.height) });
+      const W = pt(ab.width),
+        H = pt(ab.height);
+      await svg2pdf(svg, pdf, { x: pad - bp, y: pad - bp, width: W + 2 * bp, height: H + 2 * bp });
+      const box = (m: number) => ({
+        bottomLeftX: pad - m,
+        bottomLeftY: pad - m,
+        topRightX: pad + W + m,
+        topRightY: pad + H + m,
+      });
+      const ctx = pdf.getCurrentPageInfo().pageContext as Record<string, unknown>;
+      ctx.trimBox = box(0);
+      ctx.bleedBox = box(bp);
+      if (opts.marks) {
+        // Couleur de repérage : 100 % de chaque encre, pour apparaître sur toutes les plaques.
+        pdf.setDrawColor(1, 1, 1, 1);
+        pdf.setLineWidth(0.25);
+        const o = bp + MARK_GAP;
+        for (const [x, sx] of [
+          [pad, -1],
+          [pad + W, 1],
+        ] as const)
+          for (const [y, sy] of [
+            [pad, -1],
+            [pad + H, 1],
+          ] as const) {
+            pdf.line(x + sx * o, y, x + sx * (o + MARK_LEN), y);
+            pdf.line(x, y + sy * o, x, y + sy * (o + MARK_LEN));
+          }
+      }
     }
   } finally {
     host.remove();
@@ -296,13 +378,26 @@ async function svgToPdf(
   return { bytes: new Uint8Array(pdf.output('arraybuffer')), missingFonts };
 }
 
+/** Pages à exporter selon les options. */
+export function exportTargets(
+  doc: PoulpeDocument,
+  opts: Pick<ExportOptions, 'artboardId' | 'pages'>,
+): Artboard[] {
+  const pages = printablePages(doc);
+  if (opts.artboardId === 'all') return pages;
+  if (opts.artboardId === 'range') return parsePageRange(opts.pages ?? '', pages.length).map((i) => pages[i]);
+  return doc.artboards.filter((a) => a.id === opts.artboardId);
+}
+
 export async function exportDocument(opts: ExportOptions): Promise<void> {
   const doc = editor.doc;
-  const artboards =
-    opts.artboardId === 'all' ? doc.artboards : doc.artboards.filter((a) => a.id === opts.artboardId);
-  if (!artboards.length) return;
+  const artboards = exportTargets(doc, opts);
+  if (!artboards.length) {
+    toast(t('export.noPages'));
+    return;
+  }
   if (opts.kind === 'pdf') {
-    const { bytes, missingFonts } = await svgToPdf(doc, artboards);
+    const { bytes, missingFonts } = await svgToPdf(doc, artboards, opts);
     if (await saveBytes(bytes, 'pdf', doc.name))
       toast(
         missingFonts.length

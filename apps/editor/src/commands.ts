@@ -5,6 +5,7 @@ import { getController } from './components/Viewport';
 import { setLang, getLang, type MessageKey } from './i18n';
 import { exportDocument, importImage, openDocument, saveDocument } from './io';
 import * as V from './vectorActions';
+import * as L from './layoutActions';
 import { editor, setSettings, setTool, ui, type ToolId } from './store';
 
 export interface Command {
@@ -151,6 +152,11 @@ export const COMMANDS = {
       }),
   },
 
+  'text.pageNumber': { label: 'text.pageNumber', run: L.insertPageNumber },
+  'text.frame': { label: 'text.frame', run: L.toggleFrame, enabled: L.canToggleFrame },
+  'text.link': { label: 'text.link', run: L.linkSelection, enabled: L.canLinkSelection },
+  'text.unlink': { label: 'text.unlink', run: L.unlinkSelected, enabled: L.canUnlink },
+
   'arrange.front': {
     label: 'arrange.front',
     shortcut: 'Mod+Shift+]',
@@ -203,6 +209,15 @@ export const COMMANDS = {
     run: () => A.deleteArtboard(),
     enabled: () => editor.doc.artboards.length > 1,
   },
+
+  'document.setup': { label: 'cmd.documentSetup', run: () => ui.set({ dialog: 'document' }) },
+  'pages.add': { label: 'pages.add', run: L.addPage },
+  'pages.duplicate': { label: 'pages.duplicate', run: () => L.duplicatePage() },
+  'pages.delete': { label: 'pages.delete', run: () => L.deletePage(), enabled: () => L.canDeletePage() },
+  'pages.addMaster': { label: 'pages.addMaster', run: L.addMaster },
+  'pages.arrange': { label: 'pages.arrange', run: L.arrange },
+  'persona.draw': { label: 'persona.draw', run: () => L.setPersona('draw') },
+  'persona.layout': { label: 'persona.layout', run: () => L.setPersona('layout') },
 
   'view.zoomIn': { label: 'view.zoomIn', shortcut: 'Mod+=', run: () => zoomBy(1.25) },
   'view.zoomOut': { label: 'view.zoomOut', shortcut: 'Mod+-', run: () => zoomBy(0.8) },
@@ -353,6 +368,10 @@ export function handleKeyDown(e: KeyboardEvent): void {
   }
   if ((e.key === 'Escape' || e.key === 'Enter') && ui.get().cropId) {
     ui.set({ cropId: null });
+    return;
+  }
+  if (e.key === 'Escape' && ui.get().linkFrom) {
+    ui.set({ linkFrom: null });
     return;
   }
   if (e.key === 'Escape') {

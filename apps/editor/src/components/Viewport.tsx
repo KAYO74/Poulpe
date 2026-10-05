@@ -1,6 +1,7 @@
 import { useEffect, useLayoutEffect, useRef, useState } from 'react';
-import { caretAt, cssFont, findNode, indexAtPoint, worldToLocal, type TextNode } from '@poulpe/core';
-import { cachedLayout, measureText } from '@poulpe/render';
+import { caretAt, charX, cssFont, findNode, type TextNode } from '@poulpe/core';
+import { measureText } from '@poulpe/render';
+import { editParts, indexAtWorld, partAt } from '../canvas/textParts';
 import { CanvasController } from '../canvas/controller';
 import {
   currentEditedText,
@@ -15,7 +16,7 @@ import { placeImageBytes } from '../io';
 import { placeSvg } from '../vectorActions';
 import { addElement, type ElementKind } from '../libraryActions';
 import { ELEMENT_MIME } from '../panels/Library';
-import { ui, useEditor, useUi } from '../store';
+import { editor, ui, useEditor, useUi } from '../store';
 
 let controller: CanvasController | null = null;
 export const getController = () => controller;
@@ -173,8 +174,25 @@ const notify = () => window.dispatchEvent(new Event('poulpe:textselection'));
 function indexFromEvent(e: { clientX: number; clientY: number }, node: TextNode): number {
   const c = controller!;
   const rect = c.canvas.getBoundingClientRect();
-  const local = worldToLocal(node, c.toWorld(e.clientX - rect.left, e.clientY - rect.top));
-  return indexAtPoint(cachedLayout(node), local.x, local.y, measureText);
+  const p = c.toWorld(e.clientX - rect.left, e.clientY - rect.top);
+  return indexAtWorld(editParts(editor.doc, node.id), p, true) ?? 0;
+}
+
+/** Indice le plus proche de l'abscisse `x` sur une ligne. */
+function indexOnLine(
+  line: ReturnType<typeof editParts>[number]['layout']['lines'][number],
+  x: number,
+): number {
+  let best = line.start;
+  let bestD = Infinity;
+  for (let i = line.start; i <= line.end; i++) {
+    const d = Math.abs(charX(line, i, measureText) - x);
+    if (d < bestD) {
+      bestD = d;
+      best = i;
+    }
+  }
+  return best;
 }
 
 function wordAt(text: string, i: number): [number, number] {
@@ -220,15 +238,14 @@ function TextEditor() {
 
   const moveVertically = (el: HTMLTextAreaElement, dir: -1 | 1, extend: boolean) => {
     if (!node) return;
-    const layout = cachedLayout(node);
+    // Les lignes de tous les cadres d'une chaîne se suivent : on passe d'un cadre au suivant.
+    const parts = editParts(state.doc, node.id);
     const focus = el.selectionDirection === 'backward' ? el.selectionStart : el.selectionEnd;
-    const c = caretAt(layout, focus, measureText);
-    const target = layout.lines[c.line + dir];
-    const i = target
-      ? indexAtPoint(layout, c.x, target.top + target.height / 2, measureText)
-      : dir < 0
-        ? 0
-        : node.text.length;
+    const part = partAt(parts, focus);
+    const c = caretAt(part.layout, focus, measureText);
+    const lines = parts.flatMap((p) => p.layout.lines);
+    const target = lines[lines.indexOf(part.layout.lines[c.line]) + dir];
+    const i = target ? indexOnLine(target, c.x) : dir < 0 ? 0 : node.text.length;
     const a = extend ? (el.selectionDirection === 'backward' ? el.selectionEnd : el.selectionStart) : i;
     setTextSelection(a, i);
   };
@@ -310,8 +327,8 @@ function TextEditor() {
         }
         if ((e.key === 'Home' || e.key === 'End') && node && !e.ctrlKey && !e.metaKey) {
           e.preventDefault();
-          const layout = cachedLayout(node);
           const focus = el.selectionDirection === 'backward' ? el.selectionStart : el.selectionEnd;
+          const { layout } = partAt(editParts(state.doc, node.id), focus);
           const line = layout.lines[caretAt(layout, focus, measureText).line];
           const i = e.key === 'Home' ? line.start : line.end;
           const a = e.shiftKey

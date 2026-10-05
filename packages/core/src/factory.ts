@@ -17,7 +17,7 @@ import type {
   TextStyle,
 } from './types';
 
-export const FORMAT_VERSION = 3;
+export const FORMAT_VERSION = 4;
 
 export type FormatCategory = 'social' | 'print' | 'screen';
 

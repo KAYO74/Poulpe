@@ -28,7 +28,11 @@ export type ToolId =
 
 export type Side = 'left' | 'right';
 export type Theme = 'dark' | 'light';
-export type Dialog = null | 'new' | 'export' | 'shortcuts' | 'about' | 'draft' | 'resize' | 'offset';
+export type Dialog =
+  null | 'new' | 'export' | 'shortcuts' | 'about' | 'draft' | 'resize' | 'offset' | 'document';
+
+/** Personas, comme dans Affinity : chacune a ses outils et ses panneaux. */
+export type Persona = 'draw' | 'layout';
 
 export interface Settings {
   theme: Theme;
@@ -51,6 +55,7 @@ export interface View {
 }
 
 export interface UiState {
+  persona: Persona;
   tool: ToolId;
   view: View;
   settings: Settings;
@@ -66,6 +71,8 @@ export interface UiState {
   nodeSelection: string[];
   /** Lissage du crayon, de 0 à 100. */
   pencilSmoothing: number;
+  /** Cadre de texte dont on choisit le cadre suivant (après un clic sur son indicateur de débordement). */
+  linkFrom: string | null;
   /** Fichier courant : chemin (bureau) ou nom (navigateur). */
   filePath: string | null;
   dialog: Dialog;
@@ -118,6 +125,7 @@ export function starterDocument(): PoulpeDocument {
 export const editor = new Editor(starterDocument());
 
 export const ui = new Store<UiState>({
+  persona: 'draw',
   tool: 'select',
   view: { zoom: 0.5, panX: 100, panY: 60 },
   settings: loadSettings(),
@@ -128,6 +136,7 @@ export const ui = new Store<UiState>({
   cropId: null,
   nodeSelection: [],
   pencilSmoothing: 50,
+  linkFrom: null,
   filePath: null,
   dialog: null,
   toast: null,

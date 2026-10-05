@@ -1,5 +1,6 @@
 import { COMMANDS, formatShortcut, type CommandId } from '../commands';
 import { getLang, setLang, useT } from '../i18n';
+import { setPersona } from '../layoutActions';
 import { setSettings, ui, useEditor, useUi } from '../store';
 import { Icon, type IconName } from './Icon';
 
@@ -42,30 +43,53 @@ function Toggle({
 export function Toolbar() {
   const t = useT();
   const settings = useUi((s) => s.settings);
+  const persona = useUi((s) => s.persona);
   return (
     <div className="toolbar" role="toolbar" aria-label="Barre d'outils">
       <div className="personas" role="group" aria-label="Personas">
         <button
           className="persona"
-          aria-pressed="true"
+          aria-pressed={persona === 'draw'}
           title={t('persona.draw')}
           aria-label={t('persona.draw')}
+          data-testid="persona-draw"
+          onClick={() => setPersona('draw')}
         >
           <Icon name="draw" />
         </button>
         <button className="persona" disabled title={t('persona.photo')} aria-label={t('persona.photo')}>
           <Icon name="photo" />
         </button>
-        <button className="persona" disabled title={t('persona.layout')} aria-label={t('persona.layout')}>
+        <button
+          className="persona"
+          aria-pressed={persona === 'layout'}
+          title={t('persona.layout')}
+          aria-label={t('persona.layout')}
+          data-testid="persona-layout"
+          onClick={() => setPersona('layout')}
+        >
           <Icon name="layout" />
         </button>
       </div>
-      <Toggle
-        on={settings.library}
-        icon="library"
-        label={t('view.library')}
-        onClick={() => setSettings({ library: !settings.library })}
-      />
+      {persona === 'layout' ? (
+        <>
+          <CmdButton id="pages.add" icon="pages" />
+          <CmdButton id="pages.addMaster" icon="master" />
+          <CmdButton id="document.setup" icon="settings" />
+          <span className="tsep" />
+          <CmdButton id="text.frame" icon="textFrame" />
+          <CmdButton id="text.link" icon="link" />
+          <CmdButton id="text.unlink" icon="unlink" />
+          <CmdButton id="text.pageNumber" icon="pageNumber" />
+        </>
+      ) : (
+        <Toggle
+          on={settings.library}
+          icon="library"
+          label={t('view.library')}
+          onClick={() => setSettings({ library: !settings.library })}
+        />
+      )}
       <span className="tsep" />
       <Toggle
         on={settings.snapping}
@@ -95,12 +119,16 @@ export function Toolbar() {
       <CmdButton id="layer.ungroup" icon="ungroup" />
       <CmdButton id="layer.clip" icon="mask" />
       <span className="tsep" />
-      <CmdButton id="geometry.unite" icon="unite" />
-      <CmdButton id="geometry.subtract" icon="subtract" />
-      <CmdButton id="geometry.intersect" icon="intersect" />
-      <CmdButton id="geometry.exclude" icon="exclude" />
-      <CmdButton id="geometry.divide" icon="divide" />
-      <span className="tsep" />
+      {persona === 'draw' && (
+        <>
+          <CmdButton id="geometry.unite" icon="unite" />
+          <CmdButton id="geometry.subtract" icon="subtract" />
+          <CmdButton id="geometry.intersect" icon="intersect" />
+          <CmdButton id="geometry.exclude" icon="exclude" />
+          <CmdButton id="geometry.divide" icon="divide" />
+          <span className="tsep" />
+        </>
+      )}
       <CmdButton id="arrange.alignLeft" icon="alignLeft" />
       <CmdButton id="arrange.alignHCenter" icon="alignHCenter" />
       <CmdButton id="arrange.alignRight" icon="alignRight" />
