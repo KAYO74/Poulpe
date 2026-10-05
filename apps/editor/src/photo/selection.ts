@@ -17,8 +17,10 @@ import { recordStep } from '../macros/recorder';
  *
  * C'est un masque : une toile dont seule l'opacité compte, posée sur le plan de travail actif.
  * Sa résolution suit celle de la photo (`scale` pixels du masque par pixel du document), pour que
- * les bords restent nets sur une grande image. La sélection ne fait pas partie du document ni de
- * l'historique, comme dans Affinity.
+ * les bords restent nets sur une grande image. La sélection ne fait pas partie du document, mais
+ * elle suit l'historique (Ctrl+Z revient à la sélection précédente) : chaque étape garde une copie
+ * compacte du masque (opacité compressée par plages). Une sélection n'est jamais modifiée sur
+ * place : chaque opération en crée une nouvelle.
  */
 
 export interface SelectionMask {
@@ -48,6 +50,96 @@ function changed(): void {
   ui.set({ hasPixelSelection: current !== null });
 }
 
+/** Copie compacte d'une sélection pour l'historique. */
+interface Snapshot {
+  x: number;
+  y: number;
+  scale: number;
+  width: number;
+  height: number;
+  /** Opacité par plages : valeur, puis longueur de la plage. */
+  values: Uint8Array;
+  counts: Uint32Array;
+}
+
+let snapCache: { version: number; snap: Snapshot | null } | null = null;
+
+function encode(m: SelectionMask): Snapshot {
+  const { width: w, height: h } = m.canvas;
+  const d = m.canvas.getContext('2d', { willReadFrequently: true })!.getImageData(0, 0, w, h).data;
+  const values: number[] = [];
+  const counts: number[] = [];
+  let v = d[3],
+    n = 0;
+  for (let i = 3; i < d.length; i += 4) {
+    if (d[i] === v) n++;
+    else {
+      values.push(v);
+      counts.push(n);
+      v = d[i];
+      n = 1;
+    }
+  }
+  values.push(v);
+  counts.push(n);
+  return {
+    x: m.x,
+    y: m.y,
+    scale: m.scale,
+    width: w,
+    height: h,
+    values: Uint8Array.from(values),
+    counts: Uint32Array.from(counts),
+  };
+}
+
+function decode(s: Snapshot): SelectionMask {
+  const canvas = makeCanvas(s.width, s.height);
+  const img = new ImageData(s.width, s.height);
+  const d = img.data;
+  let p = 0;
+  for (let r = 0; r < s.values.length; r++) {
+    const v = s.values[r];
+    for (let k = 0; k < s.counts[r]; k++, p += 4) {
+      d[p] = d[p + 1] = d[p + 2] = 255;
+      d[p + 3] = v;
+    }
+  }
+  canvas.getContext('2d')!.putImageData(img, 0, 0);
+  return { canvas, x: s.x, y: s.y, scale: s.scale };
+}
+
+/** État de la sélection pour l'historique (calculé une fois par version). */
+function snapshot(): Snapshot | null {
+  if (!snapCache || snapCache.version !== version)
+    snapCache = { version, snap: current ? encode(current) : null };
+  return snapCache.snap;
+}
+
+function restore(value: unknown): void {
+  const s = (value ?? null) as Snapshot | null;
+  if (snapCache && snapCache.version === version && snapCache.snap === s) return;
+  current = s ? decode(s) : null;
+  changed();
+  snapCache = { version, snap: s };
+}
+
+editor.setExtraState({ get: snapshot, set: restore });
+
+/** Remplace la sélection et enregistre l'étape dans l'historique. */
+function commit(next: SelectionMask | null, label = 'history.selection'): void {
+  const before = snapshot();
+  current = next;
+  changed();
+  editor.mark(label, before);
+}
+
+function cloneMask(m: SelectionMask): SelectionMask {
+  const canvas = makeCanvas(m.canvas.width, m.canvas.height);
+  canvas.getContext('2d')!.drawImage(m.canvas, 0, 0);
+  return { ...m, canvas };
+}
+
 export function getSelection(): SelectionMask | null {
   return current;
 }
@@ -56,10 +148,17 @@ export function selectionVersion(): number {
   return version;
 }
 
-export function clearSelection(): void {
+/**
+ * Retire la sélection. `record` faux : sans étape d'historique (après une commande qui utilise la
+ * sélection, comme Copier sur un calque : l'annuler fait revenir la sélection).
+ */
+export function clearSelection(record = true): void {
   if (!current) return;
-  current = null;
-  changed();
+  if (record) commit(null, 'history.deselect');
+  else {
+    current = null;
+    changed();
+  }
 }
 
 /** Densité de la photo sélectionnée (pixels de l'image par pixel du document). */
@@ -128,23 +227,21 @@ function blurMask(m: SelectionMask, radius: number): void {
 function combine(shape: SelectionMask, mode: SelectionMode): void {
   if (mode === 'replace' || !current) {
     if (mode === 'subtract' || mode === 'intersect') {
-      current = null;
-      changed();
+      if (current) commit(null);
       return;
     }
-    current = shape;
-    changed();
+    commit(shape);
     return;
   }
-  const ctx = current.canvas.getContext('2d')!;
+  const next = cloneMask(current);
+  const ctx = next.canvas.getContext('2d')!;
   ctx.save();
   ctx.setTransform(1, 0, 0, 1, 0, 0);
   ctx.globalCompositeOperation =
     mode === 'add' ? 'source-over' : mode === 'subtract' ? 'destination-out' : 'destination-in';
   ctx.drawImage(shape.canvas, 0, 0);
   ctx.restore();
-  if (isEmpty(current)) current = null;
-  changed();
+  commit(isEmpty(next) ? null : next);
 }
 
 function isEmpty(m: SelectionMask): boolean {
@@ -217,14 +314,15 @@ export function selectSimilar(p: Vec, images: ImageCache, mode: SelectionMode): 
 }
 
 export function selectAll(): void {
+  const keep = current;
   current = null;
   const m = blank();
+  current = keep;
   if (!m) return;
   const ctx = m.canvas.getContext('2d')!;
   ctx.fillStyle = '#fff';
   ctx.fillRect(0, 0, m.canvas.width, m.canvas.height);
-  current = m;
-  changed();
+  commit(m);
 }
 
 export function invertSelection(): void {
@@ -237,15 +335,14 @@ export function invertSelection(): void {
     ctx.globalCompositeOperation = 'destination-out';
     ctx.drawImage(current.canvas, 0, 0);
   }
-  current = isEmpty(m) ? null : m;
-  changed();
+  commit(isEmpty(m) ? null : m);
 }
 
 /** Adoucir, agrandir ou réduire la sélection, de `radius` pixels du document. */
 export function modifySelection(kind: 'feather' | 'grow' | 'shrink', radius: number): void {
   if (!current || radius <= 0) return;
   recordStep({ kind: 'selectionModify', mode: kind, radius });
-  const m = current;
+  const m = cloneMask(current);
   if (kind === 'feather') {
     blurMask(m, radius * 2);
   } else {
@@ -262,14 +359,15 @@ export function modifySelection(kind: 'feather' | 'grow' | 'shrink', radius: num
     }
     ctx.putImageData(img, 0, 0);
   }
-  if (isEmpty(m)) current = null;
-  changed();
+  commit(isEmpty(m) ? null : m);
 }
 
 /** Sélection d'après l'opacité d'un calque de pixels. */
 export function selectFromLayer(node: ImageNode, images: ImageCache): void {
+  const keep = current;
   current = null;
   const m = blank();
+  current = keep;
   if (!m) return;
   const img = images.get(editor.doc, node.assetId);
   if (!img) return;
@@ -282,8 +380,7 @@ export function selectFromLayer(node: ImageNode, images: ImageCache): void {
   const ih = img instanceof HTMLImageElement ? img.naturalHeight : img.height;
   if (c) ctx.drawImage(img, c.x * iw, c.y * ih, c.width * iw, c.height * ih, 0, 0, node.width, node.height);
   else ctx.drawImage(img, 0, 0, node.width, node.height);
-  current = isEmpty(m) ? null : m;
-  changed();
+  commit(isEmpty(m) ? null : m);
 }
 
 /**
@@ -345,4 +442,155 @@ export function selectFromMatte(node: ImageNode, matte: HTMLCanvasElement, mode:
     return;
   }
   combine(shape, mode);
+}
+
+/**
+ * Sélection rapide : on peint sur une zone et la sélection s'étend aux pixels voisins de couleur
+ * proche (dans un rayon de quelques tailles de pinceau autour de chaque touche), comme l'outil
+ * Sélection rapide de Photoshop et le pinceau de sélection d'Affinity. Tout le geste compte pour
+ * une seule étape d'historique.
+ */
+export class QuickSelect {
+  private shape: SelectionMask;
+  private px: ImageData;
+  private base: SelectionMask | null;
+  private before: unknown;
+  private stamp: HTMLCanvasElement;
+
+  private constructor(
+    shape: SelectionMask,
+    px: ImageData,
+    private mode: SelectionMode,
+  ) {
+    this.shape = shape;
+    this.px = px;
+    this.base = current;
+    this.before = snapshot();
+    this.stamp = makeCanvas(1, 1);
+  }
+
+  static start(p: Vec, images: ImageCache, mode: SelectionMode): QuickSelect | null {
+    const shape = blank();
+    if (!shape) return null;
+    const ab = editor.doc.artboards.find(
+      (a) => p.x >= a.x && p.y >= a.y && p.x <= a.x + a.width && p.y <= a.y + a.height,
+    );
+    if (!ab) return null;
+    const { width: w, height: h } = shape.canvas;
+    const src = makeCanvas(w, h);
+    const sctx = src.getContext('2d', { willReadFrequently: true })!;
+    sctx.setTransform(shape.scale, 0, 0, shape.scale, -shape.x * shape.scale, -shape.y * shape.scale);
+    drawArtboard(sctx, editor.doc, ab, { images });
+    return new QuickSelect(
+      shape,
+      sctx.getImageData(0, 0, w, h),
+      mode === 'replace' && current ? 'add' : mode,
+    );
+  }
+
+  /** Une touche du pinceau en `p` (document), de rayon `radius` (document). */
+  dab(p: Vec, radius: number): void {
+    const { shape, px } = this;
+    const k = shape.scale;
+    const W = px.width,
+      H = px.height;
+    const cx = (p.x - shape.x) * k,
+      cy = (p.y - shape.y) * k;
+    const r = Math.max(1, radius * k);
+    const R = Math.ceil(r * 3);
+    const x0 = Math.max(0, Math.floor(cx - R)),
+      y0 = Math.max(0, Math.floor(cy - R));
+    const x1 = Math.min(W, Math.ceil(cx + R)),
+      y1 = Math.min(H, Math.ceil(cy + R));
+    const w = x1 - x0,
+      h = y1 - y0;
+    if (w <= 0 || h <= 0) return;
+    const d = px.data;
+    // Couleur moyenne sous le pinceau : plus stable qu'un seul pixel.
+    let sr = 0,
+      sg = 0,
+      sb = 0,
+      n = 0;
+    const r2 = r * r;
+    for (let y = Math.max(y0, Math.floor(cy - r)); y < Math.min(y1, Math.ceil(cy + r)); y++)
+      for (let x = Math.max(x0, Math.floor(cx - r)); x < Math.min(x1, Math.ceil(cx + r)); x++) {
+        if ((x - cx) ** 2 + (y - cy) ** 2 > r2) continue;
+        const i = (y * W + x) * 4;
+        sr += d[i];
+        sg += d[i + 1];
+        sb += d[i + 2];
+        n++;
+      }
+    if (!n) return;
+    sr /= n;
+    sg /= n;
+    sb /= n;
+    const tol = Math.max(8, ui.get().tolerance);
+    const close = (x: number, y: number) => {
+      const i = (y * W + x) * 4;
+      return Math.max(Math.abs(d[i] - sr), Math.abs(d[i + 1] - sg), Math.abs(d[i + 2] - sb)) <= tol;
+    };
+    // Croissance de région depuis le disque du pinceau, limitée à la fenêtre.
+    const mask = new Uint8Array(w * h);
+    const stack: number[] = [];
+    for (let y = 0; y < h; y++)
+      for (let x = 0; x < w; x++)
+        if ((x0 + x - cx) ** 2 + (y0 + y - cy) ** 2 <= r2) {
+          mask[y * w + x] = 1;
+          stack.push(y * w + x);
+        }
+    while (stack.length) {
+      const i = stack.pop()!;
+      const x = i % w,
+        y = (i / w) | 0;
+      const visit = (nx: number, ny: number) => {
+        if (nx < 0 || ny < 0 || nx >= w || ny >= h) return;
+        const j = ny * w + nx;
+        if (mask[j] || !close(x0 + nx, y0 + ny)) return;
+        mask[j] = 1;
+        stack.push(j);
+      };
+      visit(x - 1, y);
+      visit(x + 1, y);
+      visit(x, y - 1);
+      visit(x, y + 1);
+    }
+    const img = new ImageData(w, h);
+    for (let i = 0; i < mask.length; i++) {
+      if (!mask[i]) continue;
+      img.data[i * 4] = img.data[i * 4 + 1] = img.data[i * 4 + 2] = img.data[i * 4 + 3] = 255;
+    }
+    if (this.stamp.width < w || this.stamp.height < h) {
+      this.stamp.width = Math.max(this.stamp.width, w);
+      this.stamp.height = Math.max(this.stamp.height, h);
+    }
+    const sc = this.stamp.getContext('2d')!;
+    sc.clearRect(0, 0, w, h);
+    sc.putImageData(img, 0, 0);
+    shape.canvas.getContext('2d')!.drawImage(this.stamp, 0, 0, w, h, x0, y0, w, h);
+    this.preview();
+  }
+
+  private preview(): void {
+    if (!this.base || this.mode === 'replace') {
+      current = this.mode === 'subtract' || this.mode === 'intersect' ? this.base : this.shape;
+    } else {
+      const next = cloneMask(this.base);
+      const ctx = next.canvas.getContext('2d')!;
+      ctx.globalCompositeOperation =
+        this.mode === 'add' ? 'source-over' : this.mode === 'subtract' ? 'destination-out' : 'destination-in';
+      ctx.drawImage(this.shape.canvas, 0, 0);
+      current = next;
+    }
+    changed();
+  }
+
+  /** Fin du geste : une étape d'historique. */
+  end(): void {
+    if (current && isEmpty(current)) {
+      current = null;
+      changed();
+    }
+    editor.mark('history.selection', this.before);
+  }
 }

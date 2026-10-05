@@ -1,9 +1,18 @@
-import { ARROW_HEADS, findNode, isStyled, type ArrowHead, type Stroke } from '@poulpe/core';
+import {
+  ARROW_HEADS,
+  WIDTH_PROFILES,
+  findNode,
+  isStyled,
+  rgbaToCss,
+  type ArrowHead,
+  type Stroke,
+} from '@poulpe/core';
 import { updateSelected } from '../actions';
+import { Icon } from '../components/Icon';
 import { NumberField, Select, paintPreview } from '../components/fields';
 import { useT } from '../i18n';
 import { ui, useEditor, useUi } from '../store';
-import { setStroke } from '../vectorActions';
+import { addStroke, removeStroke, setStroke, setStrokeAt } from '../vectorActions';
 
 /** Motifs de pointillés prêts à l'emploi, en multiples de l'épaisseur du trait. */
 const DASHES: { id: string; dash: number[] | undefined; cap?: Stroke['cap'] }[] = [
@@ -22,6 +31,10 @@ export function StrokePanel() {
   const stroke = node && isStyled(node) ? node.stroke : defaults.stroke;
   const preset = DASHES.find((d) => JSON.stringify(d.dash) === JSON.stringify(stroke.dash))?.id ?? 'custom';
   const dash = stroke.dash ?? [3, 2];
+  const extras = node && isStyled(node) ? (node.strokes ?? []) : [];
+  const profileId =
+    WIDTH_PROFILES.find((p) => JSON.stringify(p.profile) === JSON.stringify(stroke.profile ?? [1, 1]))?.id ??
+    'uniform';
   return (
     <div className="panel-body stroke-panel">
       <div className="picker-row">
@@ -90,6 +103,28 @@ export function StrokePanel() {
       </div>
       <div className="picker-row">
         <Select
+          label={t('stroke.align')}
+          value={stroke.align ?? 'center'}
+          testId="stroke-align"
+          options={(['center', 'inside', 'outside'] as const).map((a) => ({
+            value: a,
+            label: t(`stroke.align.${a}`),
+          }))}
+          onChange={(align) => setStroke({ align: align === 'center' ? undefined : align })}
+        />
+        <Select
+          label={t('stroke.profile')}
+          value={profileId}
+          testId="stroke-profile"
+          options={WIDTH_PROFILES.map((p) => ({ value: p.id, label: t(`stroke.profile.${p.id}`) }))}
+          onChange={(id) => {
+            const p = WIDTH_PROFILES.find((x) => x.id === id);
+            setStroke({ profile: !p || p.id === 'uniform' ? undefined : [...p.profile] });
+          }}
+        />
+      </div>
+      <div className="picker-row">
+        <Select
           label={t('stroke.cap')}
           value={stroke.cap ?? 'round'}
           options={(['butt', 'round', 'square'] as const).map((c) => ({
@@ -122,6 +157,47 @@ export function StrokePanel() {
           onChange={(end) => setStroke({ end: end === 'none' ? undefined : end })}
         />
       </div>
+      <div className="panel-sub">
+        <span className="panel-sub-title">{t('stroke.extras')}</span>
+        <button
+          className="icon-btn"
+          title={t('stroke.addStroke')}
+          aria-label={t('stroke.addStroke')}
+          data-testid="stroke-add"
+          disabled={!node}
+          onClick={() => addStroke()}
+        >
+          <Icon name="plus" size={13} />
+        </button>
+      </div>
+      {extras.map((s, i) => (
+        <div className="picker-row" key={i} data-testid={`stroke-extra-${i}`}>
+          <input
+            className="swatch-input"
+            type="color"
+            aria-label={t('stroke.extraColor', { n: i + 1 })}
+            value={rgbaToCss(s.paint.type === 'solid' ? s.paint.color : '#ffffff').slice(0, 7)}
+            onChange={(e) => setStrokeAt(i, { paint: { type: 'solid', color: e.target.value } })}
+          />
+          <NumberField
+            label={t('stroke.width')}
+            value={s.width}
+            min={0}
+            max={500}
+            decimals={1}
+            unit="px"
+            onChange={(width) => setStrokeAt(i, { width })}
+          />
+          <button
+            className="icon-btn"
+            title={t('stroke.removeStroke')}
+            aria-label={t('stroke.removeStroke')}
+            onClick={() => removeStroke(i)}
+          >
+            <Icon name="trash" size={13} />
+          </button>
+        </div>
+      ))}
       <p className="note small">{t('stroke.arrowHint')}</p>
     </div>
   );

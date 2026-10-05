@@ -1,5 +1,5 @@
 import * as Menu from '@radix-ui/react-dropdown-menu';
-import { COLOR_ADJUSTMENTS, FORMAT_PRESETS, LIVE_FILTERS } from '@poulpe/core';
+import { COLOR_ADJUSTMENTS, FORMAT_PRESETS, LIVE_FILTERS, LUT_PRESETS, type LutPreset } from '@poulpe/core';
 import { addArtboard } from '../actions';
 import { useSyncExternalStore } from 'react';
 import {
@@ -174,6 +174,13 @@ export function MenuBar() {
           <Item id="geometry.exclude" />
           <Item id="geometry.divide" />
         </Sub>
+        <Sub label={t('menu.symbols')}>
+          <Item id="symbol.create" />
+          <Item id="symbol.update" />
+          <Item id="symbol.detach" />
+          <Sep />
+          <Item id="style.save" />
+        </Sub>
         <Item id="layer.convertToCurves" />
         <Item id="layer.outlineStroke" />
         <Item id="layer.offset" />
@@ -202,6 +209,13 @@ export function MenuBar() {
           {LIVE_FILTERS.map((k) => (
             <Item key={k} id={`adjust.${k}`} />
           ))}
+        </Sub>
+        <Sub label={t('menu.lut')}>
+          {(Object.keys(LUT_PRESETS) as LutPreset[]).map((k) => (
+            <Item key={k} id={`lut.${k}`} />
+          ))}
+          <Sep />
+          <Item id="lut.load" />
         </Sub>
         <Sep />
         <Item id="adjust.auto" />
@@ -274,6 +288,8 @@ export function MenuBar() {
         <Item id="pages.arrange" />
         <Sep />
         <Item id="document.resize" />
+        <Item id="document.imageSize" />
+        <Item id="document.canvasSize" />
         <Item id="document.setup" />
       </Top>
       <Top label={t('menu.view')}>

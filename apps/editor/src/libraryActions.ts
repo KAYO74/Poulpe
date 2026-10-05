@@ -6,6 +6,7 @@ import {
   createArtboard,
   findArtboard,
   findNode,
+  isGradient,
   newId,
   nodeBounds,
   resizeArtboard,
@@ -58,7 +59,7 @@ function activeArtboard(doc: PoulpeDocument = editor.doc): Artboard | null {
 function currentColor(): string {
   const f = ui.get().defaults.fill;
   if (f.type === 'solid') return f.color;
-  if (f.type !== 'none') return f.stops[0]?.color ?? '#2ba59a';
+  if (isGradient(f)) return f.stops[0]?.color ?? '#2ba59a';
   return '#2ba59a';
 }
 

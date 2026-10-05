@@ -28,7 +28,16 @@ import {
   applyTemplate,
   type ElementKind,
 } from '../libraryActions';
-import { setSettings, ui } from '../store';
+import { setSettings, ui, useEditor } from '../store';
+import { paintPreview } from '../components/fields';
+import {
+  applySavedStyle,
+  createSymbol,
+  deleteStyle,
+  deleteSymbol,
+  placeSymbol,
+  saveStyle,
+} from '../symbolActions';
 
 /*
  * Panneau Bibliothèque, le côté Canva de Poulpe : modèles, éléments (textes, formes, cadres,
@@ -273,11 +282,81 @@ function ElementsTab() {
   );
 }
 
+/** Styles enregistrés et symboles du document : ce que l'utilisateur a mis de côté lui-même. */
+function DocumentAssets() {
+  const t = useT();
+  const { doc, selection } = useEditor();
+  const styles = doc.styles ?? [];
+  const symbols = Object.values(doc.symbols ?? {});
+  return (
+    <>
+      <Section title={t('library.docStyles')} hint={t('library.docStylesHint')}>
+        {styles.length === 0 && <p className="empty">{t('library.noStyle')}</p>}
+        {styles.map((s) => (
+          <div className="asset-row" key={s.id} data-testid={`saved-style-${s.id}`}>
+            <button onClick={() => applySavedStyle(s.id)} title={t('library.applyStyle')}>
+              <span
+                className="style-preview"
+                style={{ background: paintPreview(s.fill ?? { type: 'none' }) }}
+              />
+              <span className="asset-name">{s.name}</span>
+            </button>
+            <button
+              className="icon-btn"
+              title={t('library.deleteStyle')}
+              aria-label={t('library.deleteStyle')}
+              onClick={() => deleteStyle(s.id)}
+            >
+              <Icon name="trash" size={13} />
+            </button>
+          </div>
+        ))}
+        <button
+          className="chip-btn"
+          disabled={selection.length !== 1}
+          data-testid="save-style"
+          onClick={() => saveStyle()}
+        >
+          {t('library.saveStyle')}
+        </button>
+      </Section>
+      <Section title={t('library.symbols')} hint={t('library.symbolsHint')}>
+        {symbols.length === 0 && <p className="empty">{t('library.noSymbol')}</p>}
+        {symbols.map((s) => (
+          <div className="asset-row" key={s.id} data-testid={`symbol-${s.id}`}>
+            <button onClick={() => placeSymbol(s.id)} title={t('library.placeSymbol')}>
+              <Icon name="symbol" size={14} />
+              <span className="asset-name">{s.name}</span>
+            </button>
+            <button
+              className="icon-btn"
+              title={t('library.deleteSymbol')}
+              aria-label={t('library.deleteSymbol')}
+              onClick={() => deleteSymbol(s.id)}
+            >
+              <Icon name="trash" size={13} />
+            </button>
+          </div>
+        ))}
+        <button
+          className="chip-btn"
+          disabled={selection.length === 0}
+          data-testid="create-symbol"
+          onClick={() => createSymbol()}
+        >
+          {t('library.createSymbol')}
+        </button>
+      </Section>
+    </>
+  );
+}
+
 function StylesTab() {
   const t = useT();
   const lang = getLang();
   return (
     <div className="lib-body">
+      <DocumentAssets />
       <Section title={t('library.palettes')} hint={t('library.palettesHint')}>
         <div className="palettes">
           {PALETTES.map((p) => (

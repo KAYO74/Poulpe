@@ -10,9 +10,19 @@ import {
   type PageFields,
   type TextFlow,
   arrowPaths,
+  bevelOffset,
   charX,
   dashPattern,
   effectMargin,
+  featureSettings,
+  hasWidthProfile,
+  sampleStops,
+  symbolContent,
+  visibleStrokes,
+  widthProfileOutline,
+  withAlpha,
+  alphaOf,
+  CANVAS_FEATURES,
   layoutTextOnPath,
   nodeBounds,
   strokeCap,
@@ -33,6 +43,7 @@ import {
   type SceneNode,
   type ShapeNode,
   type Stroke,
+  type SymbolNode,
   type TextLayout,
   type TextNode,
 } from '@poulpe/core';
@@ -231,7 +242,14 @@ export function compositeOp(mode: BlendMode): GlobalCompositeOperation {
 }
 
 /** Style de peinture dans le repère local d'un objet de taille w × h. */
-export function canvasPaint(ctx: Ctx, paint: Paint, w: number, h: number): string | CanvasGradient | null {
+export function canvasPaint(
+  ctx: Ctx,
+  paint: Paint,
+  w: number,
+  h: number,
+  doc?: PoulpeDocument,
+  images?: ImageCache,
+): string | CanvasGradient | CanvasPattern | null {
   switch (paint.type) {
     case 'none':
       return null;
@@ -255,7 +273,56 @@ export function canvasPaint(ctx: Ctx, paint: Paint, w: number, h: number): strin
       for (const s of paint.stops) g.addColorStop(Math.min(1, Math.max(0, s.offset)), rgbaToCss(s.color));
       return g;
     }
+    case 'conic': {
+      const cx = paint.cx * w,
+        cy = paint.cy * h;
+      // `createConicGradient` manque à quelques navigateurs : on approche alors par des secteurs.
+      const make = (
+        ctx as unknown as { createConicGradient?: (a: number, x: number, y: number) => CanvasGradient }
+      ).createConicGradient;
+      if (typeof make !== 'function') return conicFallback(ctx, paint, w, h);
+      const g = make.call(ctx, (paint.angle * Math.PI) / 180, cx, cy);
+      for (const s of paint.stops) g.addColorStop(Math.min(1, Math.max(0, s.offset)), rgbaToCss(s.color));
+      return g;
+    }
+    case 'pattern': {
+      if (!doc || !images) return null;
+      const img = images.get(doc, paint.assetId);
+      if (!img) return null;
+      const pat = ctx.createPattern(img as CanvasImageSource, 'repeat');
+      if (!pat) return null;
+      const k = Math.max(0.01, paint.scale);
+      pat.setTransform(new DOMMatrix().rotate(paint.angle).scale(k, k));
+      return pat;
+    }
   }
+}
+
+/** Dégradé conique dessiné en secteurs, pour les navigateurs sans `createConicGradient`. */
+function conicFallback(
+  ctx: Ctx,
+  paint: Extract<Paint, { type: 'conic' }>,
+  w: number,
+  h: number,
+): CanvasPattern | null {
+  const size = Math.max(1, Math.ceil(Math.max(w, h)));
+  const tile = makeCanvas(size, size);
+  const cx = paint.cx * w,
+    cy = paint.cy * h;
+  const r = Math.hypot(w, h);
+  const steps = 90;
+  for (let i = 0; i < steps; i++) {
+    const a0 = ((paint.angle + (i * 360) / steps) * Math.PI) / 180;
+    const a1 = ((paint.angle + ((i + 1.02) * 360) / steps) * Math.PI) / 180;
+    tile.ctx.beginPath();
+    tile.ctx.moveTo(cx, cy);
+    tile.ctx.lineTo(cx + Math.cos(a0) * r, cy + Math.sin(a0) * r);
+    tile.ctx.lineTo(cx + Math.cos(a1) * r, cy + Math.sin(a1) * r);
+    tile.ctx.closePath();
+    tile.ctx.fillStyle = rgbaToCss(sampleStops(paint.stops, (i + 0.5) / steps));
+    tile.ctx.fill();
+  }
+  return ctx.createPattern(tile.canvas as CanvasImageSource, 'no-repeat');
 }
 
 export interface RenderOptions {
@@ -277,13 +344,14 @@ function applyNodeTransform(ctx: Ctx, node: SceneNode) {
 
 function drawText(ctx: Ctx, doc: PoulpeDocument, node: TextNode, opts: RenderOptions) {
   const measure = opts.measure ?? measureText;
-  const fill = canvasPaint(ctx, node.fill, node.width, node.height);
+  const fill = canvasPaint(ctx, node.fill, node.width, node.height, doc, opts.images);
   const stroke =
     node.stroke.paint.type !== 'none' && node.stroke.width > 0
-      ? canvasPaint(ctx, node.stroke.paint, node.width, node.height)
+      ? canvasPaint(ctx, node.stroke.paint, node.width, node.height, doc, opts.images)
       : null;
   ctx.textBaseline = 'alphabetic';
   ctx.lineJoin = 'round';
+  applyFeatures(ctx, node.style.features);
   if (node.path) {
     // Texte sur tracé : chaque caractère est posé et tourné à sa place sur la courbe.
     for (const g of layoutTextOnPath(node, measure)) {
@@ -368,20 +436,34 @@ export function applyStrokeStyle(ctx: Ctx, stroke: Stroke): void {
   ctx.setLineDash(dashPattern(stroke));
 }
 
-const arrowCache = new WeakMap<SceneNode, Path2D | null>();
+const arrowCache = new WeakMap<Stroke, Path2D | null>();
 
-/** Flèches d'un tracé ouvert, mémorisées tant que l'objet ne change pas. */
-function arrowPath(node: ShapeNode): Path2D | null {
-  if (
-    (!node.stroke.start || node.stroke.start === 'none') &&
-    (!node.stroke.end || node.stroke.end === 'none')
-  )
-    return null;
-  if (Object.isFrozen(node) && arrowCache.has(node)) return arrowCache.get(node)!;
-  const cmds = arrowPaths(shapePath(node), node.stroke);
+/** Flèches d'un tracé ouvert, mémorisées tant que le contour ne change pas. */
+function arrowPath(node: ShapeNode, stroke: Stroke): Path2D | null {
+  if ((!stroke.start || stroke.start === 'none') && (!stroke.end || stroke.end === 'none')) return null;
+  if (Object.isFrozen(stroke) && arrowCache.has(stroke)) return arrowCache.get(stroke)!;
+  const cmds = arrowPaths(shapePath(node), stroke);
   const p = cmds.length ? toPath2D(cmds) : null;
-  if (Object.isFrozen(node)) arrowCache.set(node, p);
+  if (Object.isFrozen(stroke)) arrowCache.set(stroke, p);
   return p;
+}
+
+/**
+ * Fonctions OpenType sur la toile : seules les petites capitales et le crénage sont réglables
+ * (`fontVariantCaps`, `fontKerning`). Les autres fonctions n'apparaissent qu'à l'export.
+ */
+function applyFeatures(ctx: Ctx, features?: string[]): void {
+  const c = ctx as unknown as { fontVariantCaps?: string; fontKerning?: string };
+  const list = features ?? [];
+  if ('fontVariantCaps' in c)
+    c.fontVariantCaps = list.includes('c2sc')
+      ? 'all-small-caps'
+      : list.includes('smcp')
+        ? 'small-caps'
+        : 'normal';
+  if ('fontKerning' in c) c.fontKerning = features && !list.includes('kern') ? 'none' : 'auto';
+  void CANVAS_FEATURES;
+  void featureSettings;
 }
 
 /** Dessine un objet sans son opacité, son mode de fusion ni ses effets. */
@@ -405,6 +487,10 @@ function drawContent(ctx: Ctx, doc: PoulpeDocument, node: SceneNode, opts: Rende
     }
     return;
   }
+  if (node.type === 'symbol') {
+    drawChildren(ctx, doc, symbolContent(doc, node), opts, nodeBounds(node));
+    return;
+  }
   ctx.save();
   applyNodeTransform(ctx, node);
   const w = node.width,
@@ -423,23 +509,29 @@ function drawContent(ctx: Ctx, doc: PoulpeDocument, node: SceneNode, opts: Rende
   } else if (node.type !== 'adjustment') {
     const path = nodePath(node);
     if (node.type !== 'line') {
-      const fill = canvasPaint(ctx, node.fill, w, h);
+      const fill = canvasPaint(ctx, node.fill, w, h, doc, opts.images);
       if (fill) {
         ctx.fillStyle = fill;
         ctx.fill(path, node.type === 'path' && node.fillRule === 'evenodd' ? 'evenodd' : 'nonzero');
       }
     }
-    if (node.stroke.paint.type !== 'none' && node.stroke.width > 0) {
-      const stroke = canvasPaint(ctx, node.stroke.paint, w, h);
-      if (stroke) {
-        ctx.strokeStyle = stroke;
-        applyStrokeStyle(ctx, node.stroke);
-        ctx.stroke(path);
-        const heads = arrowPath(node);
-        if (heads) {
-          ctx.fillStyle = stroke;
-          ctx.fill(heads);
-        }
+    // Les contours supplémentaires passent sous le contour principal.
+    for (const st of visibleStrokes(node)) {
+      const paint = canvasPaint(ctx, st.paint, w, h, doc, opts.images);
+      if (!paint) continue;
+      if (hasWidthProfile(st)) {
+        // Largeur variable : le contour devient une forme pleine.
+        ctx.fillStyle = paint;
+        ctx.fill(toPath2D(widthProfileOutline(shapePath(node), st)));
+        continue;
+      }
+      ctx.strokeStyle = paint;
+      applyStrokeStyle(ctx, st);
+      ctx.stroke(path);
+      const heads = arrowPath(node, st);
+      if (heads) {
+        ctx.fillStyle = paint;
+        ctx.fill(heads);
       }
     }
   }
@@ -590,7 +682,9 @@ function drawWithEffects(
     0,
     0,
   );
-  const inner = effects.filter((e) => e.type === 'innerShadow' || e.type === 'innerGlow');
+  const inner = effects.filter(
+    (e) => e.type === 'innerShadow' || e.type === 'innerGlow' || e.type === 'bevel',
+  );
   if (inner.length) {
     // Inverse du calque : ce qui est hors de l'objet, dont l'ombre tombe à l'intérieur.
     const inv = makeCanvas(w, h);
@@ -598,15 +692,27 @@ function drawWithEffects(
     inv.ctx.fillRect(0, 0, w, h);
     inv.ctx.globalCompositeOperation = 'destination-out';
     inv.ctx.drawImage(layer.canvas, 0, 0);
-    for (const e of inner) {
-      if (e.type !== 'innerShadow' && e.type !== 'innerGlow') continue;
+    /** Ombre tombant à l'intérieur de l'objet, posée sur le résultat. */
+    const castInner = (color: string, dx: number, dy: number, blur: number) => {
       const tmp = makeCanvas(w, h);
-      const dx = e.type === 'innerShadow' ? e.x * scale : 0,
-        dy = e.type === 'innerShadow' ? e.y * scale : 0;
-      castShadow(tmp.ctx, inv.canvas, e.color, dx, dy, e.blur * scale);
+      castShadow(tmp.ctx, inv.canvas, color, dx, dy, blur);
       tmp.ctx.globalCompositeOperation = 'destination-in';
       tmp.ctx.drawImage(layer.canvas, 0, 0);
       o.drawImage(tmp.canvas, 0, 0);
+    };
+    for (const e of inner) {
+      if (e.type === 'bevel') {
+        // Biseau : la lumière d'un côté de l'arête, l'ombre de l'autre.
+        const [bx, by] = bevelOffset(e);
+        const k = Math.max(0, Math.min(1, e.intensity / 100));
+        castInner(withAlpha(e.light, alphaOf(e.light) * k), bx * scale, by * scale, e.softness * scale);
+        castInner(withAlpha(e.shadow, alphaOf(e.shadow) * k), -bx * scale, -by * scale, e.softness * scale);
+        continue;
+      }
+      if (e.type !== 'innerShadow' && e.type !== 'innerGlow') continue;
+      const dx = e.type === 'innerShadow' ? e.x * scale : 0,
+        dy = e.type === 'innerShadow' ? e.y * scale : 0;
+      castInner(e.color, dx, dy, e.blur * scale);
     }
   }
   ctx.save();
@@ -643,7 +749,7 @@ export function drawArtboard(
   if (opts.background !== false) {
     ctx.save();
     ctx.translate(ab.x, ab.y);
-    const bg = canvasPaint(ctx, ab.background, ab.width, ab.height);
+    const bg = canvasPaint(ctx, ab.background, ab.width, ab.height, doc, opts.images);
     if (bg) {
       ctx.fillStyle = bg;
       ctx.fillRect(0, 0, ab.width, ab.height);
@@ -790,8 +896,18 @@ function applyAdjustmentLayer(
 ): void {
   const { width: w, height: h } = buf.canvas;
   const src = buf.ctx.getImageData(0, 0, w, h);
-  const adjusted = new Uint8ClampedArray(src.data);
+  let adjusted = new Uint8ClampedArray(src.data);
   applyAdjustment({ data: adjusted, width: w, height: h }, node.adjustment, { scale, origin, frame });
+  if (node.blendMode !== 'normal') {
+    // Mode de fusion : l'image réglée est fondue sur l'image d'origine, comme un calque.
+    const top = makeCanvas(w, h);
+    top.ctx.putImageData(new ImageData(adjusted, w, h), 0, 0);
+    const mixed = makeCanvas(w, h);
+    mixed.ctx.putImageData(src, 0, 0);
+    mixed.ctx.globalCompositeOperation = compositeOp(node.blendMode);
+    mixed.ctx.drawImage(top.canvas, 0, 0);
+    adjusted = mixed.ctx.getImageData(0, 0, w, h).data;
+  }
   const out = src.data;
   const op = Math.max(0, Math.min(1, node.opacity));
   const maskImg = node.mask?.enabled ? opts.images.get(doc, node.mask.assetId) : null;

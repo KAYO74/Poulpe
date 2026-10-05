@@ -3,8 +3,11 @@ import {
   findNode,
   floodMask,
   gaussianBlurred,
+  healBlend,
+  liquifyDab,
   luma,
   parseColor,
+  warpPerspective,
   type ImageNode,
   type Pixels,
   type SceneNode,
@@ -30,6 +33,7 @@ import {
   commitBitmap,
   copyDrawable,
   docToMask,
+  localToDoc,
   docToPixels,
   imageAt,
   images,
@@ -38,26 +42,45 @@ import {
   newPixelLayer,
   selectedImage,
 } from './pixels';
-import { getSelection, selectShape, selectSimilar, selectionIn, selectionOutline } from './selection';
+import {
+  QuickSelect,
+  getSelection,
+  selectShape,
+  selectSimilar,
+  selectionIn,
+  selectionOutline,
+} from './selection';
 
 /*
  * Outils de la Persona Photo : sélections (rectangle, ellipse, lasso, baguette magique),
  * pinceau, gomme, pot de peinture, tampon de duplication, densité − et +, flou et netteté au
- * pinceau, et gomme magique.
+ * pinceau, gomme magique, lasso polygonal, sélection rapide, correcteur, doigt, fluidité,
+ * redressement et correction de perspective.
  *
  * Un coup de pinceau travaille sur une copie des pixels du calque (ou de son masque) : la copie
  * est affichée à la place de l'image pendant le geste, puis enregistrée dans le document en une
  * seule étape d'historique au relâchement.
  */
 
-const SELECT_TOOLS: ToolId[] = ['marqueeRect', 'marqueeEllipse', 'lasso', 'magicWand'];
+const SELECT_TOOLS: ToolId[] = [
+  'marqueeRect',
+  'marqueeEllipse',
+  'lasso',
+  'polyLasso',
+  'magicWand',
+  'quickSelect',
+];
+/** Outils qui transforment le calque entier. */
+const GEOMETRY_TOOLS: ToolId[] = ['straighten', 'perspective'];
 /** Outils qui peignent une couleur : sans calque de pixels choisi, ils en créent un. */
 const CREATES_LAYER: ToolId[] = ['brush', 'fill'];
 /** Outils qui recopient une version transformée des pixels sous le pinceau. */
-const SOURCE_TOOLS: ToolId[] = ['clone', 'dodge', 'burn', 'blurBrush', 'sharpenBrush'];
+const SOURCE_TOOLS: ToolId[] = ['clone', 'heal', 'dodge', 'burn', 'blurBrush', 'sharpenBrush'];
+/** Outils qui déplacent les pixels du calque eux-mêmes, touche après touche. */
+const WARP_TOOLS: ToolId[] = ['smudge', 'liquify'];
 
 export function isPhotoTool(tool: ToolId): boolean {
-  return SELECT_TOOLS.includes(tool) || isBrushTool(tool) || tool === 'fill';
+  return SELECT_TOOLS.includes(tool) || isBrushTool(tool) || tool === 'fill' || GEOMETRY_TOOLS.includes(tool);
 }
 
 interface Rect {
@@ -75,7 +98,7 @@ class LazySource {
   private static TILE = 256;
   constructor(
     private base: HTMLCanvasElement,
-    private compute: (px: Pixels) => void,
+    private compute: (px: Pixels, x0: number, y0: number) => void,
     private margin: number,
   ) {
     this.canvas = makeCanvas(base.width, base.height);
@@ -98,7 +121,7 @@ class LazySource {
         const x1 = Math.min(this.base.width, (tx + 1) * T + m),
           y1 = Math.min(this.base.height, (ty + 1) * T + m);
         const img = bctx.getImageData(x0, y0, x1 - x0, y1 - y0);
-        this.compute({ data: img.data, width: img.width, height: img.height });
+        this.compute({ data: img.data, width: img.width, height: img.height }, x0, y0);
         const ix = tx * T - x0,
           iy = ty * T - y0;
         sctx.putImageData(
@@ -140,6 +163,10 @@ interface Stroke {
   carry: number;
   /** Le calque vient d'être créé pour ce coup de pinceau. */
   pending: boolean;
+  /** Doigt : couleur emportée par le pinceau, à la taille de l'empreinte. */
+  pickup: HTMLCanvasElement | null;
+  /** Fluidité : position de la touche précédente (le geste pousse de l'une à l'autre). */
+  prevDab: Vec | null;
 }
 
 function luminance(color: string): number {
@@ -171,6 +198,12 @@ export class PhotoTools {
   private stroke: Stroke | null = null;
   private marquee: { start: Vec; current: Vec; mode: SelectionMode; shape: 'rect' | 'ellipse' } | null = null;
   private lasso: { points: Vec[]; mode: SelectionMode } | null = null;
+  /** Lasso polygonal : sommets posés un par un ; `hover` suit le pointeur. */
+  private poly: { points: Vec[]; mode: SelectionMode; hover: Vec; lastClick: number } | null = null;
+  private quick: { session: QuickSelect; last: Vec } | null = null;
+  private straight: { start: Vec; current: Vec } | null = null;
+  /** Perspective : coins du quadrilatère (document) et coin en cours de déplacement. */
+  private persp: { nodeId: string; quad: Vec[]; drag: number } | null = null;
   private pointer: Vec | null = null;
   private cloneSource: Vec | null = null;
   /** Décalage du tampon (source − destination, en pixels du document), gardé d'un coup à l'autre. */
@@ -191,7 +224,7 @@ export class PhotoTools {
   }
 
   private updateTimer() {
-    const need = ui.get().hasPixelSelection || !!this.lasso || !!ui.get().busy;
+    const need = ui.get().hasPixelSelection || !!this.lasso || !!this.poly || !!ui.get().busy;
     if (need && !this.timer) this.timer = setInterval(() => this.c.requestDraw(), 140);
     else if (!need && this.timer) {
       clearInterval(this.timer);
@@ -200,7 +233,7 @@ export class PhotoTools {
   }
 
   get busy(): boolean {
-    return !!(this.stroke || this.marquee || this.lasso);
+    return !!(this.stroke || this.marquee || this.lasso || this.poly || this.quick || this.straight);
   }
 
   private mode(e: PointerEvent | MouseEvent): SelectionMode {
@@ -216,6 +249,7 @@ export class PhotoTools {
     const tool = ui.get().tool;
     if (!isPhotoTool(tool) || ui.get().persona !== 'photo') return false;
     this.pointer = s;
+    this.altDown = e.altKey;
     if (ui.get().busy) return true;
     if (tool === 'marqueeRect' || tool === 'marqueeEllipse') {
       this.marquee = {
@@ -235,7 +269,28 @@ export class PhotoTools {
       selectSimilar(p, images(), this.mode(e));
       return true;
     }
-    if (tool === 'clone' && e.altKey) {
+    if (tool === 'polyLasso') {
+      this.polyClick(p, e);
+      return true;
+    }
+    if (tool === 'quickSelect') {
+      const session = QuickSelect.start(p, images(), this.mode(e));
+      if (session) {
+        this.quick = { session, last: p };
+        session.dab(p, brushSettings(tool).size / 2);
+        this.c.requestDraw();
+      }
+      return true;
+    }
+    if (tool === 'straighten') {
+      this.straight = { start: p, current: p };
+      return true;
+    }
+    if (tool === 'perspective') {
+      this.perspDown(p);
+      return true;
+    }
+    if ((tool === 'clone' || tool === 'heal') && e.altKey) {
       this.cloneSource = p;
       this.cloneOffset = null;
       toast(t('photo.cloneSourceSet'));
@@ -251,6 +306,7 @@ export class PhotoTools {
 
   pointerMove(e: PointerEvent, p: Vec, s: Vec): boolean {
     const tool = ui.get().tool;
+    this.altDown = e.altKey;
     const active = isPhotoTool(tool) && ui.get().persona === 'photo';
     if (active || this.pointer) {
       this.pointer = active ? s : null;
@@ -267,6 +323,37 @@ export class PhotoTools {
         };
       }
       this.marquee.current = cur;
+      this.c.requestDraw();
+      return true;
+    }
+    if (this.poly) {
+      this.poly.hover = p;
+      this.c.requestDraw();
+      return true;
+    }
+    if (this.quick) {
+      const r = brushSettings('quickSelect').size / 2;
+      const q = this.quick;
+      const d = Math.hypot(p.x - q.last.x, p.y - q.last.y);
+      if (d >= r * 0.5) {
+        const steps = Math.ceil(d / (r * 0.75));
+        for (let i = 1; i <= steps; i++)
+          q.session.dab(
+            { x: q.last.x + ((p.x - q.last.x) * i) / steps, y: q.last.y + ((p.y - q.last.y) * i) / steps },
+            r,
+          );
+        q.last = p;
+        this.c.requestDraw();
+      }
+      return true;
+    }
+    if (this.straight) {
+      this.straight.current = p;
+      this.c.requestDraw();
+      return true;
+    }
+    if (this.persp && this.persp.drag >= 0) {
+      this.persp.quad[this.persp.drag] = p;
       this.c.requestDraw();
       return true;
     }
@@ -295,6 +382,23 @@ export class PhotoTools {
   }
 
   pointerUp(): boolean {
+    if (this.quick) {
+      this.quick.session.end();
+      this.quick = null;
+      this.c.requestDraw();
+      return true;
+    }
+    if (this.straight) {
+      const st = this.straight;
+      this.straight = null;
+      this.applyStraighten(st.start, st.current);
+      this.c.requestDraw();
+      return true;
+    }
+    if (this.persp && this.persp.drag >= 0) {
+      this.persp.drag = -1;
+      return true;
+    }
     if (this.marquee) {
       const m = this.marquee;
       this.marquee = null;
@@ -321,6 +425,11 @@ export class PhotoTools {
   pointerCancel(): void {
     this.marquee = null;
     this.lasso = null;
+    this.straight = null;
+    if (this.quick) {
+      this.quick.session.end();
+      this.quick = null;
+    }
     if (this.stroke && !this.stroke.pending) {
       setLiveBitmap(this.stroke.assetId, null);
       this.stroke = null;
@@ -352,13 +461,183 @@ export class PhotoTools {
       ui.set({ brushColor: '#000000', brushColor2: '#ffffff' });
       return true;
     }
-    if (e.key === 'Escape' && (this.lasso || this.marquee)) {
+    if (e.key === 'Escape' && (this.lasso || this.marquee || this.poly || this.straight)) {
       this.lasso = null;
       this.marquee = null;
+      this.poly = null;
+      this.straight = null;
+      this.updateTimer();
       this.c.requestDraw();
       return true;
     }
+    if (this.poly && e.key === 'Enter') {
+      this.closePoly();
+      return true;
+    }
+    if (this.poly && e.key === 'Backspace') {
+      this.poly.points.pop();
+      if (!this.poly.points.length) this.poly = null;
+      this.updateTimer();
+      this.c.requestDraw();
+      return true;
+    }
+    if (this.persp && ui.get().perspectiveId && (e.key === 'Enter' || e.key === 'Escape')) {
+      if (e.key === 'Enter') void this.applyPerspective();
+      else this.cancelPerspective();
+      return true;
+    }
+    if (tool === 'liquify' && ['1', '2', '3', '4'].includes(e.key)) {
+      ui.set({ liquifyMode: (['push', 'twirl', 'bloat', 'pinch'] as const)[Number(e.key) - 1] });
+      return true;
+    }
     return false;
+  }
+
+  // ————— Lasso polygonal —————
+
+  private polyClick(p: Vec, e: PointerEvent) {
+    const now = performance.now();
+    if (!this.poly) {
+      this.poly = { points: [p], mode: this.mode(e), hover: p, lastClick: now };
+      this.updateTimer();
+      this.c.requestDraw();
+      return;
+    }
+    const z = ui.get().view.zoom;
+    const first = this.poly.points[0];
+    const last = this.poly.points[this.poly.points.length - 1];
+    // Double-clic, ou clic sur le premier point : on ferme.
+    const nearFirst = this.poly.points.length > 2 && Math.hypot(p.x - first.x, p.y - first.y) * z < 8;
+    const dbl = now - this.poly.lastClick < 350 && Math.hypot(p.x - last.x, p.y - last.y) * z < 6;
+    if (nearFirst || dbl) {
+      this.closePoly();
+      return;
+    }
+    this.poly.points.push(p);
+    this.poly.lastClick = now;
+    this.c.requestDraw();
+  }
+
+  private closePoly() {
+    const poly = this.poly;
+    this.poly = null;
+    if (poly && poly.points.length > 2) selectShape('polygon', poly.points, poly.mode);
+    this.updateTimer();
+    this.c.requestDraw();
+  }
+
+  // ————— Redressement —————
+
+  /**
+   * Fait pivoter le calque pour que la ligne tracée (un horizon, un mur) devienne horizontale ou
+   * verticale. Avec « Remplir », le calque grandit juste assez pour que ses coins vides restent
+   * hors de sa boîte d'origine.
+   */
+  private applyStraighten(a: Vec, b: Vec) {
+    const z = ui.get().view.zoom;
+    if (Math.hypot(b.x - a.x, b.y - a.y) * z < 6) return;
+    const node = selectedImage() ?? imageAt(a);
+    if (!node) {
+      toast(t('photo.needPixelLayer'));
+      return;
+    }
+    let angle = (Math.atan2(b.y - a.y, b.x - a.x) * 180) / Math.PI;
+    // Ligne presque verticale : on la rend verticale.
+    while (angle > 45) angle -= 90;
+    while (angle < -45) angle += 90;
+    if (Math.abs(angle) < 0.01) return;
+    const fill = ui.get().straightenFill;
+    editor.apply('history.straighten', (d) => {
+      const n = findNode(d, node.id)?.node;
+      if (!n) return;
+      n.rotation = (((n.rotation - angle) % 360) + 360) % 360;
+      if (fill) {
+        const th = (Math.abs(angle) * Math.PI) / 180;
+        const c = Math.cos(th),
+          s2 = Math.sin(th);
+        const w = n.width,
+          h = n.height;
+        const k = Math.max((w * c + h * s2) / w, (w * s2 + h * c) / h);
+        const cx = n.x + w / 2,
+          cy = n.y + h / 2;
+        n.width = w * k;
+        n.height = h * k;
+        n.x = cx - n.width / 2;
+        n.y = cy - n.height / 2;
+      }
+      return [n.id];
+    });
+  }
+
+  // ————— Perspective —————
+
+  private perspDown(p: Vec) {
+    const z = ui.get().view.zoom;
+    if (this.persp && ui.get().perspectiveId === this.persp.nodeId) {
+      const i = this.persp.quad.findIndex((q) => Math.hypot(q.x - p.x, q.y - p.y) * z < 10);
+      if (i >= 0) {
+        this.persp.drag = i;
+        return;
+      }
+      return;
+    }
+    const node = selectedImage() ?? imageAt(p);
+    if (!node) {
+      toast(t('photo.needPixelLayer'));
+      return;
+    }
+    editor.select([node.id]);
+    const m = localToDoc(node);
+    // Départ : un peu à l'intérieur des bords, pour que les poignées soient faciles à saisir.
+    const ix = node.width * 0.1,
+      iy = node.height * 0.1;
+    const corners = [
+      [ix, iy],
+      [node.width - ix, iy],
+      [node.width - ix, node.height - iy],
+      [ix, node.height - iy],
+    ].map(([x, y]) => {
+      const q = m.transformPoint(new DOMPoint(x, y));
+      return { x: q.x, y: q.y };
+    });
+    this.persp = { nodeId: node.id, quad: corners, drag: -1 };
+    ui.set({ perspectiveId: node.id });
+    this.c.requestDraw();
+  }
+
+  cancelPerspective(): void {
+    this.persp = null;
+    ui.set({ perspectiveId: null });
+    this.c.requestDraw();
+  }
+
+  /** Le quadrilatère devient le calque entier (comme le recadrage en perspective de Photoshop). */
+  async applyPerspective(): Promise<void> {
+    const ps = this.persp;
+    if (!ps) return;
+    const node = findNode(editor.doc, ps.nodeId)?.node;
+    this.cancelPerspective();
+    if (node?.type !== 'image') return;
+    const px = this.targetPixels(node, 'pixels');
+    if (!px) return;
+    const { base, toPx } = px;
+    const quad = ps.quad.map((q) => {
+      const r = toPx.transformPoint(new DOMPoint(q.x, q.y));
+      return { x: r.x, y: r.y };
+    });
+    const ctx = base.getContext('2d', { willReadFrequently: true })!;
+    const img = ctx.getImageData(0, 0, base.width, base.height);
+    const out = warpPerspective(
+      { data: img.data, width: img.width, height: img.height },
+      quad,
+      base.width,
+      base.height,
+    );
+    const canvas = makeCanvas(out.width, out.height);
+    canvas
+      .getContext('2d')!
+      .putImageData(new ImageData(out.data as Uint8ClampedArray<ArrayBuffer>, out.width, out.height), 0, 0);
+    commitBitmap(node.id, 'pixels', canvas, 'history.perspective');
   }
 
   // ————— Cible —————
@@ -451,7 +730,7 @@ export class PhotoTools {
 
     let source: Stroke['source'] = null;
     if (which === 'pixels' && SOURCE_TOOLS.includes(tool)) {
-      if (tool === 'clone') {
+      if (tool === 'clone' || tool === 'heal') {
         if (!this.cloneSource) {
           toast(t('photo.cloneNeedSource'));
           return;
@@ -463,6 +742,19 @@ export class PhotoTools {
         const s = makeCanvas(w, h);
         s.getContext('2d')!.drawImage(base, a.x - b.x, a.y - b.y);
         source = s;
+        if (tool === 'heal') {
+          // Correcteur : la texture de la source prend la lumière et les couleurs de la destination.
+          const sigma = Math.max(2, (settings.size / 2) * pxScale * 0.5);
+          const sctx = s.getContext('2d', { willReadFrequently: true })!;
+          source = new LazySource(
+            base,
+            (q, x0, y0) => {
+              const src = sctx.getImageData(x0, y0, q.width, q.height);
+              q.data.set(healBlend(q, { data: src.data, width: q.width, height: q.height }, sigma));
+            },
+            sigma * 3,
+          );
+        }
       } else if (tool === 'dodge' || tool === 'burn') {
         const ev = tool === 'dodge' ? 0.7 : -0.7;
         source = new LazySource(
@@ -509,6 +801,8 @@ export class PhotoTools {
       last: { x: start.x, y: start.y },
       carry: 0,
       pending: false,
+      pickup: null,
+      prevDab: null,
     };
     if (tool !== 'magicEraser') setLiveBitmap(assetId, work);
     this.dab(start.x, start.y, e.pointerType === 'pen' ? e.pressure : 1);
@@ -519,6 +813,8 @@ export class PhotoTools {
 
   private dab(x: number, y: number, pressure: number) {
     const s = this.stroke!;
+    if (s.tool === 'smudge') return this.smudgeDab(x, y);
+    if (s.tool === 'liquify') return this.liquifyDab(x, y);
     const r = (s.settings.size / 2) * s.pxScale * Math.max(0.05, pressure);
     const ctx = s.buf.getContext('2d')!;
     ctx.globalAlpha = s.tool === 'magicEraser' ? 1 : Math.max(0.01, s.settings.flow / 100);
@@ -538,17 +834,95 @@ export class PhotoTools {
       : rect;
   }
 
+  /** Doigt : la couleur emportée est déposée, puis se mélange à ce qui est sous le pinceau. */
+  private smudgeDab(x: number, y: number) {
+    const s = this.stroke!;
+    const r = (s.settings.size / 2) * s.pxScale;
+    const k = r / ((s.stamp.width - 2) / 2);
+    const size = Math.max(2, Math.ceil(s.stamp.width * k));
+    const ox = Math.round(x - size / 2),
+      oy = Math.round(y - size / 2);
+    const wc = s.work.getContext('2d')!;
+    if (!s.pickup) {
+      s.pickup = makeCanvas(size, size);
+      s.pickup.getContext('2d')!.drawImage(s.work, ox, oy, size, size, 0, 0, size, size);
+      return;
+    }
+    const strength = Math.max(0, Math.min(1, s.settings.opacity / 100));
+    // Empreinte : la couleur emportée, découpée par le pinceau (et par la sélection).
+    const t1 = this.scratch(size, size, 1);
+    const tc = t1.getContext('2d')!;
+    tc.save();
+    tc.globalCompositeOperation = 'copy';
+    tc.drawImage(s.pickup, 0, 0);
+    tc.globalCompositeOperation = 'destination-in';
+    tc.drawImage(s.stamp, 0, 0, s.stamp.width, s.stamp.height, 0, 0, size, size);
+    if (s.sel) tc.drawImage(s.sel, ox, oy, size, size, 0, 0, size, size);
+    tc.restore();
+    wc.save();
+    wc.globalAlpha = strength;
+    wc.globalCompositeOperation = 'source-atop';
+    wc.drawImage(t1, 0, 0, size, size, ox, oy, size, size);
+    wc.restore();
+    // Le pinceau reprend un peu de la couleur qu'il traverse.
+    const pc = s.pickup.getContext('2d')!;
+    pc.globalAlpha = 1 - strength;
+    pc.drawImage(s.work, ox, oy, size, size, 0, 0, size, size);
+    pc.globalAlpha = 1;
+    this.dirty = { x0: ox, y0: oy, x1: ox + size, y1: oy + size };
+  }
+
+  /** Fluidité : déplace les pixels sous le pinceau. */
+  private liquifyDab(x: number, y: number) {
+    const s = this.stroke!;
+    const r = (s.settings.size / 2) * s.pxScale;
+    const prev = s.prevDab ?? s.last;
+    const dx = x - prev.x,
+      dy = y - prev.y;
+    s.prevDab = { x, y };
+    const mode = ui.get().liquifyMode;
+    if (mode === 'push' && Math.hypot(dx, dy) < 0.01) return;
+    const strength = Math.max(0.02, s.settings.opacity / 100);
+    const m = Math.ceil(r + Math.hypot(dx, dy) + 2);
+    const x0 = Math.max(0, Math.floor(x - m)),
+      y0 = Math.max(0, Math.floor(y - m));
+    const x1 = Math.min(s.work.width, Math.ceil(x + m)),
+      y1 = Math.min(s.work.height, Math.ceil(y + m));
+    if (x1 <= x0 || y1 <= y0) return;
+    const wc = s.work.getContext('2d', { willReadFrequently: true })!;
+    const img = wc.getImageData(x0, y0, x1 - x0, y1 - y0);
+    const alt = this.altDown;
+    const effective = alt && mode === 'bloat' ? 'pinch' : alt && mode === 'pinch' ? 'bloat' : mode;
+    liquifyDab(
+      { data: img.data, width: img.width, height: img.height },
+      x - x0,
+      y - y0,
+      r,
+      effective,
+      mode === 'twirl' && alt ? -strength : strength,
+      dx,
+      dy,
+    );
+    wc.putImageData(img, x0, y0);
+    this.dirty = { x0, y0, x1, y1 };
+  }
+
+  private altDown = false;
+
   private strokeTo(p: Vec, pressure: number) {
     const s = this.stroke!;
     const q = s.toPx.transformPoint(new DOMPoint(p.x, p.y));
     const dx = q.x - s.last.x,
       dy = q.y - s.last.y;
     const dist = Math.hypot(dx, dy);
-    const spacing = Math.max(0.75, s.settings.size * s.pxScale * 0.1);
+    const k = s.tool === 'smudge' ? 0.05 : s.tool === 'liquify' ? 0.08 : 0.1;
+    const spacing = Math.max(0.75, s.settings.size * s.pxScale * k);
     let tpos = spacing - s.carry;
+    const from = s.last;
     while (tpos <= dist) {
-      const k = tpos / dist;
-      this.dab(s.last.x + dx * k, s.last.y + dy * k, pressure);
+      const f = tpos / dist;
+      const pt = { x: from.x + dx * f, y: from.y + dy * f };
+      this.dab(pt.x, pt.y, pressure);
       tpos += spacing;
     }
     s.carry = dist - (tpos - spacing);
@@ -579,6 +953,13 @@ export class PhotoTools {
     const w = x1 - x0,
       h = y1 - y0;
     if (w <= 0 || h <= 0) return;
+
+    if (WARP_TOOLS.includes(s.tool)) {
+      // Doigt et fluidité modifient directement la copie de travail.
+      setLiveBitmap(s.assetId, s.work);
+      this.c.requestDraw();
+      return;
+    }
 
     if (s.tool === 'magicEraser') {
       // La gomme magique ne touche pas encore aux pixels : on montre la zone en rouge.
@@ -669,6 +1050,9 @@ export class PhotoTools {
       brush: 'history.brush',
       eraser: 'history.erase',
       clone: 'history.clone',
+      heal: 'history.heal',
+      smudge: 'history.smudge',
+      liquify: 'history.liquify',
       dodge: 'history.dodge',
       burn: 'history.burn',
       blurBrush: 'history.blurBrush',
@@ -878,9 +1262,76 @@ export class PhotoTools {
         pts.forEach((q, i) => (i ? ctx.lineTo(q.x, q.y) : ctx.moveTo(q.x, q.y)));
       });
     }
+    if (this.poly) {
+      const pts = [...this.poly.points, this.poly.hover].map(toScreen);
+      dashed(() => {
+        ctx.beginPath();
+        pts.forEach((q, i) => (i ? ctx.lineTo(q.x, q.y) : ctx.moveTo(q.x, q.y)));
+      });
+      ctx.save();
+      ctx.fillStyle = '#ffffff';
+      ctx.strokeStyle = '#000000';
+      for (const q of pts.slice(0, -1)) {
+        ctx.beginPath();
+        ctx.rect(q.x - 2.5, q.y - 2.5, 5, 5);
+        ctx.fill();
+        ctx.stroke();
+      }
+      ctx.restore();
+    }
+    if (this.straight) {
+      const a = toScreen(this.straight.start),
+        b = toScreen(this.straight.current);
+      ctx.save();
+      ctx.lineWidth = 2;
+      ctx.strokeStyle = '#000000';
+      ctx.beginPath();
+      ctx.moveTo(a.x, a.y);
+      ctx.lineTo(b.x, b.y);
+      ctx.stroke();
+      ctx.lineWidth = 1;
+      ctx.strokeStyle = '#ffd400';
+      ctx.stroke();
+      ctx.restore();
+    }
+    if (this.persp && ui.get().perspectiveId === this.persp.nodeId && ui.get().tool === 'perspective') {
+      const q = this.persp.quad.map(toScreen);
+      ctx.save();
+      // Quadrillage 3 × 3 pour aligner les bords de l'objet à redresser.
+      ctx.strokeStyle = 'rgba(255, 212, 0, 0.6)';
+      ctx.lineWidth = 1;
+      const lerp = (a: Vec, b: Vec, k: number) => ({ x: a.x + (b.x - a.x) * k, y: a.y + (b.y - a.y) * k });
+      ctx.beginPath();
+      for (const k of [1 / 3, 2 / 3]) {
+        const a = lerp(q[0], q[1], k),
+          b = lerp(q[3], q[2], k);
+        ctx.moveTo(a.x, a.y);
+        ctx.lineTo(b.x, b.y);
+        const c = lerp(q[0], q[3], k),
+          d = lerp(q[1], q[2], k);
+        ctx.moveTo(c.x, c.y);
+        ctx.lineTo(d.x, d.y);
+      }
+      ctx.stroke();
+      ctx.strokeStyle = '#ffd400';
+      ctx.lineWidth = 1.5;
+      ctx.beginPath();
+      q.forEach((p, i) => (i ? ctx.lineTo(p.x, p.y) : ctx.moveTo(p.x, p.y)));
+      ctx.closePath();
+      ctx.stroke();
+      ctx.fillStyle = '#ffffff';
+      ctx.strokeStyle = '#1a1a1d';
+      for (const p of q) {
+        ctx.beginPath();
+        ctx.arc(p.x, p.y, 5, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.stroke();
+      }
+      ctx.restore();
+    }
     // Source du tampon.
     const tool = ui.get().tool;
-    if (tool === 'clone' && this.cloneSource && ui.get().persona === 'photo') {
+    if ((tool === 'clone' || tool === 'heal') && this.cloneSource && ui.get().persona === 'photo') {
       let src = this.cloneSource;
       if (this.cloneOffset && this.pointer) {
         const w = this.c.toWorld(this.pointer.x, this.pointer.y);

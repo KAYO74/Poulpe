@@ -73,7 +73,7 @@ export function addMask(nodeId = editor.selection[0]): void {
     ctx.fillRect(0, 0, width, height);
   }
   commitBitmap(n.id, 'mask', canvas, 'history.addMask');
-  if (fromSel) clearSelection();
+  if (fromSel) clearSelection(false);
 }
 
 export function hasMask(): boolean {
@@ -133,7 +133,11 @@ export function toggleMaskEdit(id: string | null = editor.selection[0] ?? null):
  * Ajoute un calque de réglage au-dessus de la sélection (ou en haut du plan de travail actif).
  * Avec une sélection de pixels, le réglage ne s'applique qu'à la sélection.
  */
-export function addAdjustment(kind: AdjustmentKind, adjustment: Adjustment = defaultAdjustment(kind)): void {
+export function addAdjustment(
+  kind: AdjustmentKind,
+  adjustment: Adjustment = defaultAdjustment(kind),
+  name: string = t(`adjust.${kind}`),
+): void {
   const doc = editor.doc;
   const loc = editor.selection.length ? findNode(doc, editor.selection[editor.selection.length - 1]) : null;
   const ab = loc?.artboard ?? findArtboard(doc, editor.getState().activeArtboardId) ?? doc.artboards[0];
@@ -147,7 +151,7 @@ export function addAdjustment(kind: AdjustmentKind, adjustment: Adjustment = def
     width: box.width,
     height: box.height,
     adjustment,
-    name: t(`adjust.${kind}`),
+    name,
   });
   const sel = getSelection();
   let maskCanvas: HTMLCanvasElement | null = null;
@@ -168,7 +172,7 @@ export function addAdjustment(kind: AdjustmentKind, adjustment: Adjustment = def
     return [node.id];
   });
   recordStep({ kind: 'adjustment', adjustment, nodeId: node.id });
-  if (sel) clearSelection();
+  if (sel) clearSelection(false);
 }
 
 let adjustTimer: ReturnType<typeof setTimeout> | undefined;
@@ -330,7 +334,7 @@ export function copySelectionToLayer(): boolean {
     loc.parent.children.splice(loc.index + 1, 0, copy);
     return [copy.id];
   });
-  clearSelection();
+  clearSelection(false);
   return true;
 }
 
@@ -420,7 +424,7 @@ export function openPhotoDocument(
     createImage({ x: 0, y: 0, width, height, assetId: id, name: t('name.background') }),
   );
   editor.load(doc);
-  clearSelection();
+  clearSelection(false);
   ui.set({ filePath: null, dialog: null, persona: 'photo', tool: 'brush', maskEditId: null });
   requestAnimationFrame(() => window.dispatchEvent(new Event('poulpe:fit')));
 }
