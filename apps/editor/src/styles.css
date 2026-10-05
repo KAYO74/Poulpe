@@ -395,6 +395,7 @@ svg.i {
  * opposé au Studio ; la colonne d'outils du côté choisi.
  */
 .workspace {
+  position: relative;
   display: flex;
   gap: 1px;
   min-height: 0;
@@ -406,11 +407,17 @@ svg.i {
 }
 .studio {
   flex: none;
-  width: 320px;
+  position: relative;
 }
-.library {
+.library-dock {
   flex: none;
-  width: 300px;
+  position: relative;
+  display: flex;
+  min-height: 0;
+}
+.library-dock > .library {
+  flex: 1;
+  min-width: 0;
 }
 .toolcol {
   flex: none;
@@ -425,13 +432,13 @@ svg.i {
 .studio-right .studio {
   order: 5;
 }
-.studio-right .library {
+.studio-right .library-dock {
   order: 2;
 }
 .studio-left .studio {
   order: 1;
 }
-.studio-left .library {
+.studio-left .library-dock {
   order: 5;
 }
 
@@ -618,9 +625,6 @@ svg.i {
   display: flex;
   flex-direction: column;
   min-height: 0;
-}
-.studio-group.grow {
-  flex: 1;
 }
 .studio-tabs {
   display: flex;
@@ -1963,6 +1967,7 @@ input.search {
   border-radius: 6px;
   padding: 8px;
   margin: 0;
+}
 .anchor-grid {
   display: grid;
   grid-template-columns: repeat(3, 18px);
@@ -1978,4 +1983,334 @@ input.search {
 .anchor-cell[aria-pressed='true'] {
   background: var(--accent);
   border-color: var(--accent);
+}
+
+/* ——— Panneaux libres (comme Photoshop) ———
+ * Chaque fenêtre d'outils se détache en la glissant par sa barre d'onglets ou sa poignée, se
+ * déplace et se redimensionne par ses bords, et se ré-ancre quand on la lâche sur son bord.
+ */
+.panel-handle {
+  cursor: grab;
+  touch-action: none;
+  user-select: none;
+}
+.panel-dragging,
+.panel-dragging * {
+  cursor: grabbing !important;
+  user-select: none;
+}
+.panel-resizing-h,
+.panel-resizing-h * {
+  cursor: col-resize !important;
+  user-select: none;
+}
+.panel-resizing-v,
+.panel-resizing-v * {
+  cursor: row-resize !important;
+  user-select: none;
+}
+.panel-grip {
+  flex: none;
+  width: 8px;
+  height: 14px;
+  margin-right: 2px;
+  opacity: 0.55;
+  background: radial-gradient(circle, var(--muted) 1px, transparent 1.4px) 0 0 / 4px 4px;
+}
+.studio-tabs .panel-grip {
+  align-self: center;
+  margin-bottom: 3px;
+}
+.studio-tabs .studio-tab {
+  cursor: pointer;
+}
+.toolcol-grip {
+  flex: none;
+  align-self: stretch;
+  display: grid;
+  place-items: center;
+  height: 12px;
+}
+.toolcol-grip .panel-grip {
+  width: 18px;
+  height: 6px;
+  margin: 0;
+}
+.toolcol-grip:hover .panel-grip,
+.studio-tabs:hover .panel-grip,
+.float-head:hover .panel-grip {
+  opacity: 1;
+}
+
+/* Fenêtre flottante */
+.float-panel {
+  position: fixed;
+  display: flex;
+  flex-direction: column;
+  background: var(--panel);
+  border: 1px solid var(--line-2);
+  border-radius: 8px;
+  box-shadow:
+    0 12px 36px rgba(0, 0, 0, 0.35),
+    0 2px 6px rgba(0, 0, 0, 0.2);
+  overflow: hidden;
+  min-width: 0;
+}
+.float-panel.collapsed {
+  height: auto !important;
+}
+.float-panel > .studio-group {
+  flex: 1;
+  min-height: 0;
+}
+.float-edge {
+  position: absolute;
+  z-index: 2;
+}
+.float-edge.n,
+.float-edge.s {
+  left: 8px;
+  right: 8px;
+  height: 6px;
+  cursor: ns-resize;
+}
+.float-edge.e,
+.float-edge.w {
+  top: 8px;
+  bottom: 8px;
+  width: 6px;
+  cursor: ew-resize;
+}
+.float-edge.n {
+  top: -2px;
+}
+.float-edge.s {
+  bottom: -2px;
+}
+.float-edge.e {
+  right: -2px;
+}
+.float-edge.w {
+  left: -2px;
+}
+.float-edge.ne,
+.float-edge.nw,
+.float-edge.se,
+.float-edge.sw {
+  width: 12px;
+  height: 12px;
+}
+.float-edge.ne {
+  top: -2px;
+  right: -2px;
+  cursor: nesw-resize;
+}
+.float-edge.sw {
+  bottom: -2px;
+  left: -2px;
+  cursor: nesw-resize;
+}
+.float-edge.nw {
+  top: -2px;
+  left: -2px;
+  cursor: nwse-resize;
+}
+.float-edge.se {
+  bottom: -2px;
+  right: -2px;
+  cursor: nwse-resize;
+}
+.float-head {
+  flex: none;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  height: 20px;
+  padding: 0 2px 0 8px;
+  border-bottom: 1px solid var(--line);
+  background: var(--panel-2);
+}
+
+/* Palette d'outils flottante : les outils se réorganisent selon la largeur choisie. */
+.toolcol.floating {
+  width: auto;
+  flex: 1;
+  min-height: 0;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, 32px);
+  justify-content: center;
+  align-content: start;
+  gap: 2px;
+  padding: 6px;
+  overflow: auto;
+}
+.toolcol.floating .toolgroup {
+  display: contents;
+}
+.toolcol.floating .fillstroke {
+  grid-column: 1 / -1;
+  justify-self: center;
+}
+
+/* Séparateurs des panneaux ancrés */
+.split-h {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 6px;
+  z-index: 6;
+  cursor: col-resize;
+  touch-action: none;
+}
+.split-h.at-left {
+  left: -3px;
+}
+.split-h.at-right {
+  right: -3px;
+}
+.split-v {
+  flex: none;
+  height: 6px;
+  margin: -3px 0;
+  position: relative;
+  z-index: 6;
+  cursor: row-resize;
+  touch-action: none;
+}
+.split-h:hover,
+.split-v:hover,
+.panel-resizing-h .split-h,
+.panel-resizing-v .split-v {
+  background: color-mix(in srgb, var(--accent) 55%, transparent);
+}
+
+/* Zone d'ancrage mise en évidence pendant un glissement */
+.studio.drop-target::after,
+.dock-band {
+  content: '';
+  pointer-events: none;
+  border: 2px solid var(--accent);
+  background: color-mix(in srgb, var(--accent) 14%, transparent);
+  border-radius: 6px;
+}
+.studio.drop-target::after {
+  position: absolute;
+  inset: 2px;
+  z-index: 7;
+}
+.dock-band {
+  position: absolute;
+  top: 2px;
+  bottom: 2px;
+  width: 96px;
+  z-index: 30;
+}
+.dock-band.tools {
+  width: 64px;
+}
+.dock-band.right {
+  right: 2px;
+}
+.dock-band.left {
+  left: 2px;
+}
+
+/* La palette d'outils flottante prend la hauteur de son contenu ; sa largeur se règle. */
+.float-panel.tools-float {
+  height: auto !important;
+  max-height: calc(100vh - 16px);
+}
+.tools-float .float-edge.n,
+.tools-float .float-edge.s {
+  display: none;
+}
+
+/* ——— Espaces de travail personnalisés ——— */
+.persona.workspace-trigger {
+  width: auto;
+  min-width: 30px;
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  padding: 0 6px;
+}
+.workspace-name {
+  max-width: 120px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-weight: 600;
+}
+.menu-note {
+  max-width: 260px;
+  padding: 6px 10px;
+  color: var(--muted);
+  font-size: 12px;
+}
+.ws-name {
+  display: grid;
+  gap: 4px;
+}
+.ws-name span {
+  color: var(--muted);
+}
+.ws-bases {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 8px;
+}
+.ws-base {
+  display: grid;
+  justify-items: start;
+  gap: 4px;
+  padding: 10px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  text-align: left;
+}
+.ws-base span {
+  color: var(--muted);
+  font-size: 12px;
+}
+.ws-base.on {
+  border-color: var(--accent);
+  background: color-mix(in srgb, var(--accent) 12%, transparent);
+}
+.ws-count {
+  margin-left: 8px;
+  color: var(--faint);
+  font-weight: 400;
+}
+h4.sub .link {
+  margin-left: 10px;
+}
+.link {
+  color: var(--accent);
+  font-size: 12px;
+}
+.link:hover {
+  text-decoration: underline;
+}
+.ws-tools {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+.ws-toolgroup {
+  display: flex;
+  gap: 2px;
+  padding: 3px;
+  border-radius: 8px;
+  background: var(--input);
+}
+.ws-tools .tool[aria-pressed='false'] {
+  opacity: 0.45;
+}
+.ws-tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 16px;
+}
+.btn.danger {
+  color: #e5484d;
 }
