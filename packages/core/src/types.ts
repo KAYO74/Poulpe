@@ -113,17 +113,50 @@ export interface TextStyle {
   uppercase: boolean;
 }
 
+/** Réglages de caractère qui peuvent varier à l'intérieur d'un même texte. */
+export interface RunStyle {
+  fontFamily?: string;
+  fontSize?: number;
+  fontWeight?: number;
+  italic?: boolean;
+  underline?: boolean;
+  strike?: boolean;
+  letterSpacing?: number;
+  /** Couleur unie qui remplace le remplissage du texte. */
+  color?: Color;
+}
+
+/** Plage de caractères `[start, end)` (indices UTF-16 dans `text`) et ce qui la distingue du style du texte. */
+export interface TextRun {
+  start: number;
+  end: number;
+  style: RunStyle;
+}
+
 export interface TextNode extends NodeBase, Styled {
   type: 'text';
   text: string;
+  /** Style du texte entier (paragraphe et caractères). */
   style: TextStyle;
+  /** Styles par caractère, triés et sans chevauchement. Absent : tout le texte suit `style`. */
+  runs?: TextRun[];
   /** Texte artistique : la largeur suit le texte. Sinon bloc de texte : le texte passe à la ligne. */
   autoWidth: boolean;
+}
+
+/** Rectangle en fractions (0 à 1) de l'image source. */
+export interface Crop {
+  x: number;
+  y: number;
+  width: number;
+  height: number;
 }
 
 export interface ImageNode extends NodeBase {
   type: 'image';
   assetId: string;
+  /** Partie de l'image affichée dans la boîte de l'objet. Absent : l'image entière. */
+  crop?: Crop;
 }
 
 export interface GroupNode extends NodeBase {
@@ -167,6 +200,8 @@ export interface PoulpeDocument {
   artboards: Artboard[];
   /** Nuancier du document. */
   swatches: Color[];
+  /** Repères tirés depuis les règles, en coordonnées du document. */
+  guides?: { x: number[]; y: number[] };
   assets: Record<string, Asset>;
 }
 

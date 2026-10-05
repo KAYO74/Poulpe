@@ -1,6 +1,6 @@
 import { findNode } from '@poulpe/core';
 import * as A from './actions';
-import { beginTextEdit } from './canvas/textEdit';
+import { beginTextEdit, endTextEdit, isEditingText } from './canvas/textEdit';
 import { getController } from './components/Viewport';
 import { setLang, getLang, type MessageKey } from './i18n';
 import { exportDocument, importImage, openDocument, saveDocument } from './io';
@@ -174,6 +174,11 @@ export const COMMANDS = {
     shortcut: "Mod+'",
     run: () => setSettings({ grid: !ui.get().settings.grid }),
   },
+  'view.clearGuides': {
+    label: 'cmd.clearGuides',
+    enabled: () => !!(editor.doc.guides?.x.length || editor.doc.guides?.y.length),
+    run: () => editor.apply('history.guide', (d) => void delete d.guides),
+  },
   'view.snapping': {
     label: 'view.snapping',
     run: () => setSettings({ snapping: !ui.get().settings.snapping }),
@@ -261,6 +266,11 @@ export function handleKeyDown(e: KeyboardEvent): void {
   const target = e.target as HTMLElement;
   if (target.closest('input, textarea, select, [contenteditable="true"]')) return;
   if (ui.get().dialog) return;
+  if (isEditingText()) {
+    // Le focus a quitté le texte édité (clic dans un panneau) : la touche termine l'édition.
+    endTextEdit();
+    if (e.key === 'Escape') return;
+  }
   for (const cmd of Object.values(COMMANDS) as Command[]) {
     if (cmd.shortcut && matches(e, cmd.shortcut)) {
       e.preventDefault();
@@ -279,6 +289,10 @@ export function handleKeyDown(e: KeyboardEvent): void {
     e.preventDefault();
     const k = e.shiftKey ? 10 : 1;
     A.nudge(arrows[e.key][0] * k, arrows[e.key][1] * k);
+    return;
+  }
+  if ((e.key === 'Escape' || e.key === 'Enter') && ui.get().cropId) {
+    ui.set({ cropId: null });
     return;
   }
   if (e.key === 'Escape') {

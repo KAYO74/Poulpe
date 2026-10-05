@@ -62,6 +62,9 @@ importers:
       '@tauri-apps/plugin-fs':
         specifier: ^2.6.0
         version: 2.6.0
+      fflate:
+        specifier: ^0.8.3
+        version: 0.8.3
       jspdf:
         specifier: ^4.2.1
         version: 4.2.1

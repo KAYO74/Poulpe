@@ -17,6 +17,7 @@
   --sel: #4da3ff;
   --pasteboard: #151518;
   --guide: #ff4fb8;
+  --doc-guide: #20c4d8;
   --ruler: #26262b;
   --tick: #6e6c78;
   --shadow: 0 18px 50px rgba(0, 0, 0, 0.55), 0 2px 8px rgba(0, 0, 0, 0.4);
@@ -43,6 +44,7 @@
   --sel: #1f7bef;
   --pasteboard: #bdbcc4;
   --guide: #d21f8c;
+  --doc-guide: #0a9bb0;
   --ruler: #dcdbe1;
   --tick: #85838f;
   --shadow: 0 18px 50px rgba(30, 25, 45, 0.25), 0 2px 8px rgba(30, 25, 45, 0.15);
@@ -294,6 +296,15 @@ svg.i {
 .btn:disabled {
   opacity: 0.5;
 }
+.btn.small {
+  height: 24px;
+  padding-inline: 10px;
+  font-weight: 500;
+}
+.btn[aria-pressed='true'] {
+  background: var(--accent);
+  color: var(--accent-fg);
+}
 
 /* ——— Barre contextuelle ——— */
 .contextbar {
@@ -531,6 +542,12 @@ svg.i {
 .ruler {
   display: block;
 }
+.ruler-x {
+  cursor: row-resize;
+}
+.ruler-y {
+  cursor: col-resize;
+}
 .canvas-area {
   position: relative;
   min-width: 0;
@@ -556,6 +573,10 @@ svg.i {
   position: absolute;
   transform-origin: 0 0;
   background: transparent;
+  /* Le texte est dessiné par le canevas : la zone de saisie ne montre que son cadre. */
+  color: transparent;
+  caret-color: transparent;
+  cursor: text;
   border: 1px dashed var(--sel);
   outline: none;
   padding: 0;
@@ -1020,4 +1041,9 @@ kbd {
   border: 1px solid var(--line);
   border-radius: 4px;
   padding: 1px 5px;
+}
+
+.text-editor::selection {
+  background: transparent;
+  color: transparent;
 }

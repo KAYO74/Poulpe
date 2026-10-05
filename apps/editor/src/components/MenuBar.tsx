@@ -151,6 +151,7 @@ export function MenuBar() {
         <Item id="view.zoom100" />
         <Sep />
         <Item id="view.rulers" checked={settings.rulers} />
+        <Item id="view.clearGuides" />
         <Item id="view.grid" checked={settings.grid} />
         <Item id="view.snapping" checked={settings.snapping} />
         <Sep />

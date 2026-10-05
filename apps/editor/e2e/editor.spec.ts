@@ -113,6 +113,131 @@ test('crée un texte et le modifie', async ({ page }) => {
   expect(s.history).toEqual(['history.open', 'history.add']);
 });
 
+test('met une partie du texte en gras', async ({ page }) => {
+  const { at } = await canvas(page);
+  await page.getByTestId('tab-character').click();
+  await page.keyboard.press('t');
+  await page.mouse.click(...at(400, 400));
+  await page.keyboard.type('Festival des Mers');
+  for (let i = 0; i < 4; i++) await page.keyboard.press('Shift+ArrowLeft');
+  await page.getByRole('button', { name: 'Gras', exact: true }).click();
+  // La saisie reprend dans le texte : la suite tapée garde le style du mot.
+  await page.keyboard.press('End');
+  await page.keyboard.type(' !');
+  await page.keyboard.press('Escape');
+  const text = await page.evaluate(() => (window as any).poulpe.editor.doc.artboards[0].children[0]);
+  expect(text.text).toBe('Festival des Mers !');
+  expect(text.runs).toEqual([{ start: 13, end: 19, style: { fontWeight: 700 } }]);
+  const s = await snapshot(page);
+  expect(s.history).toEqual(['history.open', 'history.add']);
+});
+
+test('recadre une image', async ({ page }) => {
+  const chooser = page.waitForEvent('filechooser');
+  await page.getByTestId('tool-image').click();
+  await (
+    await chooser
+  ).setFiles(new URL('../../desktop/src-tauri/icons/128x128.png', import.meta.url).pathname);
+  await expect.poll(async () => (await snapshot(page)).nodes.length).toBe(1);
+  const toScreen = async (x: number, y: number): Promise<[number, number]> => {
+    const box = (await page.getByTestId('canvas').boundingBox())!;
+    const v = await page.evaluate(() => (window as any).poulpe.ui.get().view);
+    return [box.x + x * v.zoom + v.panX, box.y + y * v.zoom + v.panY];
+  };
+  const img = () => page.evaluate(() => (window as any).poulpe.editor.doc.artboards[0].children[0]);
+  const start = await img();
+  await page.keyboard.press('v');
+  await page.mouse.dblclick(...(await toScreen(start.x + start.width / 2, start.y + start.height / 2)));
+  await expect(page.getByTestId('crop')).toHaveAttribute('aria-pressed', 'true');
+
+  // Poignée droite vers la gauche : le cadre rétrécit, l'image ne bouge pas.
+  const [hx, hy] = await toScreen(start.x + start.width, start.y + start.height / 2);
+  await page.mouse.move(hx, hy);
+  await page.mouse.down();
+  await page.mouse.move(hx - 40, hy, { steps: 5 });
+  await page.mouse.up();
+  let n = await img();
+  expect(n.width).toBeLessThan(start.width);
+  expect(n.x).toBeCloseTo(start.x, 3);
+  expect(n.crop.x).toBe(0);
+  expect(n.crop.width).toBeCloseTo(n.width / start.width, 3);
+
+  // Glisser dans le cadre déplace l'image : on montre sa partie droite.
+  const [cx, cy] = await toScreen(n.x + n.width / 2, n.y + n.height / 2);
+  await page.mouse.move(cx, cy);
+  await page.mouse.down();
+  await page.mouse.move(cx - 200, cy, { steps: 5 });
+  await page.mouse.up();
+  n = await img();
+  expect(n.crop.x).toBeCloseTo(1 - n.crop.width, 3);
+  await page.keyboard.press('Enter');
+  await expect(page.getByTestId('crop')).toHaveAttribute('aria-pressed', 'false');
+  expect((await snapshot(page)).history.slice(-2)).toEqual(['history.crop', 'history.crop']);
+});
+
+test('tire un repère depuis la règle, s’y aligne et le retire', async ({ page }) => {
+  const ruler = (await page.getByTestId('ruler-y').boundingBox())!;
+  const box = (await page.getByTestId('canvas').boundingBox())!;
+  const guides = () => page.evaluate(() => (window as any).poulpe.editor.doc.guides);
+  // Règle verticale (à gauche) : repère vertical.
+  await page.mouse.move(ruler.x + ruler.width / 2, box.y + 300);
+  await page.mouse.down();
+  await page.mouse.move(box.x + 400, box.y + 300, { steps: 6 });
+  await page.mouse.up();
+  const g = await guides();
+  expect(g.x).toHaveLength(1);
+  expect(g.y).toHaveLength(0);
+  const v = await page.evaluate(() => (window as any).poulpe.ui.get().view);
+  const gx = g.x[0] * v.zoom + v.panX;
+  expect(Math.abs(gx - 400)).toBeLessThan(8);
+
+  // Un rectangle dessiné près du repère s'y colle.
+  await page.keyboard.press('m');
+  await page.mouse.move(box.x + gx + 3, box.y + 200);
+  await page.mouse.down();
+  await page.mouse.move(box.x + gx + 150, box.y + 320, { steps: 6 });
+  await page.mouse.up();
+  const rect = await page.evaluate(() => (window as any).poulpe.editor.doc.artboards[0].children[0]);
+  expect(rect.x).toBeCloseTo(g.x[0], 3);
+
+  // Ramené sur la règle, le repère disparaît.
+  await page.keyboard.press('v');
+  await page.mouse.move(box.x + gx, box.y + 500);
+  await page.mouse.down();
+  await page.mouse.move(ruler.x + ruler.width / 2, box.y + 500, { steps: 6 });
+  await page.mouse.up();
+  expect((await guides()).x).toHaveLength(0);
+  expect((await snapshot(page)).history.filter((h) => h === 'history.guide')).toHaveLength(2);
+});
+
+test('rouvre le brouillon après une fermeture sans enregistrer', async ({ page }) => {
+  const { drag } = await canvas(page);
+  await page.keyboard.press('m');
+  await drag([350, 150], [600, 330]);
+  const before = (await snapshot(page)).nodes;
+  // Le brouillon est écrit peu après la modification.
+  await expect
+    .poll(() =>
+      page.evaluate(
+        () =>
+          new Promise<number>((resolve) => {
+            const req = indexedDB.open('poulpe', 1);
+            req.onsuccess = () => {
+              const get = req.result.transaction('drafts').objectStore('drafts').get('current');
+              get.onsuccess = () => resolve(get.result?.doc.artboards[0].children.length ?? 0);
+            };
+          }),
+      ),
+    )
+    .toBe(1);
+  page.on('dialog', (d) => d.accept());
+  await page.reload();
+  await page.getByTestId('draft-restore').click();
+  const s = await snapshot(page);
+  expect(s.nodes).toEqual(before);
+  await expect(page.locator('.doc-tab .dot')).toBeVisible();
+});
+
 test('applique un dégradé et groupe des objets', async ({ page }) => {
   const { drag } = await canvas(page);
   await page.keyboard.press('e');
@@ -131,9 +256,13 @@ test('applique un dégradé et groupe des objets', async ({ page }) => {
 });
 
 test('exporte en PNG, JPEG, SVG et PDF, puis enregistre et rouvre un .poulpe', async ({ page }, info) => {
-  const { drag } = await canvas(page);
+  const { drag, at } = await canvas(page);
   await page.keyboard.press('m');
   await drag([350, 150], [600, 330]);
+  await page.keyboard.press('t');
+  await page.mouse.click(...at(400, 450));
+  await page.keyboard.type('Poulpe');
+  await page.keyboard.press('Escape');
   for (const kind of ['png', 'jpeg', 'svg', 'pdf'] as const) {
     await page.getByRole('button', { name: 'Exporter', exact: true }).first().click();
     await page.getByTestId(`export-${kind}`).click();
@@ -146,6 +275,8 @@ test('exporte en PNG, JPEG, SVG et PDF, puis enregistre et rouvre un .poulpe', a
     const head = readFileSync(path).subarray(0, 8);
     const magic = { png: [0x89, 0x50], jpeg: [0xff, 0xd8], svg: [0x3c, 0x73], pdf: [0x25, 0x50] }[kind];
     expect([...head.subarray(0, 2)]).toEqual(magic);
+    // La police du texte (Inter, fournie avec Poulpe) est intégrée au PDF.
+    if (kind === 'pdf') expect(readFileSync(path).includes('/FontFile2')).toBe(true);
   }
   const [download] = await Promise.all([page.waitForEvent('download'), page.keyboard.press('Control+s')]);
   const path = info.outputPath('doc.poulpe');

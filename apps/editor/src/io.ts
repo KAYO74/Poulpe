@@ -215,7 +215,10 @@ export interface ExportOptions {
   transparent: boolean;
 }
 
-async function svgToPdf(doc: PoulpeDocument, artboards: Artboard[]): Promise<Uint8Array> {
+async function svgToPdf(
+  doc: PoulpeDocument,
+  artboards: Artboard[],
+): Promise<{ bytes: Uint8Array; missingFonts: string[] }> {
   const [{ jsPDF }, { svg2pdf }] = await Promise.all([import('jspdf'), import('svg2pdf.js')]);
   const first = artboards[0];
   const orientation = (ab: Artboard) => (ab.width > ab.height ? 'landscape' : 'portrait');
@@ -226,6 +229,8 @@ async function svgToPdf(doc: PoulpeDocument, artboards: Artboard[]): Promise<Uin
     format: [pt(first.width), pt(first.height)],
     orientation: orientation(first),
   });
+  const { embedFonts } = await import('./pdfFonts');
+  const missingFonts = await embedFonts(pdf, doc, artboards);
   const host = document.createElement('div');
   host.style.cssText = 'position:fixed;left:-99999px;top:0';
   document.body.appendChild(host);
@@ -241,7 +246,7 @@ async function svgToPdf(doc: PoulpeDocument, artboards: Artboard[]): Promise<Uin
     host.remove();
   }
   pdf.setProperties({ title: doc.name, creator: `Poulpe ${__APP_VERSION__}` });
-  return new Uint8Array(pdf.output('arraybuffer'));
+  return { bytes: new Uint8Array(pdf.output('arraybuffer')), missingFonts };
 }
 
 export async function exportDocument(opts: ExportOptions): Promise<void> {
@@ -250,8 +255,13 @@ export async function exportDocument(opts: ExportOptions): Promise<void> {
     opts.artboardId === 'all' ? doc.artboards : doc.artboards.filter((a) => a.id === opts.artboardId);
   if (!artboards.length) return;
   if (opts.kind === 'pdf') {
-    const bytes = await svgToPdf(doc, artboards);
-    if (await saveBytes(bytes, 'pdf', doc.name)) toast(t('file.exported'));
+    const { bytes, missingFonts } = await svgToPdf(doc, artboards);
+    if (await saveBytes(bytes, 'pdf', doc.name))
+      toast(
+        missingFonts.length
+          ? t('export.pdfFontsMissing', { fonts: missingFonts.join(', ') })
+          : t('file.exported'),
+      );
     return;
   }
   let done = false;

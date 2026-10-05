@@ -1,7 +1,8 @@
 import { useEffect, useRef, useState } from 'react';
 import { FORMAT_PRESETS } from '@poulpe/core';
 import { COMMANDS, TOOL_KEYS, formatShortcut } from '../commands';
-import { useT } from '../i18n';
+import { discardDraft, getPendingDraft, restoreDraft } from '../drafts';
+import { getLang, useT } from '../i18n';
 import { exportDocument, newDocument, type ExportOptions } from '../io';
 import { ui, useEditor, useUi } from '../store';
 import { NumberField, Select } from './fields';
@@ -259,11 +260,35 @@ function AboutDialog() {
   );
 }
 
+function DraftDialog() {
+  const t = useT();
+  const draft = getPendingDraft();
+  if (!draft) return null;
+  const date = new Date(draft.savedAt).toLocaleString(getLang() === 'fr' ? 'fr-FR' : 'en-US', {
+    dateStyle: 'medium',
+    timeStyle: 'short',
+  });
+  return (
+    <Modal title={t('draft.title')} onClose={discardDraft}>
+      <p>{t('draft.body', { name: draft.doc.name, date })}</p>
+      <footer>
+        <button className="btn" onClick={discardDraft}>
+          {t('draft.discard')}
+        </button>
+        <button className="btn primary" data-testid="draft-restore" onClick={restoreDraft}>
+          {t('draft.restore')}
+        </button>
+      </footer>
+    </Modal>
+  );
+}
+
 export function Dialogs() {
   const dialog = useUi((s) => s.dialog);
   if (dialog === 'new') return <NewDialog />;
   if (dialog === 'export') return <ExportDialog />;
   if (dialog === 'shortcuts') return <ShortcutsDialog />;
   if (dialog === 'about') return <AboutDialog />;
+  if (dialog === 'draft') return <DraftDialog />;
   return null;
 }

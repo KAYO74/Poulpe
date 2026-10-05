@@ -1,4 +1,4 @@
-import { useSyncExternalStore } from 'react';
+import { useEffect, useReducer, useSyncExternalStore } from 'react';
 import { t } from './i18n';
 import {
   Editor,
@@ -26,7 +26,7 @@ export type ToolId =
 
 export type Side = 'left' | 'right';
 export type Theme = 'dark' | 'light';
-export type Dialog = null | 'new' | 'export' | 'shortcuts' | 'about';
+export type Dialog = null | 'new' | 'export' | 'shortcuts' | 'about' | 'draft';
 
 export interface Settings {
   theme: Theme;
@@ -54,6 +54,8 @@ export interface UiState {
   colorTarget: 'fill' | 'stroke';
   recentColors: string[];
   editingTextId: string | null;
+  /** Image en cours de recadrage. */
+  cropId: string | null;
   /** Fichier courant : chemin (bureau) ou nom (navigateur). */
   filePath: string | null;
   dialog: Dialog;
@@ -111,6 +113,7 @@ export const ui = new Store<UiState>({
   colorTarget: 'fill',
   recentColors: [],
   editingTextId: null,
+  cropId: null,
   filePath: null,
   dialog: null,
   toast: null,
@@ -148,5 +151,14 @@ export function useUi<T>(select: (s: UiState) => T): T {
 }
 
 export function setTool(tool: ToolId): void {
-  ui.set({ tool, editingTextId: null });
+  ui.set({ tool, editingTextId: null, cropId: null });
+}
+
+/** Redessine le composant quand la sélection dans le texte édité change. */
+export function useTextSelection(): void {
+  const [, bump] = useReducer((n: number) => n + 1, 0);
+  useEffect(() => {
+    window.addEventListener('poulpe:textselection', bump);
+    return () => window.removeEventListener('poulpe:textselection', bump);
+  }, []);
 }

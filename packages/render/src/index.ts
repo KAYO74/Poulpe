@@ -1,8 +1,6 @@
 import {
-  baselineY,
-  cssFont,
+  charX,
   layoutText,
-  lineOffset,
   linearGradientPoints,
   radialGradientRadius,
   rgbaToCss,
@@ -14,6 +12,7 @@ import {
   type PathCommand,
   type PoulpeDocument,
   type SceneNode,
+  type TextLayout,
   type TextNode,
 } from '@poulpe/core';
 
@@ -70,6 +69,40 @@ export const measureText: MeasureText = (text, font) => {
   measureCtx.font = font;
   return measureCtx.measureText(text).width;
 };
+
+/*
+ * Caches : les documents sont immuables, un objet inchangé garde son identité d'une image à
+ * l'autre. Sa mise en page de texte et son tracé sont donc calculés une seule fois. Les objets
+ * modifiables (brouillons immer) ne sont jamais mis en cache.
+ */
+let layoutCache = new WeakMap<TextNode, { measure: MeasureText; layout: TextLayout }>();
+const pathCache = new WeakMap<SceneNode, Path2D>();
+
+/** Mise en page d'un texte, mémorisée tant que l'objet ne change pas. */
+export function cachedLayout(node: TextNode, measure: MeasureText = measureText): TextLayout {
+  if (!Object.isFrozen(node)) return layoutText(node, measure);
+  const hit = layoutCache.get(node);
+  if (hit && hit.measure === measure) return hit.layout;
+  const layout = layoutText(node, measure);
+  layoutCache.set(node, { measure, layout });
+  return layout;
+}
+
+/** À appeler quand les mesures changent (une police vient de se charger). */
+export function clearLayoutCache(): void {
+  layoutCache = new WeakMap();
+}
+
+/** Tracé d'un objet dans son repère local, mémorisé tant que l'objet ne change pas. */
+export function nodePath(node: SceneNode): Path2D {
+  if (!Object.isFrozen(node)) return toPath2D(shapePath(node));
+  let p = pathCache.get(node);
+  if (!p) {
+    p = toPath2D(shapePath(node));
+    pathCache.set(node, p);
+  }
+  return p;
+}
 
 export function toPath2D(cmds: PathCommand[]): Path2D {
   const p = new Path2D();
@@ -128,38 +161,23 @@ function applyNodeTransform(ctx: Ctx, node: SceneNode) {
 }
 
 function drawText(ctx: Ctx, node: TextNode, measure: MeasureText) {
-  const layout = layoutText(node, measure);
-  const st = node.style;
+  const layout = cachedLayout(node, measure);
   const fill = canvasPaint(ctx, node.fill, node.width, node.height);
   const stroke =
     node.stroke.paint.type !== 'none' && node.stroke.width > 0
       ? canvasPaint(ctx, node.stroke.paint, node.width, node.height)
       : null;
-  ctx.font = cssFont(st);
   ctx.textBaseline = 'alphabetic';
   ctx.lineJoin = 'round';
-  layout.lines.forEach((line, i) => {
-    if (!line.text) return;
-    const y = baselineY(layout, st, i);
-    const isLast = i === layout.lines.length - 1;
-    const justify = st.align === 'justify' && !node.autoWidth && !isLast && /\s/.test(line.text);
-    const x0 = lineOffset(layout, line, st.align);
-    // Découpage en morceaux : mots pour la justification, lettres pour l'interlettrage.
-    const pieces: { text: string; x: number }[] = [];
-    if (justify) {
-      const words = line.text.split(/\s+/);
-      const wordsW = words.reduce((s, w) => s + measure(w, ctx.font) + st.letterSpacing * w.length, 0);
-      const gap = (layout.width - wordsW) / (words.length - 1);
-      let x = 0;
-      for (const w of words) {
-        pieces.push({ text: w, x });
-        x += measure(w, ctx.font) + st.letterSpacing * w.length + gap;
-      }
-    } else pieces.push({ text: line.text, x: x0 });
-    for (const piece of pieces) {
+  for (const line of layout.lines) {
+    const y = line.baseline;
+    for (const seg of line.segments) {
+      const st = seg.style;
+      const segFill = st.color ? rgbaToCss(st.color) : fill;
+      ctx.font = seg.font;
       const draw = (text: string, x: number) => {
-        if (fill) {
-          ctx.fillStyle = fill;
+        if (segFill) {
+          ctx.fillStyle = segFill;
           ctx.fillText(text, x, y);
         }
         if (stroke) {
@@ -168,23 +186,23 @@ function drawText(ctx: Ctx, node: TextNode, measure: MeasureText) {
           ctx.strokeText(text, x, y);
         }
       };
-      if (st.letterSpacing) {
-        let x = piece.x;
-        for (const ch of piece.text) {
-          draw(ch, x);
-          x += measure(ch, ctx.font) + st.letterSpacing;
-        }
-      } else draw(piece.text, piece.x);
+      // Morceaux : mots pour la justification, lettres pour l'interlettrage.
+      const re = line.gap || st.letterSpacing ? (st.letterSpacing ? /[\s\S]/gu : /\s+|\S+/g) : /[\s\S]+/g;
+      let m: RegExpExecArray | null;
+      while ((m = re.exec(seg.text))) {
+        if (/^\s+$/.test(m[0])) continue;
+        draw(m[0], charX(line, seg.start + m.index, measure));
+      }
+      if (st.underline || st.strike) {
+        const x0 = charX(line, seg.start, measure);
+        const x1 = charX(line, seg.end, measure);
+        const thickness = Math.max(1, st.fontSize / 15);
+        ctx.fillStyle = segFill ?? stroke ?? '#000';
+        if (st.underline) ctx.fillRect(x0, y + st.fontSize * 0.1, x1 - x0, thickness);
+        if (st.strike) ctx.fillRect(x0, y - st.fontSize * 0.3, x1 - x0, thickness);
+      }
     }
-    if (st.underline || st.strike) {
-      const lineW = justify ? layout.width : line.width;
-      const x = justify ? 0 : x0;
-      const thickness = Math.max(1, st.fontSize / 15);
-      ctx.fillStyle = fill ?? stroke ?? '#000';
-      if (st.underline) ctx.fillRect(x, y + st.fontSize * 0.1, lineW, thickness);
-      if (st.strike) ctx.fillRect(x, y - st.fontSize * 0.3, lineW, thickness);
-    }
-  });
+  }
 }
 
 export function drawNode(ctx: Ctx, doc: PoulpeDocument, node: SceneNode, opts: RenderOptions): void {
@@ -202,7 +220,7 @@ export function drawNode(ctx: Ctx, doc: PoulpeDocument, node: SceneNode, opts: R
       ctx.translate(mask.x + mask.width / 2, mask.y + mask.height / 2);
       ctx.rotate((mask.rotation * Math.PI) / 180);
       ctx.translate(-mask.width / 2, -mask.height / 2);
-      ctx.clip(toPath2D(shapePath(mask)));
+      ctx.clip(nodePath(mask));
       ctx.setTransform(ctx.getTransform().multiply(inverseLocal(mask)));
       for (const c of kids.slice(1)) drawNode(ctx, doc, c, opts);
       ctx.restore();
@@ -217,11 +235,18 @@ export function drawNode(ctx: Ctx, doc: PoulpeDocument, node: SceneNode, opts: R
     h = node.height;
   if (node.type === 'image') {
     const img = opts.images.get(doc, node.assetId);
-    if (img) ctx.drawImage(img, 0, 0, w, h);
+    if (img) {
+      const c = node.crop;
+      if (c) {
+        const iw = img.naturalWidth,
+          ih = img.naturalHeight;
+        ctx.drawImage(img, c.x * iw, c.y * ih, c.width * iw, c.height * ih, 0, 0, w, h);
+      } else ctx.drawImage(img, 0, 0, w, h);
+    }
   } else if (node.type === 'text') {
     drawText(ctx, node, measure);
   } else {
-    const path = toPath2D(shapePath(node));
+    const path = nodePath(node);
     if (node.type !== 'line') {
       const fill = canvasPaint(ctx, node.fill, w, h);
       if (fill) {

@@ -1,6 +1,7 @@
 import {
   alignNodes,
   boxCenter,
+  clearRunKeys,
   cloneWithNewIds,
   createArtboard,
   createGroup,
@@ -29,6 +30,7 @@ import {
   type ZOrder,
 } from '@poulpe/core';
 import { t } from './i18n';
+import { applyEditingStyle, endTextEdit, isEditingText } from './canvas/textEdit';
 import { editor, ui } from './store';
 
 /*
@@ -235,6 +237,11 @@ export function updateSelected(
 }
 
 export function setPaint(target: 'fill' | 'stroke', paint: Paint, gesture = false): void {
+  if (isEditingText()) {
+    // Pendant l'édition d'un texte, une couleur unie va aux caractères sélectionnés.
+    if (target === 'fill' && paint.type === 'solid' && applyEditingStyle({ color: paint.color })) return;
+    endTextEdit();
+  }
   const ids = sel();
   if (!ids.length) {
     const d = ui.get().defaults;
@@ -248,8 +255,10 @@ export function setPaint(target: 'fill' | 'stroke', paint: Paint, gesture = fals
       const visit = (m: SceneNode) => {
         if (m.type === 'group') return m.children.forEach(visit);
         if (m.type === 'image') return;
-        if (target === 'fill') m.fill = paint;
-        else m.stroke = { ...m.stroke, paint };
+        if (target === 'fill') {
+          m.fill = paint;
+          if (m.type === 'text' && m.runs) m.runs = clearRunKeys(m.runs, ['color'], m.style, m.text.length);
+        } else m.stroke = { ...m.stroke, paint };
       };
       const n = findNode(doc, id)?.node;
       if (n) visit(n);
@@ -260,6 +269,7 @@ export function setPaint(target: 'fill' | 'stroke', paint: Paint, gesture = fals
 }
 
 export function setTextStyle(patch: Partial<TextStyle>): void {
+  if (applyEditingStyle(patch)) return;
   const ids = sel();
   const texts = ids.filter((id) => findNode(editor.doc, id)?.node.type === 'text');
   if (!texts.length) {
@@ -270,7 +280,11 @@ export function setTextStyle(patch: Partial<TextStyle>): void {
   editor.apply('history.text', (d) => {
     for (const id of texts) {
       const n = findNode(d, id)!.node;
-      if (n.type === 'text') n.style = { ...n.style, ...patch };
+      if (n.type === 'text') {
+        n.style = { ...n.style, ...patch };
+        // Appliqué au texte entier, le réglage remplace celui des plages.
+        if (n.runs) n.runs = clearRunKeys(n.runs, Object.keys(patch), n.style, n.text.length);
+      }
     }
   });
 }

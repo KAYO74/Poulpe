@@ -34,6 +34,7 @@ Le code de lecture et d'écriture est dans [`packages/core/src/file.ts`](../pack
 | `artboards` | liste | Plans de travail, chacun avec `x`, `y`, `width`, `height`, `background` (peinture) et `children`. |
 | `swatches` | liste de couleurs | Nuancier du document. |
 | `assets` | objet | Images, par identifiant : `mime`, `width`, `height` et `path` dans l'archive. |
+| `guides` | objet, facultatif | Repères tirés depuis les règles : `x` (repères verticaux) et `y` (repères horizontaux), listes de positions dans l'espace du document. |
 
 Toutes les coordonnées sont en pixels dans l'espace du document : un objet n'est pas relatif à son plan de travail. Chaque objet est une boîte `x`, `y`, `width`, `height` tournée de `rotation` degrés autour de son centre. Les listes `children` vont du dessous vers le dessus.
 
@@ -48,11 +49,15 @@ Champs communs : `id`, `name`, `x`, `y`, `width`, `height`, `rotation`, `opacity
 | `polygon` | `fill`, `stroke`, `sides` |
 | `star` | `fill`, `stroke`, `points`, `innerRatio` |
 | `line` | `stroke`, `direction` (1 : haut gauche vers bas droit, -1 : bas gauche vers haut droit) |
-| `text` | `text`, `style`, `fill`, `stroke`, `autoWidth` |
-| `image` | `assetId` |
+| `text` | `text`, `style`, `fill`, `stroke`, `autoWidth`, `runs` (facultatif) |
+| `image` | `assetId`, `crop` (facultatif) |
 | `group` | `children`, `clip` (l'objet du dessous sert de masque d'écrêtage) |
 
 `style` d'un texte : `fontFamily`, `fontSize`, `fontWeight`, `italic`, `align` (`left`, `center`, `right`, `justify`), `lineHeight` (multiplicateur), `letterSpacing` (px), `underline`, `strike`, `uppercase`.
+
+`runs` d'un texte : styles par caractère, triés et sans chevauchement. Chaque plage vaut `{ "start": 8, "end": 12, "style": { … } }` : elle couvre les caractères `start` à `end - 1` (indices UTF-16 de `text`) et ne contient que ce qui diffère du `style` du texte, parmi `fontFamily`, `fontSize`, `fontWeight`, `italic`, `underline`, `strike`, `letterSpacing` et `color` (couleur unie qui remplace le remplissage). L'alignement, l'interligne et les capitales valent pour tout le texte.
+
+`crop` d'une image : partie de l'image source affichée dans la boîte de l'objet, `{ "x", "y", "width", "height" }` en fractions (0 à 1) de l'image. Sans `crop`, l'image entière remplit la boîte.
 
 `blendMode` : `normal`, `multiply`, `screen`, `overlay`, `darken`, `lighten`, `color-dodge`, `color-burn`, `hard-light`, `soft-light`, `difference`, `exclusion`, `hue`, `saturation`, `color`, `luminosity` (mêmes noms qu'en CSS).
 

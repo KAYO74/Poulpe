@@ -1,6 +1,6 @@
 import { findNode, nodeBounds, type Box, type PoulpeDocument } from '@poulpe/core';
 
-/** Lignes de magnétisme : bords et centres des plans de travail et des autres objets. */
+/** Lignes de magnétisme : repères, bords et centres des plans de travail et des autres objets. */
 export interface SnapLines {
   xs: number[];
   ys: number[];
@@ -11,9 +11,9 @@ export interface SnapGuide {
   pos: number;
 }
 
-export function collectSnapLines(doc: PoulpeDocument, exclude: Set<string>): SnapLines {
-  const xs: number[] = [];
-  const ys: number[] = [];
+export function collectSnapLines(doc: PoulpeDocument, exclude: Set<string>, guides = true): SnapLines {
+  const xs: number[] = guides ? [...(doc.guides?.x ?? [])] : [];
+  const ys: number[] = guides ? [...(doc.guides?.y ?? [])] : [];
   const add = (b: Box) => {
     xs.push(b.x, b.x + b.width / 2, b.x + b.width);
     ys.push(b.y, b.y + b.height / 2, b.y + b.height);

@@ -28,6 +28,11 @@ import {
   ungroupNode,
   PoulpeFileError,
   sampleStops,
+  applyRunStyle,
+  adjustRuns,
+  styleAt,
+  caretAt,
+  indexAtPoint,
   type PoulpeDocument,
 } from '../src';
 import { strToU8, zipSync } from 'fflate';
@@ -229,5 +234,84 @@ describe('fichier .poulpe', () => {
       expect((e as PoulpeFileError).code).toBe('tooNew');
     }
     expect(() => decodePoulpe(new Uint8Array([1, 2, 3]))).toThrowError(PoulpeFileError);
+  });
+});
+
+describe('styles par caractère', () => {
+  const make = () =>
+    createText({ x: 0, y: 0, width: 10, height: 10, text: 'Bonjour le monde', autoWidth: true });
+
+  it('applique un style à une plage et le nettoie', () => {
+    const t = make();
+    t.runs = applyRunStyle(t, 8, 10, { fontWeight: 700 });
+    expect(t.runs).toEqual([{ start: 8, end: 10, style: { fontWeight: 700 } }]);
+    expect(styleAt(t, 8).fontWeight).toBe(700);
+    expect(styleAt(t, 7).fontWeight).toBe(t.style.fontWeight);
+    // Revenir au style du texte supprime la plage.
+    t.runs = applyRunStyle(t, 0, 16, { fontWeight: t.style.fontWeight });
+    expect(t.runs).toEqual([]);
+  });
+
+  it('recale les plages quand le texte change', () => {
+    const base = make();
+    const runs = [{ start: 8, end: 10, style: { color: '#ff0000' } }];
+    // Insertion avant la plage : elle se décale.
+    expect(adjustRuns(runs, 'Bonjour le monde', 'Oh Bonjour le monde', base.style)).toEqual([
+      { start: 11, end: 13, style: { color: '#ff0000' } },
+    ]);
+    // Insertion à la fin de la plage : le texte tapé prend son style.
+    expect(adjustRuns(runs, 'Bonjour le monde', 'Bonjour lesss monde', base.style)[0]).toMatchObject({
+      start: 8,
+      end: 13,
+    });
+    // Suppression de la plage entière.
+    expect(adjustRuns(runs, 'Bonjour le monde', 'Bonjour  monde', base.style)).toEqual([]);
+    // Style de saisie.
+    expect(adjustRuns([], 'ab', 'aXb', base.style, { italic: true })).toEqual([
+      { start: 1, end: 2, style: { italic: true } },
+    ]);
+  });
+
+  it('met en page des tailles différentes et place le curseur', () => {
+    const t = make();
+    t.style.fontSize = 20;
+    t.runs = applyRunStyle(t, 0, 7, { fontSize: 40 });
+    const layout = layoutText(t, approximateMeasure);
+    expect(layout.lines).toHaveLength(1);
+    expect(layout.lines[0].size).toBe(40);
+    expect(layout.lines[0].segments).toHaveLength(2);
+    expect(layout.height).toBeCloseTo(40 * t.style.lineHeight);
+    const c = caretAt(layout, 7, approximateMeasure);
+    expect(c.x).toBeCloseTo(7 * 40 * 0.55);
+    expect(indexAtPoint(layout, c.x + 1, 5, approximateMeasure)).toBe(7);
+  });
+
+  it('exporte les plages en SVG', () => {
+    const doc = createDocument();
+    const t = make();
+    t.runs = applyRunStyle(t, 0, 7, { color: '#ff0000', fontWeight: 700 });
+    doc.artboards[0].children.push(t);
+    const svg = artboardToSvg(doc, doc.artboards[0]);
+    expect(svg).toContain('font-weight="700" fill="#ff0000">Bonjour</tspan>');
+    expect(svg).toContain('> le monde</tspan>');
+  });
+});
+
+describe("recadrage d'image", () => {
+  it("découpe l'image dans l'export SVG", () => {
+    const doc = createDocument();
+    const img = createImage({ x: 0, y: 0, width: 50, height: 50, assetId: 'a1' });
+    img.crop = { x: 0.5, y: 0, width: 0.5, height: 1 };
+    doc.assets.a1 = {
+      id: 'a1',
+      mime: 'image/png',
+      width: 100,
+      height: 50,
+      data: 'data:image/png;base64,AA==',
+    };
+    doc.artboards[0].children.push(img);
+    const svg = artboardToSvg(doc, doc.artboards[0]);
+    expect(svg).toContain('<clipPath id="crop1"><rect width="50" height="50"/></clipPath>');
+    expect(svg).toContain('x="-50" y="0" width="100" height="50"');
   });
 });

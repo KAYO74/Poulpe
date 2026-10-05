@@ -1,6 +1,6 @@
 import { opaque, alphaOf } from './color';
 import { linearGradientPoints, pathToSvg, radialGradientRadius, shapePath } from './geometry';
-import { baselineY, layoutText, lineOffset, approximateMeasure, type MeasureText } from './text';
+import { approximateMeasure, charX, layoutText, type CharStyle, type MeasureText } from './text';
 import type { Artboard, Paint, PoulpeDocument, SceneNode, Stroke } from './types';
 
 export interface SvgExportOptions {
@@ -109,27 +109,49 @@ function nodeToSvg(node: SceneNode, doc: PoulpeDocument, defs: Defs, measure: Me
   if (node.type === 'image') {
     const asset = doc.assets[node.assetId];
     if (!asset) return '';
-    return `${open}<image width="${n(w)}" height="${n(h)}" preserveAspectRatio="none" href="${asset.data}"/></g>`;
+    const c = node.crop;
+    if (!c || (c.x === 0 && c.y === 0 && c.width === 1 && c.height === 1))
+      return `${open}<image width="${n(w)}" height="${n(h)}" preserveAspectRatio="none" href="${asset.data}"/></g>`;
+    // Image recadrée : l'image entière, découpée par la boîte de l'objet.
+    const fw = w / c.width,
+      fh = h / c.height;
+    const id = defs.id('crop');
+    defs.add(`<clipPath id="${id}"><rect width="${n(w)}" height="${n(h)}"/></clipPath>`);
+    return `${open}<g clip-path="url(#${id})"><image x="${n(-c.x * fw)}" y="${n(-c.y * fh)}" width="${n(fw)}" height="${n(fh)}" preserveAspectRatio="none" href="${asset.data}"/></g></g>`;
   }
   if (node.type === 'text') {
     const layout = layoutText(node, measure);
     const st = node.style;
-    const deco = [st.underline && 'underline', st.strike && 'line-through'].filter(Boolean).join(' ');
+    const deco = (c: { underline: boolean; strike: boolean }) =>
+      [c.underline && 'underline', c.strike && 'line-through'].filter(Boolean).join(' ');
+    const fontAttrs = (c: CharStyle, ref?: CharStyle) => {
+      let a = '';
+      if (!ref || c.fontFamily !== ref.fontFamily) a += ` font-family="${esc(c.fontFamily)}, sans-serif"`;
+      if (!ref || c.fontSize !== ref.fontSize) a += ` font-size="${n(c.fontSize)}"`;
+      if (!ref || c.fontWeight !== ref.fontWeight) a += ` font-weight="${c.fontWeight}"`;
+      if (c.italic !== (ref?.italic ?? false)) a += ` font-style="${c.italic ? 'italic' : 'normal'}"`;
+      if (c.letterSpacing !== (ref?.letterSpacing ?? 0)) a += ` letter-spacing="${n(c.letterSpacing)}"`;
+      const dc = deco(c);
+      if (dc !== (ref ? deco(ref) : '')) a += ` text-decoration="${dc || 'none'}"`;
+      if (c.color) a += ` ${colorAttrs('fill', c.color)}`;
+      return a;
+    };
     const attrs =
-      `font-family="${esc(st.fontFamily)}, sans-serif" font-size="${n(st.fontSize)}" font-weight="${st.fontWeight}"` +
-      (st.italic ? ' font-style="italic"' : '') +
-      (st.letterSpacing ? ` letter-spacing="${n(st.letterSpacing)}"` : '') +
-      (deco ? ` text-decoration="${deco}"` : '') +
-      ` ${paintAttr('fill', node.fill, w, h, defs)}` +
-      strokeAttrs(node.stroke, w, h, defs);
-    const lines = layout.lines
-      .map((line, i) => {
-        if (!line.text) return '';
-        const y = baselineY(layout, st, i);
-        return `<tspan x="${n(lineOffset(layout, line, st.align))}" y="${n(y)}">${esc(line.text)}</tspan>`;
-      })
-      .join('');
-    return `${open}<text xml:space="preserve" ${attrs}>${lines}</text></g>`;
+      fontAttrs(st) + ` ${paintAttr('fill', node.fill, w, h, defs)}` + strokeAttrs(node.stroke, w, h, defs);
+    let spans = '';
+    for (const line of layout.lines) {
+      for (const seg of line.segments) {
+        // Texte justifié : chaque mot est placé ; sinon un morceau par style.
+        const re = line.gap ? /\s+|\S+/g : /[\s\S]+/g;
+        let m: RegExpExecArray | null;
+        while ((m = re.exec(seg.text))) {
+          if (line.gap && /^\s+$/.test(m[0])) continue;
+          const x = charX(line, seg.start + m.index, measure);
+          spans += `<tspan x="${n(x)}" y="${n(line.baseline)}"${fontAttrs(seg.style, st)}>${esc(m[0])}</tspan>`;
+        }
+      }
+    }
+    return `${open}<text xml:space="preserve"${attrs}>${spans}</text></g>`;
   }
   const d = pathToSvg(shapePath(node));
   return `${open}<path d="${d}" ${paintAttr('fill', node.type === 'line' ? { type: 'none' } : node.fill, w, h, defs)}${strokeAttrs(node.stroke, w, h, defs)}/></g>`;
