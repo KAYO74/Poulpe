@@ -12,6 +12,7 @@ import { useT } from './i18n';
 import { Library } from './panels/Library';
 import { PagesPanel } from './panels/PagesPanel';
 import { Studio } from './panels/Studio';
+import { DEFAULT_PANELS, PANEL_LIMITS, panels, startSplitter, usePanels } from './panels/panelLayout';
 import { editor, useEditor, useUi } from './store';
 
 export function App() {
@@ -20,6 +21,7 @@ export function App() {
   const filePath = useUi((s) => s.filePath);
   const persona = useUi((s) => s.persona);
   const { doc, dirty } = useEditor();
+  const libraryW = usePanels((s) => s.libraryW);
 
   useEffect(() => {
     document.documentElement.dataset.theme = settings.theme;
@@ -62,7 +64,28 @@ export function App() {
       <ContextBar />
       <main className="workspace">
         <ToolColumn />
-        {persona === 'layout' ? <PagesPanel /> : settings.library && <Library />}
+        {(persona === 'layout' || settings.library) && (
+          <div className="library-dock" style={{ width: libraryW }}>
+            {persona === 'layout' ? <PagesPanel /> : <Library />}
+            <div
+              className={`split-h ${settings.studioSide === 'right' ? 'at-right' : 'at-left'}`}
+              role="separator"
+              aria-orientation="vertical"
+              aria-label={t('panel.resize')}
+              data-testid="library-resize"
+              onPointerDown={(e) =>
+                startSplitter(
+                  e,
+                  'libraryW',
+                  settings.studioSide === 'right' ? 1 : -1,
+                  [...PANEL_LIMITS.libraryW],
+                  libraryW,
+                )
+              }
+              onDoubleClick={() => panels.set({ libraryW: DEFAULT_PANELS.libraryW })}
+            />
+          </div>
+        )}
         <div className="doc-area">
           <div className="doc-tabs" role="tablist">
             <span className="doc-tab" role="tab" aria-selected="true">

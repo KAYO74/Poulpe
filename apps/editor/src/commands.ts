@@ -13,6 +13,7 @@ import { clearSelection, invertSelection, selectAll, selectFromLayer } from './p
 import { images, newPixelLayer, selectedImage } from './photo/pixels';
 import { openPhoto, setPersona } from './photo/persona';
 import { addLutPreset, loadLutFile } from './photo/retouchActions';
+import { resetPanels } from './panels/panelLayout';
 import { LUT_PRESETS, type LutPreset } from '@poulpe/core';
 
 export interface Command {
@@ -394,6 +395,7 @@ export const COMMANDS = {
     label: 'view.studioSide',
     run: () => setSettings({ studioSide: ui.get().settings.studioSide === 'right' ? 'left' : 'right' }),
   },
+  'view.resetPanels': { label: 'view.resetPanels', run: () => resetPanels() },
 
   'help.shortcuts': {
     label: 'help.shortcuts',
