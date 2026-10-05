@@ -2,10 +2,9 @@
 
 Poulpe s'installe comme n'importe quelle application. Téléchargez le fichier de votre système depuis la [page d'accueil du projet](../README.md#installer-poulpe) ou la page [Versions](https://github.com/KAYO74/Poulpe/releases), puis suivez les étapes ci-dessous.
 
-> [!IMPORTANT]
-> Tant que le dépôt est privé, il faut être connecté à GitHub avec un compte qui a accès au projet pour télécharger les fichiers.
+Le téléchargement est libre et gratuit, sans compte GitHub.
 
-Poulpe n'est pas encore signé numériquement (ce sera fait pour la v1.0). Windows et macOS se méfient donc au premier lancement : c'est normal, et il suffit de confirmer une fois.
+Poulpe n'est pas encore signé numériquement. Windows et macOS se méfient donc au premier lancement : c'est normal, et il suffit de confirmer une fois.
 
 ## Windows
 
