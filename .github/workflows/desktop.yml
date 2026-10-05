@@ -1,15 +1,39 @@
 name: Installeurs de bureau
 
 # Produit les installeurs Windows (.msi, .exe), macOS (.dmg) et Linux (.deb, AppImage).
-# Sur une étiquette `v*`, ils sont joints à un brouillon de version GitHub ; sinon, en artefacts.
+# Sur une étiquette `v*` (par exemple `git tag v0.2.0 && git push origin v0.2.0`), ou lancé à la main
+# depuis l'onglet Actions avec une étiquette à créer, ils sont publiés dans une version GitHub, sous des
+# noms sans numéro de version pour que les liens de téléchargement du README (`releases/latest/download/...`) restent valables d'une version à l'autre.
+# Une étiquette avec un tiret (`v0.2.0-beta.1`) donne une préversion, qui ne remplace pas la dernière version.
+# Sans étiquette, les installeurs sont gardés en artefacts du workflow.
 on:
   workflow_dispatch:
+    inputs:
+      tag:
+        description: 'Étiquette de la version à publier (par exemple v0.2.0). Vide : installeurs en artefacts seulement.'
+        required: false
+        default: ''
   push:
     tags: ['v*']
   pull_request:
     paths:
       - 'apps/desktop/**'
       - '.github/workflows/desktop.yml'
+
+env:
+  TAG: ${{ startsWith(github.ref, 'refs/tags/') && github.ref_name || inputs.tag }}
+  RELEASE_BODY: |
+    Téléchargez l'installeur de votre système ci-dessous, ou suivez le guide : [Installer Poulpe](https://github.com/${{ github.repository }}/blob/main/docs/installer.md).
+
+    | Système | Fichier |
+    | --- | --- |
+    | Windows | `Poulpe_windows_x64-setup.exe` (ou `.msi`) |
+    | macOS (puces Apple M1 à M4) | `Poulpe_darwin_aarch64.dmg` |
+    | macOS (Intel) | `Poulpe_darwin_x64.dmg` |
+    | Linux (Ubuntu, Debian) | `Poulpe_linux_amd64.deb` |
+    | Linux (autres distributions) | `Poulpe_linux_amd64.AppImage` |
+
+    L'appli n'est pas encore signée : Windows et macOS affichent un avertissement au premier lancement. Le guide explique comment l'ouvrir quand même.
 
 jobs:
   build:
@@ -54,15 +78,21 @@ jobs:
       - run: pnpm install --frozen-lockfile
       - uses: tauri-apps/tauri-action@v0
         id: tauri
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           projectPath: apps/desktop
           tauriScript: pnpm tauri
           args: ${{ matrix.args }}
-          tagName: ${{ startsWith(github.ref, 'refs/tags/') && github.ref_name || '' }}
-          releaseName: ${{ startsWith(github.ref, 'refs/tags/') && format('Poulpe {0}', github.ref_name) || '' }}
-          releaseDraft: true
+          tagName: ${{ env.TAG }}
+          releaseName: ${{ env.TAG && format('Poulpe {0}', env.TAG) || '' }}
+          releaseBody: ${{ env.TAG && env.RELEASE_BODY || '' }}
+          releaseCommitish: ${{ github.sha }}
+          releaseDraft: false
+          prerelease: ${{ contains(env.TAG, '-') }}
+          assetNamePattern: Poulpe_[platform]_[arch][setup][ext]
       - uses: actions/upload-artifact@v4
-        if: ${{ !startsWith(github.ref, 'refs/tags/') }}
+        if: ${{ !env.TAG }}
         with:
           name: poulpe-${{ runner.os }}-${{ strategy.job-index }}
           path: |
