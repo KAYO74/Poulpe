@@ -34,12 +34,13 @@ function handmadePdf(): Uint8Array {
 
 /** Texte de tous les flux, décompressés si besoin. */
 function streams(bytes: Uint8Array): string[] {
-  const s = new TextDecoder('latin1').decode(bytes);
+  // Un octet par lettre (TextDecoder 'latin1' est en fait windows-1252 et change 0x80 à 0x9f).
+  const s = Array.from(bytes, (b) => String.fromCharCode(b)).join('');
   const out: string[] = [];
   for (const m of s.matchAll(/stream\r?\n([\s\S]*?)\r?\nendstream/g)) {
     const raw = Uint8Array.from(m[1], (c) => c.charCodeAt(0));
     try {
-      out.push(new TextDecoder('latin1').decode(unzlibSync(raw)));
+      out.push(Array.from(unzlibSync(raw), (b) => String.fromCharCode(b)).join(''));
     } catch {
       out.push(m[1]);
     }
