@@ -1,0 +1,44 @@
+# Licences et origine du contenu
+
+Poulpe est construit avec l'intelligence artificielle : Fred décrit ce qu'il veut, Claude (Anthropic) écrit le code, la documentation et les images. Cette page dit d'où vient chaque partie et sous quelle licence, pour qu'on puisse vérifier qu'aucun élément n'est repris d'un logiciel propriétaire comme Photoshop, Illustrator ou Affinity.
+
+Dernière vérification : 5 octobre 2026, sur la version 0.5.
+
+## Le code de Poulpe
+
+Tout le code des dossiers `packages/` et `apps/` a été écrit pour Poulpe et est distribué sous [MPL-2.0](../LICENSE). La vérification n'a trouvé aucun en-tête de licence ou de droit d'auteur d'un tiers, aucun commentaire signalant du code repris, et aucun fichier binaire propriétaire (`.psd`, `.abr`, `.icc`, polices `.ttf` ou `.otf`).
+
+- **Formats de fichiers.** L'ouverture et l'export des fichiers Photoshop (`.psd`) passent par la bibliothèque libre [ag-psd](https://github.com/Agamnentzar/ag-psd) (MIT), et l'ouverture des PDF et des fichiers Illustrator par [pdf.js](https://github.com/mozilla/pdf.js) (Apache-2.0). Les PDF d'impression suivent les normes publiques PDF/X-4 et XMP.
+- **Couleurs d'impression.** Le profil CMJN est calculé par Poulpe lui-même (`packages/core/src/cmyk.ts` et `icc.ts`) ; le profil officiel FOGRA39, qui ne peut pas être redistribué, n'est pas inclus, seulement nommé.
+- **Gomme magique.** Elle reconstruit l'image à partir de la photo elle-même, avec un algorithme écrit pour Poulpe et sans modèle d'IA.
+
+## Bibliothèques utilisées
+
+Toutes sont sous licences libres compatibles avec la MPL-2.0.
+
+| Partie                                                | Nombre | Licences                                                                                                                                                    |
+| ----------------------------------------------------- | ------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Interface et moteur (paquets npm livrés dans l'appli) | 93     | MIT pour la plupart, Apache-2.0 (pdf.js), MIT ou Apache-2.0 (Tauri), MPL-2.0 ou Apache-2.0 (DOMPurify), MIT et Zlib (pako), 0BSD (tslib), OFL-1.1 (polices) |
+| Appli de bureau (bibliothèques Rust)                  | 439    | MIT, Apache-2.0, BSD, ISC, Zlib, Unicode-3.0, Unlicense, MPL-2.0                                                                                            |
+
+Pour refaire la vérification : `pnpm licenses list --prod` et, dans `apps/desktop/src-tauri`, `cargo metadata --format-version 1`.
+
+## Polices
+
+Les 7 polices fournies avec Poulpe sont sous licence libre [SIL Open Font License](https://openfontlicense.org) et viennent de [Fontsource](https://fontsource.org) : Inter, Montserrat, Playfair Display, Lora, Oswald, Bricolage Grotesque et Pacifico. Les modèles n'utilisent que celles-ci.
+
+Arial, Georgia, Times New Roman, Courier New, Verdana et Trebuchet MS sont seulement proposées dans la liste des polices quand elles sont déjà installées sur l'ordinateur ; elles ne sont pas fournies avec Poulpe.
+
+## Icônes, modèles et illustrations
+
+- **Icônes** de la bibliothèque : [Phosphor Icons](https://phosphoricons.com), licence MIT, voir [`packages/library/LICENSE-icons.md`](../packages/library/LICENSE-icons.md).
+- **Modèles, formes, cadres, illustrations et palettes** : dessinés pour Poulpe, sous MPL-2.0.
+- **Logo** de Poulpe : dessiné pour Poulpe.
+
+## Images de la page d'accueil
+
+Les captures d'écran de `docs/images/` sont prises dans Poulpe lui-même, avec des documents de démonstration faits pour l'occasion. Elles n'utilisent que des polices libres : les polices OFL ci-dessus pour l'interface et les designs, et DejaVu Sans Mono (licence libre Bitstream Vera) pour les chiffres de l'interface.
+
+## Noms de marques
+
+Poulpe n'est affilié ni à Adobe ni à Serif. Photoshop, Illustrator, Affinity et Canva sont des marques de leurs propriétaires ; elles sont citées seulement pour comparer les fonctionnalités et pour nommer les formats de fichiers pris en charge.

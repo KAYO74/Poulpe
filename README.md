@@ -30,6 +30,9 @@
 > [!NOTE]
 > Poulpe est jeune : la version 0.5 réunit dessin vectoriel, retouche photo et mise en page, mais tout n'est pas encore là. Le nom est provisoire.
 
+> [!TIP]
+> **Fait avec l'IA.** Poulpe est un projet de Fred, construit avec l'intelligence artificielle : le code, la documentation et les images de cette page ont été écrits par Claude (Anthropic) à partir de ses demandes, pour offrir à tous une vraie application de design, libre et gratuite. Rien n'est repris de logiciels propriétaires ; voir [Licences et origine du contenu](docs/licences.md).
+
 ## Installer Poulpe
 
 Choisissez votre système, le téléchargement démarre directement.
@@ -135,6 +138,7 @@ Pour publier une nouvelle version, on change le numéro de version (dans `apps/d
 ### Documentation
 
 - [Guide d'installation](docs/installer.md)
+- [Licences et origine du contenu](docs/licences.md)
 - [Moteur d'édition v0.1](docs/moteur-v0.1.md), [Côté Canva v0.2](docs/cote-canva-v0.2.md), [Vectoriel pro v0.3](docs/vectoriel-pro-v0.3.md), [Retouche photo v0.4](docs/retouche-photo-v0.4.md), [Mise en page v0.5](docs/mise-en-page-v0.5.md) et [Impression v0.5](docs/impression-v0.5.md) : état et organisation du code
 - [Format de fichier `.poulpe`](docs/format-poulpe.md)
 - [Cadrage et architecture](docs/cadrage-architecture.md)
@@ -142,4 +146,6 @@ Pour publier une nouvelle version, on change le numéro de version (dans `apps/d
 
 ## Licence
 
-Poulpe est un logiciel libre distribué sous [Mozilla Public License 2.0](LICENSE).
+Poulpe est un logiciel libre distribué sous [Mozilla Public License 2.0](LICENSE). Les bibliothèques, polices et icônes qu'il utilise sont sous licences libres compatibles : le détail est dans [Licences et origine du contenu](docs/licences.md).
+
+Poulpe n'est affilié ni à Adobe ni à Serif. Photoshop, Illustrator et Affinity sont des marques de leurs propriétaires, citées uniquement pour comparer les fonctionnalités.
