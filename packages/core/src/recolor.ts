@@ -1,5 +1,6 @@
 import { alphaOf, opaque, parseColor, withAlpha } from './color';
 import type { Artboard, Color, Paint, SceneNode } from './types';
+import { isStyled } from './tree';
 
 /*
  * Application d'une palette à un design (comme les palettes de Canva).
@@ -42,7 +43,7 @@ function mapPaint(p: Paint, f: Visitor): Paint {
 
 function mapNode(n: SceneNode, f: Visitor): void {
   if (n.type === 'group') return n.children.forEach((c) => mapNode(c, f));
-  if (n.type === 'image') return;
+  if (!isStyled(n)) return;
   n.fill = mapPaint(n.fill, f);
   n.stroke = { ...n.stroke, paint: mapPaint(n.stroke.paint, f) };
   if (n.type === 'text' && n.runs)
@@ -70,7 +71,7 @@ export function designColors(target: RecolorTarget): Color[] {
   };
   const visit = (n: SceneNode) => {
     if (n.type === 'group') return n.children.forEach(visit);
-    if (n.type === 'image') return;
+    if (!isStyled(n)) return;
     paint(n.fill);
     paint(n.stroke.paint);
     if (n.type === 'text') n.runs?.forEach((r) => r.style.color && collect(r.style.color));

@@ -1,5 +1,7 @@
 import { newId } from './ids';
 import type {
+  Adjustment,
+  AdjustmentNode,
   Artboard,
   EllipseNode,
   GroupNode,
@@ -17,7 +19,7 @@ import type {
   TextStyle,
 } from './types';
 
-export const FORMAT_VERSION = 3;
+export const FORMAT_VERSION = 4;
 
 export type FormatCategory = 'social' | 'print' | 'screen';
 
@@ -189,6 +191,14 @@ export function createPath(
 
 export function createImage(b: BoxArgs & { assetId: string }): ImageNode {
   return { ...base(b.name ?? 'Image', b.x, b.y, b.width, b.height), type: 'image', assetId: b.assetId };
+}
+
+export function createAdjustment(b: BoxArgs & { adjustment: Adjustment }): AdjustmentNode {
+  return {
+    ...base(b.name ?? 'Réglage', b.x, b.y, b.width, b.height),
+    type: 'adjustment',
+    adjustment: b.adjustment,
+  };
 }
 
 export function createGroup(children: SceneNode[], name = 'Groupe'): GroupNode {

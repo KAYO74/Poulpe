@@ -54,6 +54,7 @@ import {
   type SnapLines,
 } from './snapping';
 import { PathTools } from './pathTools';
+import { PhotoTools, isPhotoTool } from '../photo/photoTools';
 import { beginTextEdit, endTextEdit, isEditingText, textSelection } from './textEdit';
 
 type HandleId = 'nw' | 'n' | 'ne' | 'e' | 'se' | 's' | 'sw' | 'w';
@@ -112,6 +113,8 @@ export class CanvasController {
   readonly images: ImageCache;
   /** Plume, crayon et outil Nœud. */
   readonly paths: PathTools;
+  /** Outils de la Persona Photo. */
+  readonly photo: PhotoTools;
   private ctx: CanvasRenderingContext2D;
   private dpr = 1;
   width = 0;
@@ -132,6 +135,7 @@ export class CanvasController {
     this.ctx = canvas.getContext('2d')!;
     this.images = new ImageCache(() => this.requestDraw());
     this.paths = new PathTools(this);
+    this.photo = new PhotoTools(this);
     this.readColors();
     let lastSelection = editor.selection;
     this.unsubscribe.push(
@@ -173,6 +177,7 @@ export class CanvasController {
 
   dispose(): void {
     this.paths.dispose();
+    this.photo.dispose();
     this.unsubscribe.forEach((u) => u());
     const c = this.canvas;
     c.removeEventListener('pointerdown', this.onPointerDown);
@@ -417,8 +422,14 @@ export class CanvasController {
     if (tool === 'eyedropper') {
       const px = this.ctx.getImageData(Math.round(sx * this.dpr), Math.round(sy * this.dpr), 1, 1).data;
       const hex = '#' + [px[0], px[1], px[2]].map((c) => c.toString(16).padStart(2, '0')).join('');
-      setPaint(ui.get().colorTarget, { type: 'solid', color: hex });
+      // En Persona Photo, la pipette prend la couleur du pinceau.
+      if (ui.get().persona === 'photo') ui.set({ brushColor: hex });
+      else setPaint(ui.get().colorTarget, { type: 'solid', color: hex });
       pushRecentColor(hex);
+      return;
+    }
+    if (this.photo.pointerDown(e, p, { x: sx, y: sy })) {
+      this.requestDraw();
       return;
     }
     if (this.paths.pointerDown(e, p, { x: sx, y: sy })) {
@@ -587,6 +598,7 @@ export class CanvasController {
     const p = this.toWorld(sx, sy);
     this.lastPointer = { x: sx, y: sy };
     ui.set({ cursor: { x: Math.round(p.x), y: Math.round(p.y) } });
+    if (!this.gesture && this.photo.pointerMove(e, p, { x: sx, y: sy })) return;
     if (!this.gesture && this.paths.pointerMove(e, p, { x: sx, y: sy })) {
       if (this.effectiveTool() === 'direct') this.canvas.style.cursor = 'default';
       return;
@@ -1001,6 +1013,10 @@ export class CanvasController {
     this.gesture = null;
     this.guides = [];
     if (this.canvas.hasPointerCapture(e.pointerId)) this.canvas.releasePointerCapture(e.pointerId);
+    if (!g && this.photo.pointerUp()) {
+      this.requestDraw();
+      return;
+    }
     if (!g && this.paths.pointerUp()) {
       this.requestDraw();
       return;
@@ -1101,6 +1117,7 @@ export class CanvasController {
 
   private onPointerCancel = () => {
     this.paths.pointerCancel();
+    this.photo.pointerCancel();
     if (this.gesture && this.gesture.kind !== 'pan' && this.gesture.kind !== 'marquee') editor.cancel();
     this.gesture = null;
     this.guides = [];
@@ -1109,6 +1126,7 @@ export class CanvasController {
 
   private onPointerLeave = () => {
     ui.set({ cursor: null });
+    this.photo.pointerLeave();
     if (this.hoverId) {
       this.hoverId = null;
       this.requestDraw();
@@ -1258,6 +1276,7 @@ export class CanvasController {
     if (!editingTextId && (tool === 'select' || tool === 'direct' || SHAPE_TOOLS.includes(tool)))
       this.drawHandles();
     this.paths.draw(ctx, this.colors.sel);
+    this.photo.draw(ctx);
     const g = this.gesture;
     if (g?.kind === 'marquee' || g?.kind === 'artboardCreate') {
       const b = rectFrom(g.start, g.current);

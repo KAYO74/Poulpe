@@ -3,6 +3,7 @@ import { commandsToCubics, flattenCommands } from './bezier';
 import { setPathCommands } from './pathEdit';
 import { cachedSvgPath, fitCommands } from './path';
 import { cssFont, displayText, styleAt, type CharStyle, type MeasureText } from './text';
+import { isStyled } from './tree';
 import type { ArrowHead, PathNode, SceneNode, Stroke, StrokeCap, StrokeJoin, TextNode } from './types';
 
 /*
@@ -165,7 +166,7 @@ export function worldOutline(node: SceneNode): PathCommand[] | null {
     if (parts.some((p) => p === null)) return null;
     return parts.flat() as PathCommand[];
   }
-  if (node.type === 'text' || node.type === 'image') return null;
+  if (node.type === 'text' || node.type === 'image' || node.type === 'adjustment') return null;
   return mapCommands(shapePath(node), (p) => localToWorld(node, p));
 }
 
@@ -175,7 +176,7 @@ export function worldOutline(node: SceneNode): PathCommand[] | null {
  */
 export function toPathNode(node: SceneNode): PathNode | null {
   if (node.type === 'path') return cloneData(node) as PathNode;
-  if (node.type === 'text' || node.type === 'image' || node.type === 'group') return null;
+  if (!isStyled(node) || node.type === 'text') return null;
   const p: PathNode = {
     id: node.id,
     name: node.name,
