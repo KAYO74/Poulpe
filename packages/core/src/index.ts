@@ -1,5 +1,6 @@
 export * from './types';
 export * from './geometry';
+export * from './path';
 export * from './color';
 export * from './ids';
 export * from './factory';
@@ -8,3 +9,5 @@ export * from './text';
 export * from './editor';
 export * from './svg';
 export * from './file';
+export * from './resize';
+export * from './recolor';

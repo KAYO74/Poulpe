@@ -1,4 +1,4 @@
-import type { PoulpeDocument } from '@poulpe/core';
+import { migrate, type PoulpeDocument } from '@poulpe/core';
 import { editor, ui } from './store';
 
 /*
@@ -97,7 +97,17 @@ export async function startDrafts(): Promise<void> {
   if (draft?.doc?.artboards) {
     pendingDraft = draft;
     ui.set({ dialog: 'draft' });
-  } else resumeDrafts();
+  } else {
+    resumeDrafts();
+    showWelcome();
+  }
+}
+
+/** Écran d'accueil au lancement, sauf si un fichier est déjà ouvert ou si l'utilisateur l'a désactivé. */
+function showWelcome(): void {
+  const s = ui.get();
+  if (s.settings.showWelcome && !s.filePath && !s.dialog && !editor.getState().dirty)
+    ui.set({ dialog: 'new' });
 }
 
 let pendingDraft: Draft | null = null;
@@ -116,7 +126,7 @@ export function restoreDraft(): void {
   const d = pendingDraft;
   pendingDraft = null;
   if (d) {
-    editor.load(d.doc, { unsaved: true });
+    editor.load(migrate({ ...d.doc } as unknown as Record<string, unknown>), { unsaved: true });
     ui.set({ filePath: d.filePath });
     requestAnimationFrame(() => window.dispatchEvent(new Event('poulpe:fit')));
   }
@@ -128,4 +138,5 @@ export function discardDraft(): void {
   pendingDraft = null;
   ui.set({ dialog: null });
   void clearDraft().then(resumeDrafts);
+  showWelcome();
 }

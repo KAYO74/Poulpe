@@ -19,6 +19,7 @@ const TYPE_ICON: Record<SceneNode['type'], IconName> = {
   polygon: 'polygon',
   star: 'star',
   line: 'line',
+  path: 'path',
   text: 'text',
   image: 'image',
   group: 'folder',
