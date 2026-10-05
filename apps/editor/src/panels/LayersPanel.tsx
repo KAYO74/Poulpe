@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import {
   BLEND_MODES,
   findNode,
@@ -7,11 +7,15 @@ import {
   type BlendMode,
   type SceneNode,
 } from '@poulpe/core';
-import { updateSelected } from '../actions';
+import { deleteSelection, updateSelected } from '../actions';
+import { AdjustmentMenu } from '../components/AdjustmentMenu';
+import { COMMANDS } from '../commands';
+import { toggleMaskEdit } from '../photo/photoActions';
+import { images } from '../photo/pixels';
 import { NumberField, Select } from '../components/fields';
 import { Icon, type IconName } from '../components/Icon';
 import { useT } from '../i18n';
-import { editor, useEditor } from '../store';
+import { editor, ui, useEditor, useUi } from '../store';
 
 const TYPE_ICON: Record<SceneNode['type'], IconName> = {
   rect: 'rect',
@@ -23,7 +27,59 @@ const TYPE_ICON: Record<SceneNode['type'], IconName> = {
   text: 'text',
   image: 'image',
   group: 'folder',
+  adjustment: 'adjust',
 };
+
+/** Vignette d'un masque de calque : blanc = visible, noir = caché. */
+function MaskThumb({ node, active, onClick }: { node: SceneNode; active: boolean; onClick: () => void }) {
+  const t = useT();
+  const ref = useRef<HTMLCanvasElement>(null);
+  const { doc } = useEditor();
+  const mask = node.mask!;
+  useEffect(() => {
+    const c = ref.current;
+    if (!c) return;
+    const ctx = c.getContext('2d')!;
+    const draw = () => {
+      ctx.globalCompositeOperation = 'source-over';
+      ctx.fillStyle = '#000';
+      ctx.fillRect(0, 0, c.width, c.height);
+      const img = images().get(doc, mask.assetId);
+      if (!img) return false;
+      const tmp = document.createElement('canvas');
+      tmp.width = c.width;
+      tmp.height = c.height;
+      const tc = tmp.getContext('2d')!;
+      tc.drawImage(img, 0, 0, c.width, c.height);
+      tc.globalCompositeOperation = 'source-in';
+      tc.fillStyle = '#fff';
+      tc.fillRect(0, 0, c.width, c.height);
+      ctx.drawImage(tmp, 0, 0);
+      return true;
+    };
+    if (!draw()) {
+      const id = setTimeout(draw, 300);
+      return () => clearTimeout(id);
+    }
+  }, [doc, mask.assetId]);
+  return (
+    <button
+      className={`mask-thumb${active ? ' on' : ''}${mask.enabled ? '' : ' off'}`}
+      title={t('layers.mask')}
+      aria-label={t('layers.mask')}
+      aria-pressed={active}
+      data-testid={`mask-${node.id}`}
+      onClick={(e) => {
+        e.stopPropagation();
+        editor.select([node.id]);
+        toggleMaskEdit(node.id);
+      }}
+      onDoubleClick={(e) => e.stopPropagation()}
+    >
+      <canvas ref={ref} width={20} height={14} onClick={onClick} />
+    </button>
+  );
+}
 
 type Drop = { parentId: string; index: number } | null;
 
@@ -34,6 +90,8 @@ export function LayersPanel() {
   const [drag, setDrag] = useState<string | null>(null);
   const [drop, setDrop] = useState<Drop>(null);
   const [renaming, setRenaming] = useState<string | null>(null);
+  const maskEditId = useUi((s) => s.maskEditId);
+  const persona = useUi((s) => s.persona);
   const first = selection.length ? findNode(doc, selection[0])?.node : null;
 
   const toggleCollapse = (id: string) =>
@@ -116,6 +174,7 @@ export function LayersPanel() {
               <span className="layer-icon">
                 <Icon name={n.type === 'group' && n.clip ? 'mask' : TYPE_ICON[n.type]} size={14} />
               </span>
+              {n.mask && <MaskThumb node={n} active={maskEditId === n.id} onClick={() => {}} />}
               {renaming === n.id ? (
                 <input
                   className="rename"
@@ -223,6 +282,42 @@ export function LayersPanel() {
       <ul className="layer-tree" role="tree" aria-label={t('studio.layers')}>
         {[...doc.artboards].reverse().map(artboard)}
       </ul>
+      {persona === 'photo' && (
+        <div className="layer-actions">
+          <button
+            className="ib small"
+            title={t('layer.newPixel')}
+            aria-label={t('layer.newPixel')}
+            onClick={() => COMMANDS['layer.newPixel'].run()}
+          >
+            <Icon name="pixelLayer" size={14} />
+          </button>
+          <button
+            className="ib small"
+            title={t('layer.addMask')}
+            aria-label={t('layer.addMask')}
+            disabled={!COMMANDS['layer.addMask'].enabled()}
+            onClick={() => COMMANDS['layer.addMask'].run()}
+          >
+            <Icon name="addMask" size={14} />
+          </button>
+          <AdjustmentMenu small />
+          <span className="spacer" />
+          <button
+            className="ib small"
+            title={t('edit.delete')}
+            aria-label={t('edit.delete')}
+            disabled={!selection.length}
+            onClick={() => {
+              if (ui.get().maskEditId && selection.includes(ui.get().maskEditId!))
+                ui.set({ maskEditId: null });
+              deleteSelection();
+            }}
+          >
+            <Icon name="trash" size={14} />
+          </button>
+        </div>
+      )}
     </div>
   );
 }

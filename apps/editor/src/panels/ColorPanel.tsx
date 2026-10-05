@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { findNode, rgbaToCss, sampleStops, type GradientStop, type Paint } from '@poulpe/core';
+import { findNode, isStyled, rgbaToCss, sampleStops, type GradientStop, type Paint } from '@poulpe/core';
 import { addSwatch, removeSwatch, setPaint } from '../actions';
 import { NumberField, paintPreview } from '../components/fields';
 import { Icon } from '../components/Icon';
@@ -18,13 +18,18 @@ export function useCurrentPaint(): { paint: Paint; target: 'fill' | 'stroke'; ha
   const { doc, selection } = useEditor();
   const target = useUi((s) => s.colorTarget);
   const defaults = useUi((s) => s.defaults);
+  const persona = useUi((s) => s.persona);
+  const brushColor = useUi((s) => s.brushColor);
   useTextSelection();
+  // Persona Photo : le panneau règle la couleur du pinceau.
+  if (persona === 'photo')
+    return { paint: { type: 'solid', color: brushColor }, target: 'fill', hasSelection: false };
   const editing = editingStyle();
   if (editing?.color && target === 'fill')
     return { paint: { type: 'solid', color: editing.color }, target, hasSelection: true };
   let node = selection.length ? findNode(doc, selection[0])?.node : null;
   while (node?.type === 'group') node = node.children[node.children.length - 1];
-  if (node && node.type !== 'image') {
+  if (node && isStyled(node)) {
     return { paint: target === 'fill' ? node.fill : node.stroke.paint, target, hasSelection: true };
   }
   return { paint: target === 'fill' ? defaults.fill : defaults.stroke.paint, target, hasSelection: false };
@@ -32,6 +37,11 @@ export function useCurrentPaint(): { paint: Paint; target: 'fill' | 'stroke'; ha
 
 /** Applique une peinture ; pendant un glissement, un seul pas d'historique pour tout le geste. */
 export function applyPaint(target: 'fill' | 'stroke', paint: Paint, phase: Phase): void {
+  if (ui.get().persona === 'photo') {
+    if (paint.type === 'solid') ui.set({ brushColor: paint.color });
+    if (paint.type === 'solid' && (phase === 'end' || phase === 'set')) pushRecentColor(paint.color);
+    return;
+  }
   // Pendant l'édition d'un texte, la session d'édition forme déjà un seul pas d'historique.
   const live = editor.selection.length > 0 && !isEditingText();
   if (live && phase === 'start') editor.begin();

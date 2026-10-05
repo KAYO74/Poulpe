@@ -1,5 +1,5 @@
 import { nodeBounds, type Box } from './geometry';
-import { scaleNode, translateNode } from './tree';
+import { isStyled, scaleNode, translateNode } from './tree';
 import type { Artboard, SceneNode } from './types';
 
 /*
@@ -134,7 +134,7 @@ export function resizeArtboard(ab: Artboard, width: number, height: number): voi
 /** Épaisseurs de contour et arrondis suivent la mise à l'échelle. */
 function scaleDetails(node: SceneNode, k: number): void {
   if (node.type === 'group') return node.children.forEach((c) => scaleDetails(c, k));
-  if (node.type === 'image') return;
+  if (!isStyled(node)) return;
   node.stroke = { ...node.stroke, width: node.stroke.width * k };
   if (node.type === 'rect') node.cornerRadius *= k;
 }

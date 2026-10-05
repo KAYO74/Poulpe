@@ -622,8 +622,13 @@ svg.i {
   padding: 4px 6px 0;
   border-bottom: 1px solid var(--line);
   flex: none;
+  /* Beaucoup d'onglets (Persona Photo) : ils défilent au lieu d'être coupés. */
+  overflow-x: auto;
+  scrollbar-width: none;
 }
 .studio-tab {
+  flex: none;
+  white-space: nowrap;
   padding: 6px 8px;
   color: var(--muted);
   border-bottom: 2px solid transparent;
@@ -1390,4 +1395,159 @@ kbd {
 .preset-grid.compact .preset-shape {
   width: 28px;
   max-height: 36px;
+}
+
+/* ——— Persona Photo ——— */
+.pslider {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+.pslider input[type='range'] {
+  width: 90px;
+  accent-color: var(--accent);
+}
+.panel-body .pslider {
+  display: grid;
+  grid-template-columns: 92px 1fr auto;
+}
+.panel-body .pslider input[type='range'] {
+  width: 100%;
+}
+.seg {
+  display: inline-flex;
+  gap: 2px;
+  background: var(--input);
+  border-radius: 6px;
+  padding: 2px;
+}
+.mask-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--accent);
+  font-weight: 600;
+}
+.mask-thumb {
+  display: grid;
+  place-items: center;
+  padding: 1px;
+  border-radius: 3px;
+  border: 1px solid var(--line-2);
+  flex: none;
+}
+.mask-thumb canvas {
+  display: block;
+  width: 20px;
+  height: 14px;
+}
+.mask-thumb.on {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 1px var(--accent);
+}
+.mask-thumb.off {
+  opacity: 0.4;
+  background: repeating-linear-gradient(45deg, transparent 0 3px, #e5484d 3px 4px);
+}
+.layer-actions {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  border-top: 1px solid var(--line);
+  padding-top: 4px;
+  margin-top: 4px;
+}
+.adjust-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.adjust-title {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.histogram {
+  width: 100%;
+  height: auto;
+  background: var(--input);
+  border-radius: 6px;
+  display: block;
+}
+.curves {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.curves svg {
+  width: 100%;
+  height: auto;
+  max-width: 260px;
+  touch-action: none;
+  cursor: crosshair;
+}
+.curves .histogram {
+  max-width: 260px;
+}
+.curves-bg {
+  fill: var(--input);
+}
+.curves-grid line,
+.curves-diag {
+  stroke: var(--line);
+  stroke-width: 1;
+}
+.curves-diag {
+  stroke-dasharray: 3 3;
+}
+.curves-pt {
+  fill: var(--fg);
+  stroke: var(--win);
+  stroke-width: 1.5;
+}
+fieldset.tone {
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  padding: 6px 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+fieldset.tone legend {
+  color: var(--muted);
+  padding: 0 4px;
+}
+.brush-preview {
+  width: 100%;
+  height: auto;
+  background: var(--checker);
+  border-radius: 6px;
+}
+.brush-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.busy {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--fg);
+  font-weight: 600;
+}
+.busy .progress {
+  width: 120px;
+  height: 6px;
+  border-radius: 3px;
+  background: var(--input);
+  overflow: hidden;
+}
+.busy .progress span {
+  display: block;
+  height: 100%;
+  background: var(--accent);
+  transition: width 0.2s;
+}
+.modal footer .spacer {
+  flex: 1;
 }
