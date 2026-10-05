@@ -100,7 +100,7 @@ pnpm desktop:dev    # appli de bureau (Rust et dépendances Tauri requis)
 | `apps/editor`     | Interface façon Affinity (React + Vite)                                 |
 | `apps/desktop`    | Appli de bureau Tauri 2                                                 |
 
-Pour publier une nouvelle version, on change le numéro dans `apps/desktop/src-tauri/tauri.conf.json` puis on pousse une étiquette (`git tag v0.2.0 && git push origin v0.2.0`) : GitHub fabrique les installeurs et les publie, et les boutons de téléchargement ci-dessus pointent tout seuls vers la nouvelle version.
+Pour publier une nouvelle version, on change le numéro dans `apps/desktop/src-tauri/tauri.conf.json`, puis on ouvre l'onglet **Actions > Installeurs de bureau > Run workflow** et on indique l'étiquette (par exemple `v0.2.0`) ; pousser l'étiquette avec git marche aussi. GitHub fabrique les installeurs et les publie, et les boutons de téléchargement ci-dessus pointent tout seuls vers la nouvelle version.
 
 ### Documentation
 
