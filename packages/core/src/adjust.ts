@@ -1,4 +1,5 @@
 import { parseColor, sampleStops } from './color';
+import { applyLut, decodeLut, encodeLut, lutFromFunction } from './lut';
 import type { Adjustment, AdjustmentKind } from './types';
 
 /*
@@ -99,6 +100,8 @@ export function defaultAdjustment(kind: AdjustmentKind): Adjustment {
       return { kind, amount: 50, size: 50, softness: 50 };
     case 'pixelate':
       return { kind, size: 16 };
+    case 'lut':
+      return { kind, name: '', size: 2, data: encodeLut(lutFromFunction(2, (r, g, b) => [r, g, b])) };
   }
 }
 
@@ -349,6 +352,9 @@ export function applyAdjustment(px: Pixels, adj: Adjustment, opts: AdjustOptions
     return;
   }
   switch (adj.kind) {
+    case 'lut':
+      applyLut(px, decodeLut(adj.size, adj.data));
+      return;
     case 'hsl': {
       const dh = adj.hue / 360,
         ds = adj.saturation / 100,
@@ -603,7 +609,9 @@ export function isNeutral(adj: Adjustment): boolean {
     case 'brightnessContrast':
       return adj.brightness === 0 && adj.contrast === 0;
     case 'levels':
-      return adj.black === 0 && adj.white === 255 && adj.gamma === 1 && adj.outBlack === 0 && adj.outWhite === 255;
+      return (
+        adj.black === 0 && adj.white === 255 && adj.gamma === 1 && adj.outBlack === 0 && adj.outWhite === 255
+      );
     case 'hsl':
       return adj.hue === 0 && adj.saturation === 0 && adj.lightness === 0;
     case 'exposure':

@@ -790,8 +790,18 @@ function applyAdjustmentLayer(
 ): void {
   const { width: w, height: h } = buf.canvas;
   const src = buf.ctx.getImageData(0, 0, w, h);
-  const adjusted = new Uint8ClampedArray(src.data);
+  let adjusted = new Uint8ClampedArray(src.data);
   applyAdjustment({ data: adjusted, width: w, height: h }, node.adjustment, { scale, origin, frame });
+  if (node.blendMode !== 'normal') {
+    // Mode de fusion : l'image réglée est fondue sur l'image d'origine, comme un calque.
+    const top = makeCanvas(w, h);
+    top.ctx.putImageData(new ImageData(adjusted, w, h), 0, 0);
+    const mixed = makeCanvas(w, h);
+    mixed.ctx.putImageData(src, 0, 0);
+    mixed.ctx.globalCompositeOperation = compositeOp(node.blendMode);
+    mixed.ctx.drawImage(top.canvas, 0, 0);
+    adjusted = mixed.ctx.getImageData(0, 0, w, h).data;
+  }
   const out = src.data;
   const op = Math.max(0, Math.min(1, node.opacity));
   const maskImg = node.mask?.enabled ? opts.images.get(doc, node.mask.assetId) : null;

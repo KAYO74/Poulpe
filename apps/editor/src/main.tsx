@@ -11,6 +11,7 @@ import * as vector from './vectorActions';
 import * as layout from './layoutActions';
 import * as photo from './photo/photoActions';
 import * as pixelSelection from './photo/selection';
+import * as retouch from './photo/retouchActions';
 import { normalizeTexts } from './normalize';
 import { editor, ui } from './store';
 import './styles.css';
@@ -50,5 +51,5 @@ if (isDesktop()) {
   vector,
   layout,
   controller: getController,
-  photo: { ...photo, ...pixelSelection, openPhotoBytes },
+  photo: { ...photo, ...pixelSelection, ...retouch, openPhotoBytes },
 };

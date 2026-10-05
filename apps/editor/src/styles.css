@@ -452,6 +452,13 @@ svg.i {
   padding-bottom: 6px;
   border-bottom: 1px solid var(--line);
 }
+.toolcol.two {
+  width: 78px;
+}
+.toolcol.two .toolgroup {
+  display: grid;
+  grid-template-columns: repeat(2, 32px);
+}
 .tool {
   width: 32px;
   height: 32px;
@@ -1693,4 +1700,21 @@ fieldset.tone legend {
   gap: 4px 12px;
   max-height: 180px;
   overflow: auto;
+}
+
+.anchor-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 18px);
+  gap: 2px;
+}
+.anchor-cell {
+  width: 18px;
+  height: 18px;
+  border-radius: 3px;
+  border: 1px solid var(--line);
+  background: var(--panel-2);
+}
+.anchor-cell[aria-pressed='true'] {
+  background: var(--accent);
+  border-color: var(--accent);
 }
