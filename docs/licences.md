@@ -2,7 +2,7 @@
 
 Poulpe est construit avec l'intelligence artificielle : Fred décrit ce qu'il veut, Claude (Anthropic) écrit le code, la documentation et les images. Cette page dit d'où vient chaque partie et sous quelle licence, pour qu'on puisse vérifier qu'aucun élément n'est repris d'un logiciel propriétaire comme Photoshop, Illustrator ou Affinity.
 
-Dernière vérification : 5 octobre 2026, sur la version 0.5.
+Dernière vérification : 5 octobre 2026, sur la version 1.0.
 
 ## Le code de Poulpe
 
@@ -11,15 +11,21 @@ Tout le code des dossiers `packages/` et `apps/` a été écrit pour Poulpe et e
 - **Formats de fichiers.** L'ouverture et l'export des fichiers Photoshop (`.psd`) passent par la bibliothèque libre [ag-psd](https://github.com/Agamnentzar/ag-psd) (MIT), et l'ouverture des PDF et des fichiers Illustrator par [pdf.js](https://github.com/mozilla/pdf.js) (Apache-2.0). Les PDF d'impression suivent les normes publiques PDF/X-4 et XMP.
 - **Couleurs d'impression.** Le profil CMJN est calculé par Poulpe lui-même (`packages/core/src/cmyk.ts` et `icc.ts`) ; le profil officiel FOGRA39, qui ne peut pas être redistribué, n'est pas inclus, seulement nommé.
 - **Gomme magique.** Elle reconstruit l'image à partir de la photo elle-même, avec un algorithme écrit pour Poulpe et sans modèle d'IA.
+- **Vectorisation.** L'algorithme est écrit pour Poulpe à partir de méthodes publiées (k-moyennes, suivi des bords, courbes de Schneider). Potrace, sous licence GPL incompatible, n'est pas utilisé.
+- **Détourage par IA.** Le modèle U²-Net « silueta » (Apache-2.0 pour U²-Net, MIT pour la version du projet rembg) est téléchargé à la compilation, avec son empreinte vérifiée, et exécuté par ONNX Runtime (MIT) sur l'ordinateur.
+- **Extensions.** Elles tournent dans QuickJS (MIT).
+- **Looks LUT.** Les six looks sont calculés par Poulpe ; les fichiers `.cube` sont un format public.
+
+Les mentions de ces composants sont livrées avec l'appli dans `LICENCES-TIERS.txt`.
 
 ## Bibliothèques utilisées
 
 Toutes sont sous licences libres compatibles avec la MPL-2.0.
 
-| Partie                                                | Nombre | Licences                                                                                                                                                    |
-| ----------------------------------------------------- | ------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Interface et moteur (paquets npm livrés dans l'appli) | 93     | MIT pour la plupart, Apache-2.0 (pdf.js), MIT ou Apache-2.0 (Tauri), MPL-2.0 ou Apache-2.0 (DOMPurify), MIT et Zlib (pako), 0BSD (tslib), OFL-1.1 (polices) |
-| Appli de bureau (bibliothèques Rust)                  | 439    | MIT, Apache-2.0, BSD, ISC, Zlib, Unicode-3.0, Unlicense, MPL-2.0                                                                                            |
+| Partie                                                | Nombre | Licences                                                                                                                                                                       |
+| ----------------------------------------------------- | ------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| Interface et moteur (paquets npm livrés dans l'appli) | 116    | MIT pour la plupart, BSD-3-Clause, Apache-2.0 (pdf.js), MIT ou Apache-2.0 (Tauri), MPL-2.0 ou Apache-2.0 (DOMPurify), MIT et Zlib (pako), ISC, 0BSD (tslib), OFL-1.1 (polices) |
+| Appli de bureau (bibliothèques Rust)                  | 481    | MIT, Apache-2.0, BSD, ISC, Zlib, Unicode-3.0, Unlicense, MPL-2.0, CDLA-Permissive-2.0                                                                                          |
 
 Pour refaire la vérification : `pnpm licenses list --prod` et, dans `apps/desktop/src-tauri`, `cargo metadata --format-version 1`.
 
