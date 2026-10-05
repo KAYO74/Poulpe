@@ -1,7 +1,15 @@
 /** Icônes au trait, 16 × 16, dessinées pour Poulpe. */
 const PATHS = {
   select: 'M4 2.5l8.5 6-3.8.7 2.1 4.1-1.6.8-2.1-4.1L4 12.6z',
-  direct: 'M4 2.5l8.5 6-3.8.7 2.1 4.1-1.6.8-2.1-4.1L4 12.6z M4 2.5',
+  direct: 'M5 2.5l7.5 5.5-3.4.6 1.9 3.7-1.4.7-1.9-3.7L5 11.7z M1.5 12.5h3v3h-3z',
+  pen: 'M8 1.8l4.2 5.6-2.2 6.1H6l-2.2-6.1z M8 1.8v6.4 M8 9.6a1.2 1.2 0 1 0 0-.1 M5.5 15h5',
+  pencil: 'M2.5 13.5l.7-3L11 2.7l2.3 2.3-7.8 7.8z M9.5 4.2l2.3 2.3 M2.5 13.5l3-.7',
+  unite: 'M2.5 2.5h7v3.5h3.5v7.5h-7.5v-3.5H2.5z',
+  subtract: 'M2.5 2.5h7v3.5H6v4H2.5z M7.5 7.5h6v6h-6z',
+  intersect: 'M2.5 2.5h7v7h-7z M6.5 6.5h7v7h-7z M6.5 6.5h3v3h-3z',
+  exclude: 'M2.5 2.5h7v4h-3v3h-4z M9.5 6.5h4v7h-7v-4h3z',
+  divide: 'M2.5 2.5h7v7h-7z M6.5 6.5h7v7h-7z',
+  effects: 'M3 4.5h8v8H3z M5 2.5h8v8 M13 2.5',
   artboard: 'M4 1.5v13 M12 1.5v13 M1.5 4h13 M1.5 12h13',
   rect: 'M2.5 3.5h11v9h-11z',
   ellipse: 'M8 3c3.3 0 5.5 2.2 5.5 5S11.3 13 8 13 2.5 10.8 2.5 8 4.7 3 8 3z',

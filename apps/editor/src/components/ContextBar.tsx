@@ -2,7 +2,9 @@ import { FORMAT_PRESETS, findArtboard, findNode, localToWorld, type SceneNode } 
 import { setPaint, setTextStyle, updateArtboard, updateSelected } from '../actions';
 import { useFonts } from '../fonts';
 import { useT } from '../i18n';
-import { ui, useEditor, useUi, type ToolId } from '../store';
+import { editor, ui, useEditor, useUi, type ToolId } from '../store';
+import { getController } from './Viewport';
+import { convertToCurves, removeTextFromPath, setTextPathOffset } from '../vectorActions';
 import { NumberField, Select, paintPreview } from './fields';
 
 const SHAPES: ToolId[] = ['rect', 'ellipse', 'polygon', 'star', 'line'];
@@ -61,6 +63,7 @@ export function ContextBar() {
   const tool = useUi((s) => s.tool);
   const defaults = useUi((s) => s.defaults);
   const cropId = useUi((s) => s.cropId);
+  const smoothing = useUi((s) => s.pencilSmoothing);
   const fonts = useFonts();
   const node = selection.length === 1 ? (findNode(doc, selection[0])?.node ?? null) : null;
   const ab = findArtboard(doc, activeArtboardId);
@@ -68,7 +71,28 @@ export function ContextBar() {
   const toolName = t(`tool.${tool}`);
   let content: React.ReactNode;
 
-  if (tool === 'artboard' && ab) {
+  if (tool === 'pen' || tool === 'pencil') {
+    content = (
+      <>
+        <PaintSwatches node={null} />
+        {tool === 'pencil' && (
+          <label className="field">
+            <span className="field-label">{t('ctx.smoothing')}</span>
+            <input
+              type="range"
+              min={0}
+              max={100}
+              value={smoothing}
+              aria-label={t('ctx.smoothing')}
+              data-testid="pencil-smoothing"
+              onChange={(e) => ui.set({ pencilSmoothing: Number(e.target.value) })}
+            />
+          </label>
+        )}
+        <span className="ctx-dim">{t(tool === 'pen' ? 'ctx.penHint' : 'ctx.pencilHint')}</span>
+      </>
+    );
+  } else if (tool === 'artboard' && ab) {
     const preset = FORMAT_PRESETS.find((f) => f.width === ab.width && f.height === ab.height)?.id ?? 'custom';
     content = (
       <>
@@ -237,6 +261,38 @@ export function ContextBar() {
             />
           </>
         )}
+        {tool === 'direct' && node?.type === 'path' && !node.locked && <NodeButtons />}
+        {tool === 'direct' &&
+          node &&
+          node.type !== 'path' &&
+          node.type !== 'image' &&
+          node.type !== 'group' && (
+            <button className="btn small" data-testid="convert-curves" onClick={() => void convertToCurves()}>
+              {t('layer.convertToCurves')}
+            </button>
+          )}
+        {shape?.type === 'text' && shape.path && (
+          <>
+            <label className="field">
+              <span className="field-label">{t('ctx.pathOffset')}</span>
+              <input
+                type="range"
+                min={0}
+                max={100}
+                step={0.5}
+                value={Math.round(shape.path.offset * 1000) / 10}
+                aria-label={t('ctx.pathOffset')}
+                data-testid="path-offset"
+                onChange={(e) => setTextPathOffset(Number(e.target.value) / 100, true)}
+                onPointerUp={() => editor.commit('history.textPath')}
+                onKeyUp={() => editor.commit('history.textPath')}
+              />
+            </label>
+            <button className="btn small" onClick={removeTextFromPath}>
+              {t('text.offPath')}
+            </button>
+          </>
+        )}
         {kind === 'text' && (
           <>
             <Select
@@ -267,5 +323,46 @@ export function ContextBar() {
       <b className="ctx-tool">{toolName}</b>
       {content}
     </div>
+  );
+}
+
+/** Boutons de l'outil Nœud : type des nœuds sélectionnés, suppression, fermeture du tracé. */
+function NodeButtons() {
+  const t = useT();
+  const keys = useUi((s) => s.nodeSelection);
+  const run = (kind: 'sharp' | 'smooth' | 'delete' | 'toggleClosed') =>
+    getController()?.paths.editNodes(kind);
+  return (
+    <>
+      <span className="ctx-label">{t('ctx.nodes')}</span>
+      <button
+        className="btn small"
+        disabled={!keys.length}
+        onClick={() => run('sharp')}
+        data-testid="node-sharp"
+      >
+        {t('ctx.nodeSharp')}
+      </button>
+      <button
+        className="btn small"
+        disabled={!keys.length}
+        onClick={() => run('smooth')}
+        data-testid="node-smooth"
+      >
+        {t('ctx.nodeSmooth')}
+      </button>
+      <button
+        className="btn small"
+        disabled={!keys.length}
+        onClick={() => run('delete')}
+        data-testid="node-delete"
+      >
+        {t('ctx.nodeDelete')}
+      </button>
+      <button className="btn small" onClick={() => run('toggleClosed')} data-testid="node-close">
+        {t('ctx.nodeClose')}
+      </button>
+      <span className="ctx-dim">{t('ctx.nodeHint')}</span>
+    </>
   );
 }

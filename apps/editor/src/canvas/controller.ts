@@ -53,6 +53,7 @@ import {
   type SnapGuide,
   type SnapLines,
 } from './snapping';
+import { PathTools } from './pathTools';
 import { beginTextEdit, endTextEdit, isEditingText, textSelection } from './textEdit';
 
 type HandleId = 'nw' | 'n' | 'ne' | 'e' | 'se' | 's' | 'sw' | 'w';
@@ -109,6 +110,8 @@ const SHAPE_TOOLS: ToolId[] = ['rect', 'ellipse', 'polygon', 'star', 'line'];
 
 export class CanvasController {
   readonly images: ImageCache;
+  /** Plume, crayon et outil Nœud. */
+  readonly paths: PathTools;
   private ctx: CanvasRenderingContext2D;
   private dpr = 1;
   width = 0;
@@ -128,9 +131,19 @@ export class CanvasController {
   ) {
     this.ctx = canvas.getContext('2d')!;
     this.images = new ImageCache(() => this.requestDraw());
+    this.paths = new PathTools(this);
     this.readColors();
+    let lastSelection = editor.selection;
     this.unsubscribe.push(
       editor.subscribe(() => {
+        // Les nœuds sélectionnés appartiennent au tracé sélectionné.
+        if (editor.selection !== lastSelection) {
+          const same =
+            editor.selection.length === lastSelection.length &&
+            editor.selection.every((id, i) => id === lastSelection[i]);
+          lastSelection = editor.selection;
+          if (!same && ui.get().nodeSelection.length) ui.set({ nodeSelection: [] });
+        }
         // Le recadrage s'arrête quand l'image n'est plus la sélection.
         const crop = ui.get().cropId;
         if (crop && (editor.selection.length !== 1 || editor.selection[0] !== crop)) ui.set({ cropId: null });
@@ -159,6 +172,7 @@ export class CanvasController {
   }
 
   dispose(): void {
+    this.paths.dispose();
     this.unsubscribe.forEach((u) => u());
     const c = this.canvas;
     c.removeEventListener('pointerdown', this.onPointerDown);
@@ -293,6 +307,8 @@ export class CanvasController {
   }
 
   private hitHandle(sx: number, sy: number): HandleId | 'rotate' | null {
+    // Outil Nœud sur un tracé : pas de poignées de transformation, on modifie les nœuds.
+    if (this.paths.editablePath()) return null;
     const f = this.selectionFrame();
     if (!f || this.anySelectedLocked()) return null;
     const rp = this.toScreen(this.rotateHandle(f));
@@ -348,11 +364,11 @@ export class CanvasController {
     return null;
   }
 
-  private snapThreshold(): number {
+  snapThreshold(): number {
     return SNAP_PX / this.view.zoom;
   }
 
-  private gridStep(): number | null {
+  gridStep(): number | null {
     return ui.get().settings.grid ? this.gridSpacing() : null;
   }
 
@@ -363,7 +379,7 @@ export class CanvasController {
     return 1000;
   }
 
-  private snapping(): boolean {
+  snapping(): boolean {
     return ui.get().settings.snapping;
   }
 
@@ -403,6 +419,10 @@ export class CanvasController {
       const hex = '#' + [px[0], px[1], px[2]].map((c) => c.toString(16).padStart(2, '0')).join('');
       setPaint(ui.get().colorTarget, { type: 'solid', color: hex });
       pushRecentColor(hex);
+      return;
+    }
+    if (this.paths.pointerDown(e, p, { x: sx, y: sy })) {
+      this.requestDraw();
       return;
     }
     if (tool === 'image') {
@@ -567,6 +587,10 @@ export class CanvasController {
     const p = this.toWorld(sx, sy);
     this.lastPointer = { x: sx, y: sy };
     ui.set({ cursor: { x: Math.round(p.x), y: Math.round(p.y) } });
+    if (!this.gesture && this.paths.pointerMove(e, p, { x: sx, y: sy })) {
+      if (this.effectiveTool() === 'direct') this.canvas.style.cursor = 'default';
+      return;
+    }
     const g = this.gesture;
     if (!g) {
       this.updateHover(p, sx, sy);
@@ -977,6 +1001,10 @@ export class CanvasController {
     this.gesture = null;
     this.guides = [];
     if (this.canvas.hasPointerCapture(e.pointerId)) this.canvas.releasePointerCapture(e.pointerId);
+    if (!g && this.paths.pointerUp()) {
+      this.requestDraw();
+      return;
+    }
     if (!g) return;
     const rect = this.canvas.getBoundingClientRect();
     const p = this.toWorld(e.clientX - rect.left, e.clientY - rect.top);
@@ -1072,6 +1100,7 @@ export class CanvasController {
   };
 
   private onPointerCancel = () => {
+    this.paths.pointerCancel();
     if (this.gesture && this.gesture.kind !== 'pan' && this.gesture.kind !== 'marquee') editor.cancel();
     this.gesture = null;
     this.guides = [];
@@ -1091,6 +1120,7 @@ export class CanvasController {
     if (tool !== 'select' && tool !== 'direct') return;
     const rect = this.canvas.getBoundingClientRect();
     const p = this.toWorld(e.clientX - rect.left, e.clientY - rect.top);
+    if (this.paths.doubleClick(p, { x: e.clientX - rect.left, y: e.clientY - rect.top })) return;
     const hit = this.hitTest(p, true);
     if (!hit) return;
     if (hit.type === 'text') {
@@ -1227,6 +1257,7 @@ export class CanvasController {
     if (crop) this.drawCropGhost(doc, crop);
     if (!editingTextId && (tool === 'select' || tool === 'direct' || SHAPE_TOOLS.includes(tool)))
       this.drawHandles();
+    this.paths.draw(ctx, this.colors.sel);
     const g = this.gesture;
     if (g?.kind === 'marquee' || g?.kind === 'artboardCreate') {
       const b = rectFrom(g.start, g.current);
@@ -1390,7 +1421,7 @@ export class CanvasController {
   private drawTextSelection(doc: PoulpeDocument, id: string) {
     const n = findNode(doc, id)?.node;
     const sel = textSelection();
-    if (n?.type !== 'text' || !sel) return;
+    if (n?.type !== 'text' || !sel || n.path) return;
     const ctx = this.ctx;
     const v = this.view;
     const layout = cachedLayout(n);
@@ -1420,6 +1451,7 @@ export class CanvasController {
   }
 
   private drawHandles() {
+    if (this.paths.editablePath()) return;
     const f = this.selectionFrame();
     if (!f) return;
     const ctx = this.ctx;

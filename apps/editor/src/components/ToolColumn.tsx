@@ -9,6 +9,7 @@ import { Icon, type IconName } from './Icon';
 
 const GROUPS: ToolId[][] = [
   ['select', 'direct', 'artboard'],
+  ['pen', 'pencil'],
   ['rect', 'ellipse', 'polygon', 'star', 'line'],
   ['text', 'image'],
   ['eyedropper', 'hand', 'zoom'],

@@ -261,7 +261,10 @@ const arrowCache = new WeakMap<SceneNode, Path2D | null>();
 
 /** Flèches d'un tracé ouvert, mémorisées tant que l'objet ne change pas. */
 function arrowPath(node: Exclude<SceneNode, { type: 'group' | 'image' | 'text' }>): Path2D | null {
-  if ((!node.stroke.start || node.stroke.start === 'none') && (!node.stroke.end || node.stroke.end === 'none'))
+  if (
+    (!node.stroke.start || node.stroke.start === 'none') &&
+    (!node.stroke.end || node.stroke.end === 'none')
+  )
     return null;
   if (Object.isFrozen(node) && arrowCache.has(node)) return arrowCache.get(node)!;
   const cmds = arrowPaths(shapePath(node), node.stroke);
@@ -449,11 +452,16 @@ function drawWithEffects(
   const out = makeCanvas(w, h);
   const o = out.ctx;
   for (const e of effects) {
-    if (e.type === 'dropShadow') castShadow(o, layer.canvas, e.color, e.x * scale, e.y * scale, e.blur * scale);
+    if (e.type === 'dropShadow')
+      castShadow(o, layer.canvas, e.color, e.x * scale, e.y * scale, e.blur * scale);
     else if (e.type === 'outerGlow') castShadow(o, layer.canvas, e.color, 0, 0, e.blur * scale);
   }
   const blur = effects.find((e) => e.type === 'blur');
-  o.drawImage(blur && blur.type === 'blur' ? blurred(layer.canvas, (blur.radius * scale) / 2) : layer.canvas, 0, 0);
+  o.drawImage(
+    blur && blur.type === 'blur' ? blurred(layer.canvas, (blur.radius * scale) / 2) : layer.canvas,
+    0,
+    0,
+  );
   const inner = effects.filter((e) => e.type === 'innerShadow' || e.type === 'innerGlow');
   if (inner.length) {
     // Inverse du calque : ce qui est hors de l'objet, dont l'ombre tombe à l'intérieur.

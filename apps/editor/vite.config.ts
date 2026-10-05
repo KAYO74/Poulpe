@@ -8,6 +8,8 @@ const pkg = JSON.parse(readFileSync(new URL('../../package.json', import.meta.ur
 export default defineConfig({
   base: './',
   plugins: [react()],
+  // Paper.js sans PaperScript (ni son analyseur JavaScript) : seule la géométrie nous sert.
+  resolve: { alias: [{ find: /^paper$/, replacement: 'paper/dist/paper-core.js' }] },
   define: { __APP_VERSION__: JSON.stringify(pkg.version) },
   clearScreen: false,
   server: { port: 5173, strictPort: true },
