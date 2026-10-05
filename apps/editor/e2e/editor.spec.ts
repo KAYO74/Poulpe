@@ -122,6 +122,7 @@ test('met une partie du texte en gras', async ({ page }) => {
   for (let i = 0; i < 4; i++) await page.keyboard.press('Shift+ArrowLeft');
   await page.getByRole('button', { name: 'Gras', exact: true }).click();
   // La saisie reprend dans le texte : la suite tapée garde le style du mot.
+  await expect(page.getByTestId('text-editor')).toBeFocused();
   await page.keyboard.press('End');
   await page.keyboard.type(' !');
   await page.keyboard.press('Escape');

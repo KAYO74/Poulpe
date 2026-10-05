@@ -167,12 +167,14 @@ export function applyEditingStyle(patch: Partial<TextStyle> & { color?: string }
     } else s.runs = applyRunStyle({ text: s.text, style: s.style, runs: s.runs }, sel.start, sel.end, run);
   }
   preview();
-  // Après un clic sur un bouton (gras, alignement…), la saisie reprend dans le texte.
-  // Différé : une touche Entrée qui valide un champ ne doit pas arriver dans le texte.
-  setTimeout(() => {
+  // Après un clic sur un bouton (gras, alignement…), la saisie reprend tout de suite dans le texte.
+  // Après un champ validé par Entrée, c'est différé, pour que la touche n'arrive pas dans le texte.
+  const refocus = () => {
     const active = document.activeElement as HTMLElement | null;
     if (session && (!active || active === document.body || active.tagName === 'BUTTON')) input?.focus();
-  }, 0);
+  };
+  if ((document.activeElement as HTMLElement | null)?.tagName === 'BUTTON') refocus();
+  else setTimeout(refocus, 0);
   window.dispatchEvent(new Event('poulpe:textselection'));
   return true;
 }
