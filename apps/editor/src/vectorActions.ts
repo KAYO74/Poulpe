@@ -130,9 +130,7 @@ export function canOutlineStroke(): boolean {
   const doc = editor.doc;
   return sel().some((id) => {
     const n = findNode(doc, id)?.node;
-    return (
-      !!n && isStyled(n) && n.type !== 'text' && n.stroke.paint.type !== 'none'
-    );
+    return !!n && isStyled(n) && n.type !== 'text' && n.stroke.paint.type !== 'none';
   });
 }
 

@@ -8,7 +8,7 @@ import * as V from './vectorActions';
 import { editor, setSettings, setTool, ui, type Persona, type ToolId } from './store';
 import * as P from './photo/photoActions';
 import { clearSelection, invertSelection, selectAll, selectFromLayer } from './photo/selection';
-import { images, selectedImage } from './photo/pixels';
+import { images, newPixelLayer, selectedImage } from './photo/pixels';
 import { openPhoto, setPersona } from './photo/persona';
 
 export interface Command {
@@ -106,7 +106,12 @@ export const COMMANDS = {
     run: clearSelection,
     enabled: photoSel,
   },
-  'select.invert': { label: 'select.invert', shortcut: 'Mod+Shift+I', persona: 'photo', run: invertSelection },
+  'select.invert': {
+    label: 'select.invert',
+    shortcut: 'Mod+Shift+I',
+    persona: 'photo',
+    run: invertSelection,
+  },
   'select.feather': {
     label: 'select.feather',
     run: () => ui.set({ dialog: 'selectionModify', selectionModify: 'feather' }),
@@ -152,9 +157,7 @@ export const COMMANDS = {
   'layer.newPixel': {
     label: 'layer.newPixel',
     shortcut: 'Mod+Shift+N',
-    run: () => {
-      import('./photo/pixels').then((m) => m.newPixelLayer());
-    },
+    run: () => void newPixelLayer(),
   },
   'layer.addMask': { label: 'layer.addMask', run: () => P.addMask(), enabled: P.canAddMask },
   'layer.editMask': {

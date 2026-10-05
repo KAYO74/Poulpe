@@ -54,7 +54,7 @@ import {
   type SnapLines,
 } from './snapping';
 import { PathTools } from './pathTools';
-import { PhotoTools, isPhotoTool } from '../photo/photoTools';
+import { PhotoTools } from '../photo/photoTools';
 import { beginTextEdit, endTextEdit, isEditingText, textSelection } from './textEdit';
 
 type HandleId = 'nw' | 'n' | 'ne' | 'e' | 'se' | 's' | 'sw' | 'w';

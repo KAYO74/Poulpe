@@ -79,7 +79,16 @@ function density(): number {
 function frame(): { box: Box; scale: number } | null {
   const ab = findArtboard(editor.doc, editor.getState().activeArtboardId) ?? editor.doc.artboards[0];
   if (!ab) return null;
-  if (current) return { box: { x: current.x, y: current.y, width: current.canvas.width / current.scale, height: current.canvas.height / current.scale }, scale: current.scale };
+  if (current)
+    return {
+      box: {
+        x: current.x,
+        y: current.y,
+        width: current.canvas.width / current.scale,
+        height: current.canvas.height / current.scale,
+      },
+      scale: current.scale,
+    };
   const scale = Math.min(density(), MAX_SIDE / Math.max(ab.width, ab.height));
   return { box: { x: ab.x, y: ab.y, width: ab.width, height: ab.height }, scale: Math.max(0.25, scale) };
 }
@@ -302,11 +311,7 @@ export function selectionOutline(): { lines: number[][]; toDoc: (x: number, y: n
  * La sélection dessinée dans un autre repère : `toTarget` passe des coordonnées du document à
  * celles de la toile cible (pixels d'un calque, de son masque…). Renvoie null sans sélection.
  */
-export function selectionIn(
-  width: number,
-  height: number,
-  toTarget: DOMMatrix,
-): HTMLCanvasElement | null {
+export function selectionIn(width: number, height: number, toTarget: DOMMatrix): HTMLCanvasElement | null {
   const m = current;
   if (!m) return null;
   const c = makeCanvas(width, height);

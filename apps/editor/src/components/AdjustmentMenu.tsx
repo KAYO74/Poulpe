@@ -20,14 +20,24 @@ export function AdjustmentMenu({ small }: { small?: boolean }) {
       <Menu.Portal>
         <Menu.Content className="menu" align="start" sideOffset={4}>
           {COLOR_ADJUSTMENTS.map((k) => (
-            <Menu.Item key={k} className="menu-item" onSelect={() => addAdjustment(k)} data-testid={`adjustment-${k}`}>
+            <Menu.Item
+              key={k}
+              className="menu-item"
+              onSelect={() => addAdjustment(k)}
+              data-testid={`adjustment-${k}`}
+            >
               <span className="menu-check" />
               <span className="menu-label">{t(`adjust.${k}`)}</span>
             </Menu.Item>
           ))}
           <Menu.Separator className="menu-sep" />
           {LIVE_FILTERS.map((k) => (
-            <Menu.Item key={k} className="menu-item" onSelect={() => addAdjustment(k)} data-testid={`adjustment-${k}`}>
+            <Menu.Item
+              key={k}
+              className="menu-item"
+              onSelect={() => addAdjustment(k)}
+              data-testid={`adjustment-${k}`}
+            >
               <span className="menu-check" />
               <span className="menu-label">{t(`adjust.${k}`)}</span>
             </Menu.Item>

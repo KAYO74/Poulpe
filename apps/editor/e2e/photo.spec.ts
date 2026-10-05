@@ -161,7 +161,6 @@ test('ajoute un calque de réglage et un masque', async ({ page }) => {
   list = await nodes(page);
   expect(list[0].mask?.enabled).toBe(true);
   await expect(page.getByTestId(`mask-${list[0].id}`)).toBeVisible();
-
 });
 
 test('enregistre et rouvre une retouche (pixels, masque, réglage), puis exporte', async ({ page }, info) => {
@@ -180,7 +179,10 @@ test('enregistre et rouvre une retouche (pixels, masque, réglage), puis exporte
   for (const kind of ['png', 'svg', 'pdf'] as const) {
     await page.getByRole('button', { name: 'Exporter', exact: true }).first().click();
     await page.getByTestId(`export-${kind}`).click();
-    const [download] = await Promise.all([page.waitForEvent('download'), page.getByTestId('export-go').click()]);
+    const [download] = await Promise.all([
+      page.waitForEvent('download'),
+      page.getByTestId('export-go').click(),
+    ]);
     const path = info.outputPath(`photo.${kind}`);
     await download.saveAs(path);
     expect(readFileSync(path).length).toBeGreaterThan(200);
@@ -195,9 +197,13 @@ test('enregistre et rouvre une retouche (pixels, masque, réglage), puis exporte
   const chooser = page.waitForEvent('filechooser');
   await page.keyboard.press('Control+o');
   // (Fichier passé par son contenu : Playwright ne transmet pas les chemins accentués.)
-  await (await chooser).setFiles({ name: 'photo.poulpe', mimeType: 'application/octet-stream', buffer: readFileSync(path) });
+  await (
+    await chooser
+  ).setFiles({ name: 'photo.poulpe', mimeType: 'application/octet-stream', buffer: readFileSync(path) });
   await expect
-    .poll(async () => (await nodes(page)).map((n) => ({ type: n.type, mask: !!n.mask, kind: n.adjustment?.kind })))
+    .poll(async () =>
+      (await nodes(page)).map((n) => ({ type: n.type, mask: !!n.mask, kind: n.adjustment?.kind })),
+    )
     .toEqual(before);
   expect(await page.evaluate(() => (window as any).poulpe.editor.doc.version)).toBe(4);
   // Le coup de pinceau a survécu à l'enregistrement.

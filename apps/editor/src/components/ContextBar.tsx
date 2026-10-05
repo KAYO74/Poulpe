@@ -19,11 +19,9 @@ function PaintSwatches({ node }: { node: SceneNode | null }) {
   const stroke = node && isStyled(node) ? node.stroke : defaults.stroke;
   const setWidth = (w: number) => {
     if (node)
-      updateSelected(
-        'history.style',
-        (n) => void (isStyled(n) && (n.stroke = { ...n.stroke, width: w })),
-        { deep: true },
-      );
+      updateSelected('history.style', (n) => void (isStyled(n) && (n.stroke = { ...n.stroke, width: w })), {
+        deep: true,
+      });
     else ui.set({ defaults: { ...defaults, stroke: { ...defaults.stroke, width: w } } });
   };
   return (

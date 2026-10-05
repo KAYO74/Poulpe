@@ -622,8 +622,13 @@ svg.i {
   padding: 4px 6px 0;
   border-bottom: 1px solid var(--line);
   flex: none;
+  /* Beaucoup d'onglets (Persona Photo) : ils défilent au lieu d'être coupés. */
+  overflow-x: auto;
+  scrollbar-width: none;
 }
 .studio-tab {
+  flex: none;
+  white-space: nowrap;
   padding: 6px 8px;
   color: var(--muted);
   border-bottom: 2px solid transparent;
