@@ -34,7 +34,11 @@ import { offsetPath } from '../vectorActions';
 import { updateLayout } from '../layoutActions';
 import { setSettings, ui, useEditor, useUi } from '../store';
 import { NumberField, Select } from './fields';
-import { Icon } from './Icon';
+import { Icon, type IconName } from './Icon';
+import { toolGroupsFor } from './ToolColumn';
+import { studioTabsFor } from '../panels/Studio';
+import { createWorkspace, deleteWorkspace, editWorkspace, workspaces } from '../workspaces';
+import type { Persona, ToolId } from '../store';
 
 function Modal({
   title,
@@ -1124,6 +1128,147 @@ function DraftDialog() {
   );
 }
 
+const BASES: { id: Persona; icon: IconName }[] = [
+  { id: 'draw', icon: 'draw' },
+  { id: 'photo', icon: 'photo' },
+  { id: 'layout', icon: 'layout' },
+];
+
+/**
+ * Créer ou modifier un espace de travail personnalisé : nom, base (vectoriel, pixel, présentation),
+ * outils et panneaux affichés. La disposition actuelle des panneaux est enregistrée avec l'espace.
+ */
+function WorkspaceDialog() {
+  const t = useT();
+  const editId = useUi((s) => s.workspaceEdit);
+  const existing = workspaces.get().list.find((w) => w.id === editId) ?? null;
+  const persona = useUi((s) => s.persona);
+  const [name, setName] = useState(existing?.name ?? t('workspace.defaultName'));
+  const [base, setBase] = useState<Persona>(existing?.base ?? persona);
+  const all = toolGroupsFor(base).flat();
+  const allTabs = studioTabsFor(base).map((tab) => tab.id);
+  const [tools, setTools] = useState<ToolId[]>(existing?.tools ?? all);
+  const [tabs, setTabs] = useState<string[]>(existing?.tabs ?? allTabs);
+  const toggle = <T,>(list: T[], v: T) => (list.includes(v) ? list.filter((x) => x !== v) : [...list, v]);
+  const changeBase = (b: Persona) => {
+    setBase(b);
+    setTools(toolGroupsFor(b).flat());
+    setTabs(studioTabsFor(b).map((tab) => tab.id));
+  };
+  const save = () => {
+    const keptTools = all.filter((id) => tools.includes(id));
+    const keptTabs = allTabs.filter((id) => tabs.includes(id));
+    const draft = {
+      name: name.trim() || t('workspace.defaultName'),
+      base,
+      tools: keptTools.length === all.length ? null : keptTools,
+      tabs: keptTabs.length === allTabs.length ? null : keptTabs,
+    };
+    if (existing) editWorkspace(existing.id, draft);
+    else createWorkspace(draft);
+    close();
+  };
+  return (
+    <Modal title={t(existing ? 'workspace.editTitle' : 'workspace.newTitle')} onClose={close} wide>
+      <label className="ws-name">
+        <span>{t('workspace.name')}</span>
+        <input
+          className="text-input"
+          value={name}
+          data-testid="workspace-name"
+          onChange={(e) => setName(e.target.value)}
+          onKeyDown={(e) => e.key === 'Enter' && save()}
+        />
+      </label>
+      <h4 className="sub">{t('workspace.base')}</h4>
+      <div className="ws-bases" role="radiogroup" aria-label={t('workspace.base')}>
+        {BASES.map((b) => (
+          <button
+            key={b.id}
+            role="radio"
+            aria-checked={base === b.id}
+            className={`ws-base${base === b.id ? ' on' : ''}`}
+            data-testid={`workspace-base-${b.id}`}
+            onClick={() => changeBase(b.id)}
+          >
+            <Icon name={b.icon} />
+            <b>{t(`workspace.base.${b.id}`)}</b>
+            <span>{t(`workspace.baseHint.${b.id}`)}</span>
+          </button>
+        ))}
+      </div>
+      <h4 className="sub">
+        {t('workspace.tools')}
+        <span className="ws-count">
+          {all.filter((id) => tools.includes(id)).length} / {all.length}
+        </span>
+        <button className="link" onClick={() => setTools(all)}>
+          {t('workspace.all')}
+        </button>
+        <button className="link" onClick={() => setTools(['select'])}>
+          {t('workspace.none')}
+        </button>
+      </h4>
+      <div className="ws-tools">
+        {toolGroupsFor(base).map((group, gi) => (
+          <div className="ws-toolgroup" key={gi}>
+            {group.map((id) => (
+              <button
+                key={id}
+                className="tool"
+                aria-pressed={tools.includes(id)}
+                title={t(`tool.${id}`)}
+                aria-label={t(`tool.${id}`)}
+                data-testid={`workspace-tool-${id}`}
+                onClick={() => setTools(toggle(tools, id))}
+              >
+                <Icon name={id as IconName} />
+              </button>
+            ))}
+          </div>
+        ))}
+      </div>
+      <h4 className="sub">{t('workspace.panels')}</h4>
+      <div className="ws-tabs">
+        {studioTabsFor(base).map((tab) => (
+          <label className="check" key={tab.id}>
+            <input
+              type="checkbox"
+              checked={tabs.includes(tab.id)}
+              data-testid={`workspace-tab-${tab.id}`}
+              onChange={() => setTabs(toggle(tabs, tab.id))}
+            />
+            {t(tab.label)}
+          </label>
+        ))}
+      </div>
+      <p className="note small">{t('workspace.layoutHint')}</p>
+      <footer>
+        {existing && (
+          <button
+            className="btn danger"
+            data-testid="workspace-delete"
+            onClick={() => {
+              deleteWorkspace(existing.id);
+              close();
+            }}
+          >
+            <Icon name="trash" />
+            {t('workspace.delete')}
+          </button>
+        )}
+        <span className="spacer" />
+        <button className="btn" onClick={close}>
+          {t('new.cancel')}
+        </button>
+        <button className="btn primary" data-testid="workspace-save" onClick={save}>
+          {t(existing ? 'workspace.save' : 'workspace.create')}
+        </button>
+      </footer>
+    </Modal>
+  );
+}
+
 export function Dialogs() {
   const dialog = useUi((s) => s.dialog);
   if (dialog === 'new') return <NewDialog />;
@@ -1139,5 +1284,6 @@ export function Dialogs() {
   if (dialog === 'selectionModify') return <SelectionModifyDialog />;
   if (dialog === 'imageSize') return <ImageSizeDialog />;
   if (dialog === 'canvasSize') return <CanvasSizeDialog />;
+  if (dialog === 'workspace') return <WorkspaceDialog />;
   return null;
 }

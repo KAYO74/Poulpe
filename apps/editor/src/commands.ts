@@ -11,9 +11,10 @@ import { editor, setSettings, setTool, ui, type Persona, type ToolId } from './s
 import * as P from './photo/photoActions';
 import { clearSelection, invertSelection, selectAll, selectFromLayer } from './photo/selection';
 import { images, newPixelLayer, selectedImage } from './photo/pixels';
-import { openPhoto, setPersona } from './photo/persona';
+import { openPhoto } from './photo/persona';
 import { addLutPreset, loadLutFile } from './photo/retouchActions';
 import { resetPanels } from './panels/panelLayout';
+import { openPersona } from './workspaces';
 import { LUT_PRESETS, type LutPreset } from '@poulpe/core';
 
 export interface Command {
@@ -191,8 +192,8 @@ export const COMMANDS = {
   ...adjustmentCommands(),
   ...lutCommands(),
   'lut.load': { label: 'lut.load', run: () => void loadLutFile() },
-  'persona.draw': { label: 'persona.draw', run: () => setPersona('draw') },
-  'persona.photo': { label: 'persona.photo', run: () => setPersona('photo') },
+  'persona.draw': { label: 'persona.draw', run: () => openPersona('draw') },
+  'persona.photo': { label: 'persona.photo', run: () => openPersona('photo') },
 
   'layer.group': { label: 'layer.group', shortcut: 'Mod+G', run: A.groupSelection, enabled: hasSel },
   'layer.ungroup': {
@@ -343,7 +344,7 @@ export const COMMANDS = {
   'pages.delete': { label: 'pages.delete', run: () => L.deletePage(), enabled: () => L.canDeletePage() },
   'pages.addMaster': { label: 'pages.addMaster', run: L.addMaster },
   'pages.arrange': { label: 'pages.arrange', run: L.arrange },
-  'persona.layout': { label: 'persona.layout', run: () => setPersona('layout') },
+  'persona.layout': { label: 'persona.layout', run: () => openPersona('layout') },
 
   'view.zoomIn': { label: 'view.zoomIn', shortcut: 'Mod+=', run: () => zoomBy(1.25) },
   'view.zoomOut': { label: 'view.zoomOut', shortcut: 'Mod+-', run: () => zoomBy(0.8) },
