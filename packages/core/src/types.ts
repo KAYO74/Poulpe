@@ -21,16 +21,36 @@ export type Paint =
   /** `angle` en degrés : 0 = de gauche à droite, 90 = de haut en bas. */
   | { type: 'linear'; stops: GradientStop[]; angle: number }
   /** Centre et rayon en fractions de la boîte de l'objet. */
-  | { type: 'radial'; stops: GradientStop[]; cx: number; cy: number; r: number };
+  | { type: 'radial'; stops: GradientStop[]; cx: number; cy: number; r: number }
+  /**
+   * Dégradé conique (angulaire) : les couleurs tournent autour du centre. `angle` en degrés
+   * donne la direction du début du dégradé, le centre est en fractions de la boîte.
+   */
+  | { type: 'conic'; stops: GradientStop[]; angle: number; cx: number; cy: number }
+  /** Motif : une image répétée. `scale` de la tuile, `angle` en degrés. */
+  | { type: 'pattern'; assetId: string; scale: number; angle: number };
+
+/** Peintures faites de couleurs échelonnées (dégradés). */
+export type GradientPaint = Extract<Paint, { stops: GradientStop[] }>;
 
 export type StrokeCap = 'butt' | 'round' | 'square';
 export type StrokeJoin = 'miter' | 'round' | 'bevel';
 /** Extrémités décoratives d'un tracé ouvert. */
 export type ArrowHead = 'none' | 'triangle' | 'arrow' | 'circle' | 'square' | 'bar';
 
+/**
+ * Largeur variable d'un contour : multiplicateurs de l'épaisseur le long du tracé, du début
+ * (0) à la fin (1). Deux valeurs au minimum ; interpolées en douceur entre elles.
+ */
+export type WidthProfile = number[];
+
 export interface Stroke {
   paint: Paint;
   width: number;
+  /** Position du trait par rapport au tracé (`center` si absent). */
+  align?: 'center' | 'inside' | 'outside';
+  /** Largeur variable (pinceau calligraphique) : absente = épaisseur constante. */
+  profile?: WidthProfile;
   /** Extrémités des traits (`round` si absent). */
   cap?: StrokeCap;
   /** Jonctions des traits (`round` si absent). */
@@ -60,6 +80,23 @@ export interface GlowEffect {
   blur: number;
 }
 
+/**
+ * Biseau et estampage : un relief simulé par une lumière venant de `angle` degrés. `depth` en
+ * pixels, `softness` adoucit l'arête, `intensity` de 0 à 100 dose les lumières et les ombres.
+ */
+export interface BevelEffect {
+  type: 'bevel';
+  enabled: boolean;
+  /** `bevel` : relief vers l'extérieur ; `emboss` : relief vers l'intérieur. */
+  style: 'bevel' | 'emboss';
+  angle: number;
+  depth: number;
+  softness: number;
+  intensity: number;
+  light: Color;
+  shadow: Color;
+}
+
 /** Flou gaussien de l'objet lui-même. */
 export interface BlurEffect {
   type: 'blur';
@@ -67,7 +104,7 @@ export interface BlurEffect {
   radius: number;
 }
 
-export type Effect = ShadowEffect | GlowEffect | BlurEffect;
+export type Effect = ShadowEffect | GlowEffect | BlurEffect | BevelEffect;
 export type EffectType = Effect['type'];
 
 export const BLEND_MODES = [
@@ -122,6 +159,8 @@ export interface LayerMask {
 interface Styled {
   fill: Paint;
   stroke: Stroke;
+  /** Contours supplémentaires, dessinés sous `stroke` (du plus large au plus fin, comme Illustrator). */
+  strokes?: Stroke[];
 }
 
 export interface RectNode extends NodeBase, Styled {
@@ -153,6 +192,13 @@ export interface LineNode extends NodeBase, Styled {
 
 export type TextAlign = 'left' | 'center' | 'right' | 'justify';
 
+/** Réglages de colonnes d'un bloc ou d'un cadre de texte. */
+export interface TextColumns {
+  count: number;
+  /** Gouttière entre les colonnes, en pixels. */
+  gap: number;
+}
+
 export interface TextStyle {
   fontFamily: string;
   fontSize: number;
@@ -166,6 +212,13 @@ export interface TextStyle {
   underline: boolean;
   strike: boolean;
   uppercase: boolean;
+  /**
+   * Fonctions OpenType actives (`liga`, `dlig`, `smcp`, `onum`, `ss01`…). Absent : les réglages
+   * par défaut de la police.
+   */
+  features?: string[];
+  /** Colonnes du bloc de texte. Absent ou `count` à 1 : une seule colonne. */
+  columns?: TextColumns;
 }
 
 /** Réglages de caractère qui peuvent varier à l'intérieur d'un même texte. */
@@ -251,6 +304,15 @@ export interface ImageNode extends NodeBase {
   crop?: Crop;
 }
 
+/**
+ * Instance de symbole : affiche le contenu du symbole `symbolId` du document, ramené dans la
+ * boîte de l'objet. Modifier le symbole met à jour toutes ses instances.
+ */
+export interface SymbolNode extends NodeBase {
+  type: 'symbol';
+  symbolId: string;
+}
+
 export interface GroupNode extends NodeBase {
   type: 'group';
   /** Du dessous vers le dessus. */
@@ -316,7 +378,7 @@ export interface AdjustmentNode extends NodeBase {
 }
 
 export type ShapeNode = RectNode | EllipseNode | PolygonNode | StarNode | LineNode | PathNode;
-export type SceneNode = ShapeNode | TextNode | ImageNode | GroupNode | AdjustmentNode;
+export type SceneNode = ShapeNode | TextNode | ImageNode | GroupNode | AdjustmentNode | SymbolNode;
 /** Objets qui ont un remplissage et un contour. */
 export type StyledNode = ShapeNode | TextNode;
 export type NodeType = SceneNode['type'];
@@ -363,6 +425,34 @@ export interface DocumentLayout {
   cmyk?: Record<Color, [number, number, number, number]>;
 }
 
+/**
+ * Symbole : un contenu réutilisable (comme dans Affinity). Ses objets sont exprimés dans la
+ * boîte `box` ; chaque instance les ramène dans sa propre boîte.
+ */
+export interface Symbol {
+  id: string;
+  name: string;
+  box: { x: number; y: number; width: number; height: number };
+  children: SceneNode[];
+}
+
+/**
+ * Style enregistré (style de calque ou de texte) : les réglages d'apparence qu'un clic applique
+ * à la sélection.
+ */
+export interface SavedStyle {
+  id: string;
+  name: string;
+  fill?: Paint;
+  stroke?: Stroke;
+  strokes?: Stroke[];
+  effects?: Effect[];
+  opacity?: number;
+  blendMode?: BlendMode;
+  /** Style de texte : appliqué seulement aux textes. */
+  text?: Partial<TextStyle>;
+}
+
 export interface Asset {
   id: string;
   mime: string;
@@ -385,6 +475,10 @@ export interface PoulpeDocument {
   assets: Record<string, Asset>;
   /** Mise en page et impression. */
   layout?: DocumentLayout;
+  /** Symboles du document, par id. */
+  symbols?: Record<string, Symbol>;
+  /** Styles de calque et de texte enregistrés. */
+  styles?: SavedStyle[];
 }
 
 export type Parent = Artboard | GroupNode;

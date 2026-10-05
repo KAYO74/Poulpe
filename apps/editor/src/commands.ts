@@ -6,6 +6,7 @@ import { setLang, getLang, type MessageKey } from './i18n';
 import { exportDocument, importImage, openDocument, saveDocument } from './io';
 import * as V from './vectorActions';
 import * as L from './layoutActions';
+import * as S from './symbolActions';
 import { editor, setSettings, setTool, ui, type Persona, type ToolId } from './store';
 import * as P from './photo/photoActions';
 import { clearSelection, invertSelection, selectAll, selectFromLayer } from './photo/selection';
@@ -254,6 +255,11 @@ export const COMMANDS = {
   'geometry.exclude': { label: 'geometry.exclude', run: () => V.booleanOp('exclude'), enabled: V.canBoolean },
   'geometry.divide': { label: 'geometry.divide', run: () => V.booleanOp('divide'), enabled: V.canBoolean },
 
+  'symbol.create': { label: 'symbol.create', run: S.createSymbol, enabled: S.canMakeSymbol },
+  'symbol.detach': { label: 'symbol.detach', run: S.detachSymbol, enabled: S.canDetachSymbol },
+  'symbol.update': { label: 'symbol.update', run: S.updateSymbol, enabled: S.canUpdateSymbol },
+  'style.save': { label: 'style.save', run: S.saveStyle, enabled: S.canSaveStyle },
+
   'text.onPath': { label: 'text.onPath', run: V.placeTextOnPath, enabled: V.canPlaceOnPath },
   'text.offPath': {
     label: 'text.offPath',
@@ -440,6 +446,10 @@ export const TOOL_KEYS: Record<string, ToolId> = {
   s: 'star',
   l: 'line',
   t: 'text',
+  c: 'scissors',
+  k: 'knife',
+  x: 'corner',
+  u: 'shapeBuilder',
   i: 'eyedropper',
   h: 'hand',
   z: 'zoom',

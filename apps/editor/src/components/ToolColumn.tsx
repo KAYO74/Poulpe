@@ -11,6 +11,7 @@ const GROUPS: ToolId[][] = [
   ['select', 'direct', 'artboard'],
   ['pen', 'pencil'],
   ['rect', 'ellipse', 'polygon', 'star', 'line'],
+  ['scissors', 'knife', 'corner', 'shapeBuilder'],
   ['text', 'image'],
   ['eyedropper', 'hand', 'zoom'],
 ];

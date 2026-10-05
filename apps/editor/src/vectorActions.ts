@@ -8,6 +8,7 @@ import {
   findArtboard,
   findNode,
   importSvg,
+  newId,
   normalizeAngle,
   shapePath,
   topLevelIds,
@@ -17,6 +18,7 @@ import {
   type BooleanOp,
   type Effect,
   type EffectType,
+  type Paint,
   type SceneNode,
   type Stroke,
   type StrokeJoin,
@@ -174,6 +176,61 @@ export function setStroke(patch: Partial<Stroke>): void {
   });
 }
 
+/** Objet dont les panneaux montrent les contours : le premier sélectionné, s'il en a. */
+function strokedNode(): SceneNode | null {
+  const n = sel().length ? findNode(editor.doc, sel()[0])?.node : null;
+  return n && STROKED(n) ? n : null;
+}
+
+/** Contours supplémentaires de l'objet (vide s'il n'y en a pas). */
+export function extraStrokes(): Stroke[] {
+  const n = strokedNode();
+  return n && STROKED(n) ? (n.strokes ?? []) : [];
+}
+
+/** Modifie les contours supplémentaires des objets sélectionnés. */
+function updateExtras(label: string, fn: (list: Stroke[]) => Stroke[]): void {
+  if (!sel().length) return;
+  editor.apply(label, (d) => {
+    for (const id of sel()) {
+      const visit = (m: SceneNode) => {
+        if (m.type === 'group') m.children.forEach(visit);
+        else if (STROKED(m)) {
+          const next = fn(m.strokes ?? []);
+          if (next.length) m.strokes = next;
+          else delete m.strokes;
+        }
+      };
+      const n = findNode(d, id)?.node;
+      if (n) visit(n);
+    }
+  });
+}
+
+/** Ajoute un contour sous les autres, plus large, comme une bordure doublée. */
+export function addStroke(): void {
+  const base = strokedNode();
+  const width = base && STROKED(base) ? base.stroke.width : ui.get().defaults.stroke.width;
+  const extra: Stroke = { paint: { type: 'solid', color: '#ffffff' }, width: Math.max(1, width) * 2.5 };
+  updateExtras('history.addStroke', (list) => [extra, ...list]);
+}
+
+export function removeStroke(index: number): void {
+  updateExtras('history.removeStroke', (list) => list.filter((_, i) => i !== index));
+}
+
+/** Modifie un contour supplémentaire. */
+export function setStrokeAt(index: number, patch: Partial<Stroke>): void {
+  updateExtras('history.style', (list) =>
+    list.map((s, i) => {
+      if (i !== index) return s;
+      const next = { ...s, ...patch };
+      for (const k of Object.keys(next) as (keyof Stroke)[]) if (next[k] === undefined) delete next[k];
+      return next;
+    }),
+  );
+}
+
 /** Active, modifie ou retire (`null`) un effet sur les objets sélectionnés. */
 export function setEffect(type: EffectType, patch: Partial<Effect> | null, gesture = false): void {
   const ids = sel();
@@ -294,4 +351,51 @@ export function placeSvg(text: string, name: string, at?: { x: number; y: number
 function scaleStrokes(n: SceneNode, k: number): void {
   if (n.type === 'group') n.children.forEach((c) => scaleStrokes(c, k));
   else if (STROKED(n)) n.stroke = { ...n.stroke, width: n.stroke.width * k };
+}
+
+// ————— Motifs —————
+
+/**
+ * Choisit une image et la pose en motif sur la cible courante (remplissage ou contour).
+ * L'image rejoint les ressources du document, comme une image placée.
+ */
+export async function pickPatternImage(): Promise<void> {
+  const { pickFile } = await import('./io');
+  const file = await pickFile(['png', 'jpg', 'jpeg', 'webp', 'gif'], 'image/*');
+  if (!file) return;
+  const ext = file.name.split('.').pop()!.toLowerCase();
+  const mime = ext === 'jpg' || ext === 'jpeg' ? 'image/jpeg' : `image/${ext}`;
+  const blob = new Blob([file.bytes as unknown as BlobPart], { type: mime });
+  const data = await new Promise<string>((resolve) => {
+    const r = new FileReader();
+    r.onload = () => resolve(r.result as string);
+    r.readAsDataURL(blob);
+  });
+  const img = new Image();
+  img.src = data;
+  try {
+    await img.decode();
+  } catch {
+    toast(t('file.imageError'));
+    return;
+  }
+  const assetId = newId('img');
+  const width = img.naturalWidth || 256,
+    height = img.naturalHeight || 256;
+  const target = ui.get().colorTarget;
+  editor.apply('history.style', (d) => {
+    d.assets[assetId] = { id: assetId, mime, width, height, data };
+    const paint: Paint = { type: 'pattern', assetId, scale: 1, angle: 0 };
+    for (const id of sel()) {
+      const visit = (m: SceneNode) => {
+        if (m.type === 'group') m.children.forEach(visit);
+        else if (STROKED(m)) {
+          if (target === 'stroke') m.stroke = { ...m.stroke, paint };
+          else m.fill = paint;
+        }
+      };
+      const n = findNode(d, id)?.node;
+      if (n) visit(n);
+    }
+  });
 }

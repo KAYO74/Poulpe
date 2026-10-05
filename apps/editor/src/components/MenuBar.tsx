@@ -131,6 +131,13 @@ export function MenuBar() {
           <Item id="geometry.exclude" />
           <Item id="geometry.divide" />
         </Sub>
+        <Sub label={t('menu.symbols')}>
+          <Item id="symbol.create" />
+          <Item id="symbol.update" />
+          <Item id="symbol.detach" />
+          <Sep />
+          <Item id="style.save" />
+        </Sub>
         <Item id="layer.convertToCurves" />
         <Item id="layer.outlineStroke" />
         <Item id="layer.offset" />

@@ -194,6 +194,7 @@ export function shapePath(node: SceneNode): PathCommand[] {
     case 'image':
     case 'group':
     case 'adjustment':
+    case 'symbol':
       return roundRectPath(0, 0, w, h, 0);
   }
 }

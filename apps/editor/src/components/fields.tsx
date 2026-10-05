@@ -95,6 +95,11 @@ export function paintPreview(p: Paint): string {
       return `linear-gradient(${p.angle + 90}deg, ${p.stops.map((s) => `${rgbaToCss(s.color)} ${s.offset * 100}%`).join(', ')}), var(--checker)`;
     case 'radial':
       return `radial-gradient(circle at ${p.cx * 100}% ${p.cy * 100}%, ${p.stops.map((s) => `${rgbaToCss(s.color)} ${s.offset * 100}%`).join(', ')}), var(--checker)`;
+    case 'conic':
+      return `conic-gradient(from ${p.angle}deg at ${p.cx * 100}% ${p.cy * 100}%, ${p.stops.map((s) => `${rgbaToCss(s.color)} ${s.offset * 360}deg`).join(', ')}), var(--checker)`;
+    case 'pattern':
+      // L'image du motif n'est pas disponible ici : des hachures signalent un remplissage par motif.
+      return 'repeating-linear-gradient(45deg, #8b8b92 0 3px, #d9d9de 3px 6px)';
   }
 }
 
