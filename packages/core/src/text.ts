@@ -1,5 +1,33 @@
 import type { RunStyle, TextNode, TextRun, TextStyle } from './types';
 
+/**
+ * Fonctions OpenType proposées dans l'interface. Les trois premières changent le dessin du texte
+ * à l'écran comme à l'export ; les autres ne sont appliquées qu'à l'export (SVG, PDF) et à la
+ * conversion en courbes, car la toile du navigateur ne sait pas les activer.
+ */
+export const OPENTYPE_FEATURES = [
+  'smcp',
+  'c2sc',
+  'kern',
+  'liga',
+  'dlig',
+  'onum',
+  'tnum',
+  'frac',
+  'ss01',
+] as const;
+export type OpenTypeFeature = (typeof OPENTYPE_FEATURES)[number];
+
+/** Fonctions que la toile du navigateur sait appliquer (les autres n'agissent qu'à l'export). */
+export const CANVAS_FEATURES: readonly OpenTypeFeature[] = ['smcp', 'c2sc', 'kern'];
+
+/** Valeur CSS `font-feature-settings` d'une liste de fonctions (`normal` si rien). */
+export function featureSettings(features?: string[]): string {
+  if (!features?.length) return 'normal';
+  // `kern` est actif par défaut : l'absence de la liste ne le coupe pas à l'export.
+  return features.map((f) => `"${f}" 1`).join(', ');
+}
+
 /** Mesure la largeur d'une chaîne (sans interlettrage) dans la police CSS donnée. */
 export type MeasureText = (text: string, font: string) => number;
 
@@ -48,6 +76,8 @@ export interface TextLine {
   offset: number;
   /** Espace ajouté à chaque blanc entre deux mots (texte justifié). */
   gap: number;
+  /** Colonne de la ligne (0 s'il n'y en a qu'une). */
+  column?: number;
 }
 
 export interface TextLayout {
@@ -58,7 +88,23 @@ export interface TextLayout {
   height: number;
 }
 
-type TextLike = Pick<TextNode, 'text' | 'style' | 'autoWidth' | 'width'> & { runs?: TextRun[] };
+type TextLike = Pick<TextNode, 'text' | 'style' | 'autoWidth' | 'width'> & {
+  runs?: TextRun[];
+  height?: number;
+};
+
+/** Colonnes d'un texte : leur nombre et la largeur d'une colonne dans la boîte. */
+export function textColumns(node: Pick<TextNode, 'style' | 'width' | 'autoWidth'>): {
+  count: number;
+  width: number;
+  gap: number;
+} {
+  const c = node.style.columns;
+  const count = node.autoWidth ? 1 : Math.max(1, Math.round(c?.count ?? 1));
+  const gap = Math.max(0, c?.gap ?? 0);
+  const width = count > 1 ? Math.max(1, (node.width - gap * (count - 1)) / count) : Math.max(1, node.width);
+  return { count, width, gap };
+}
 
 export function cssFont(style: Pick<TextStyle, 'fontFamily' | 'fontSize' | 'fontWeight' | 'italic'>): string {
   const family = /[\s,'"]/.test(style.fontFamily)
@@ -251,7 +297,8 @@ export function layoutText(node: TextLike, measure: MeasureText): TextLayout {
     while (b > a && /\s/.test(text[b - 1])) b--;
     return b;
   };
-  const maxWidth = node.autoWidth ? Infinity : Math.max(1, node.width);
+  const cols = textColumns(node);
+  const maxWidth = node.autoWidth ? Infinity : cols.width;
   const ranges: { start: number; end: number; stop: number; last: boolean }[] = [];
   let paraStart = 0;
   for (const para of text.split('\n')) {
@@ -323,6 +370,20 @@ export function layoutText(node: TextLike, measure: MeasureText): TextLayout {
     top += height;
     width = Math.max(width, x);
   }
+  // Colonnes : les lignes qui débordent de la hauteur passent dans la colonne suivante.
+  if (cols.count > 1) {
+    const limit = Math.max(1, node.height ?? Infinity);
+    let col = 0;
+    let colTop = 0;
+    for (const line of lines) {
+      if (col < cols.count - 1 && line.top - colTop + line.height > limit && line.top > colTop) {
+        col++;
+        colTop = line.top;
+      }
+      line.column = col;
+      line.top -= colTop;
+    }
+  }
   const boxWidth = isFinite(maxWidth) ? maxWidth : Math.max(1, width);
   lines.forEach((line, i) => {
     const r = ranges[i];
@@ -332,9 +393,11 @@ export function layoutText(node: TextLike, measure: MeasureText): TextLayout {
       const blanks = line.text.match(/\s+/g)?.length ?? 0;
       if (blanks) line.gap = (boxWidth - line.width) / blanks;
     }
+    if (line.column) line.offset += line.column * (cols.width + cols.gap);
   });
   const lineHeight = style.fontSize * style.lineHeight;
-  return { lines, lineHeight, width: boxWidth, height: Math.max(lineHeight, top) };
+  const height = lines.length ? Math.max(...lines.map((l) => l.top + l.height)) : 0;
+  return { lines, lineHeight, width: boxWidth, height: Math.max(lineHeight, height) };
 }
 
 /** Abscisse (depuis le bord gauche de la boîte) de la frontière avant le caractère `i` d'une ligne. */

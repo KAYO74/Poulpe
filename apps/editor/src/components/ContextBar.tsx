@@ -65,6 +65,8 @@ export function ContextBar() {
   const defaults = useUi((s) => s.defaults);
   const cropId = useUi((s) => s.cropId);
   const smoothing = useUi((s) => s.pencilSmoothing);
+  const cornerRadius = useUi((s) => s.cornerRadiusTool);
+  const cornerKind = useUi((s) => s.cornerKind);
   const fonts = useFonts();
   const node = selection.length === 1 ? (findNode(doc, selection[0])?.node ?? null) : null;
   const ab = findArtboard(doc, activeArtboardId);
@@ -95,6 +97,30 @@ export function ContextBar() {
         <span className="ctx-dim">{t(tool === 'pen' ? 'ctx.penHint' : 'ctx.pencilHint')}</span>
       </>
     );
+  } else if (tool === 'corner') {
+    content = (
+      <>
+        <NumberField
+          label={t('ctx.cornerRadius')}
+          value={cornerRadius}
+          min={0}
+          max={500}
+          unit="px"
+          testId="corner-radius"
+          onChange={(cornerRadiusTool) => ui.set({ cornerRadiusTool })}
+        />
+        <Select
+          label={t('ctx.cornerKind')}
+          value={cornerKind}
+          testId="corner-kind"
+          options={(['round', 'chamfer'] as const).map((k) => ({ value: k, label: t(`ctx.corner.${k}`) }))}
+          onChange={(k) => ui.set({ cornerKind: k })}
+        />
+        <span className="ctx-dim">{t('ctx.cornerHint')}</span>
+      </>
+    );
+  } else if (tool === 'scissors' || tool === 'knife' || tool === 'shapeBuilder') {
+    content = <span className="ctx-dim">{t(`ctx.${tool}Hint`)}</span>;
   } else if (tool === 'artboard' && ab) {
     const preset = FORMAT_PRESETS.find((f) => f.width === ab.width && f.height === ab.height)?.id ?? 'custom';
     content = (

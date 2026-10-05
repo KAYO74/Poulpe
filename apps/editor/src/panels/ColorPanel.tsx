@@ -2,6 +2,7 @@ import { useState } from 'react';
 import {
   colorToCmyk,
   findNode,
+  isGradient,
   isStyled,
   opaque,
   outOfGamut,
@@ -11,6 +12,7 @@ import {
   type Paint,
 } from '@poulpe/core';
 import { addSwatch, removeSwatch, setPaint, withCmyk } from '../actions';
+import { pickPatternImage } from '../vectorActions';
 import { NumberField, paintPreview } from '../components/fields';
 import { Icon } from '../components/Icon';
 import { useT } from '../i18n';
@@ -65,7 +67,7 @@ export function applyPaint(target: 'fill' | 'stroke', paint: Paint, phase: Phase
 
 function firstColor(p: Paint): string {
   if (p.type === 'solid') return p.color;
-  if (p.type === 'linear' || p.type === 'radial') return p.stops[0]?.color ?? '#000000';
+  if (isGradient(p)) return p.stops[0]?.color ?? '#000000';
   return '#2ba59a';
 }
 
@@ -81,7 +83,12 @@ export function ColorPanel() {
 
   const switchType = (type: Paint['type']) => {
     const base = firstColor(paint);
-    const stops = paint.type === 'linear' || paint.type === 'radial' ? paint.stops : DEFAULT_STOPS(base);
+    const stops = isGradient(paint) ? paint.stops : DEFAULT_STOPS(base);
+    if (type === 'pattern') {
+      // Un motif a besoin d'une image : on la demande tout de suite.
+      void pickPatternImage();
+      return;
+    }
     const next: Paint =
       type === 'none'
         ? { type: 'none' }
@@ -89,11 +96,14 @@ export function ColorPanel() {
           ? { type: 'solid', color: base }
           : type === 'linear'
             ? { type: 'linear', angle: paint.type === 'linear' ? paint.angle : 90, stops }
-            : { type: 'radial', cx: 0.5, cy: 0.5, r: 0.5, stops };
+            : type === 'conic'
+              ? { type: 'conic', angle: 0, cx: 0.5, cy: 0.5, stops }
+              : { type: 'radial', cx: 0.5, cy: 0.5, r: 0.5, stops };
     applyPaint(target, next, 'set');
   };
 
-  const gradient = paint.type === 'linear' || paint.type === 'radial' ? paint : null;
+  const gradient = isGradient(paint) ? paint : null;
+  const pattern = paint.type === 'pattern' ? paint : null;
   const stops = gradient?.stops ?? [];
   const si = Math.min(stopIndex, Math.max(0, stops.length - 1));
   const editColor = gradient ? (stops[si]?.color ?? '#000000') : paint.type === 'solid' ? paint.color : null;
@@ -126,7 +136,7 @@ export function ColorPanel() {
         <span className="chip big" style={{ background: paintPreview(paint) }} aria-hidden="true" />
       </div>
       <div className="seg full" role="group" aria-label="Type">
-        {(['solid', 'linear', 'radial', 'none'] as const).map((type) => (
+        {(['solid', 'linear', 'radial', 'conic', 'pattern', 'none'] as const).map((type) => (
           <button
             key={type}
             aria-pressed={paint.type === type}
@@ -156,6 +166,58 @@ export function ColorPanel() {
             width={90}
             onChange={(v) => applyPaint(target, { ...gradient, angle: v }, 'set')}
           />
+        </div>
+      )}
+      {gradient?.type === 'conic' && (
+        <div className="picker-row">
+          <NumberField
+            label={t('color.angle')}
+            value={gradient.angle}
+            min={-360}
+            max={360}
+            unit="°"
+            width={84}
+            onChange={(v) => applyPaint(target, { ...gradient, angle: v }, 'set')}
+          />
+          <NumberField
+            label={t('color.centerX')}
+            value={Math.round(gradient.cx * 100)}
+            unit="%"
+            width={84}
+            onChange={(v) => applyPaint(target, { ...gradient, cx: v / 100 }, 'set')}
+          />
+          <NumberField
+            label={t('color.centerY')}
+            value={Math.round(gradient.cy * 100)}
+            unit="%"
+            width={84}
+            onChange={(v) => applyPaint(target, { ...gradient, cy: v / 100 }, 'set')}
+          />
+        </div>
+      )}
+      {pattern && (
+        <div className="picker-row">
+          <NumberField
+            label={t('color.patternScale')}
+            value={Math.round(pattern.scale * 100)}
+            min={1}
+            max={2000}
+            unit="%"
+            width={84}
+            onChange={(v) => applyPaint(target, { ...pattern, scale: v / 100 }, 'set')}
+          />
+          <NumberField
+            label={t('color.angle')}
+            value={pattern.angle}
+            min={-360}
+            max={360}
+            unit="°"
+            width={84}
+            onChange={(v) => applyPaint(target, { ...pattern, angle: v }, 'set')}
+          />
+          <button className="chip-btn" onClick={() => void pickPatternImage()}>
+            {t('color.patternImage')}
+          </button>
         </div>
       )}
       {gradient?.type === 'radial' && (

@@ -9,7 +9,7 @@ import {
   type Effect,
   type EffectType,
 } from '@poulpe/core';
-import { NumberField } from '../components/fields';
+import { NumberField, Select } from '../components/fields';
 import { useT } from '../i18n';
 import { editor, useEditor } from '../store';
 import { setEffect } from '../vectorActions';
@@ -112,6 +112,72 @@ function EffectRow({ type, effect }: { type: EffectType; effect: Effect | undefi
               testId={`effect-${type}-blur`}
               onChange={(blur) => set({ blur })}
             />
+          )}
+          {e.type === 'bevel' && (
+            <>
+              <Select
+                label={t('effects.bevelStyle')}
+                value={e.style}
+                options={(['bevel', 'emboss'] as const).map((s) => ({
+                  value: s,
+                  label: t(`effects.bevel.${s}`),
+                }))}
+                onChange={(style) => set({ style })}
+              />
+              <NumberField
+                label={t('effects.depth')}
+                value={e.depth}
+                min={0}
+                max={100}
+                unit="px"
+                width={70}
+                testId="effect-bevel-depth"
+                onChange={(depth) => set({ depth })}
+              />
+              <NumberField
+                label={t('effects.angle')}
+                value={e.angle}
+                min={-360}
+                max={360}
+                unit="°"
+                width={70}
+                onChange={(angle) => set({ angle })}
+              />
+              <NumberField
+                label={t('effects.softness')}
+                value={e.softness}
+                min={0}
+                max={100}
+                unit="px"
+                width={70}
+                onChange={(softness) => set({ softness })}
+              />
+              <NumberField
+                label={t('effects.intensity')}
+                value={e.intensity}
+                min={0}
+                max={100}
+                unit="%"
+                width={70}
+                onChange={(intensity) => set({ intensity })}
+              />
+              <input
+                type="color"
+                className="color-input"
+                aria-label={t('effects.light')}
+                title={t('effects.light')}
+                value={opaque(e.light)}
+                onChange={(ev) => set({ light: ev.target.value })}
+              />
+              <input
+                type="color"
+                className="color-input"
+                aria-label={t('effects.shadow')}
+                title={t('effects.shadow')}
+                value={opaque(e.shadow)}
+                onChange={(ev) => set({ shadow: ev.target.value })}
+              />
+            </>
           )}
           {e.type === 'blur' && (
             <NumberField

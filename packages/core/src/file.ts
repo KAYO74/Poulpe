@@ -104,6 +104,9 @@ const MIGRATIONS: Record<number, (doc: Record<string, unknown>) => Record<string
   // Version 6 : impression (mode colorimétrique `colorMode` et valeurs CMJN exactes `cmyk` de
   // `layout`). Facultatifs : rien à convertir.
   5: (doc) => doc,
+  // Version 7 : outils photo et vectoriels avancés (tables LUT, modes de fusion des calques de
+  // réglage…). Tout est nouveau ou facultatif : rien à convertir.
+  6: (doc) => doc,
 };
 
 export function migrate(raw: Record<string, unknown>): PoulpeDocument {
