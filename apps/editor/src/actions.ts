@@ -35,6 +35,7 @@ import { t } from './i18n';
 import { applyEditingStyle, endTextEdit, isEditingText } from './canvas/textEdit';
 import { fillFrame, frameTarget } from './libraryActions';
 import { editor, ui } from './store';
+import { recordStep } from './macros/recorder';
 
 /*
  * Actions de l'éditeur, partagées par les menus, la barre d'outils, les panneaux et les raccourcis.
@@ -214,6 +215,7 @@ export function flipSelection(axis: 'h' | 'v'): void {
 export function nudge(dx: number, dy: number): void {
   const ids = sel();
   if (!ids.length) return;
+  recordStep({ kind: 'nudge', dx, dy });
   editor.apply('history.move', (d) => {
     for (const id of topLevelIds(d, editableIds(d, ids))) translateNode(findNode(d, id)!.node, dx, dy);
   });
