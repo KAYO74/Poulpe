@@ -14,7 +14,16 @@ import { TEMPLATES } from '@poulpe/library';
 import { COMMANDS, TOOL_KEYS, formatShortcut } from '../commands';
 import { discardDraft, getPendingDraft, restoreDraft } from '../drafts';
 import { getLang, useT } from '../i18n';
-import { exportDocument, newDocument, openDocument, openPhoto, type ExportOptions } from '../io';
+import {
+  batchExport,
+  exportDocument,
+  newDocument,
+  openDocument,
+  openPhoto,
+  type BatchExportOptions,
+  type ExportKind,
+  type ExportOptions,
+} from '../io';
 import { AdjustmentFields } from '../panels/AdjustmentPanel';
 import { applyFilter, previewFilter } from '../photo/photoActions';
 import { modifySelection } from '../photo/selection';
@@ -328,6 +337,8 @@ function ExportDialog() {
     pages: '',
     bleed: bleed > 0,
     marks: false,
+    color: doc.layout?.colorMode === 'cmyk' ? 'cmyk' : 'rgb',
+    pdfx: false,
   });
   const [busy, setBusy] = useState(false);
   const raster = opts.kind === 'png' || opts.kind === 'jpeg';
@@ -337,7 +348,7 @@ function ExportDialog() {
   return (
     <Modal title={t('export.title')} onClose={close}>
       <div className="seg full" role="group" aria-label={t('export.format')}>
-        {(['png', 'jpeg', 'svg', 'pdf'] as const).map((k) => (
+        {(['png', 'jpeg', 'svg', 'pdf', 'psd'] as const).map((k) => (
           <button
             key={k}
             aria-pressed={opts.kind === k}
@@ -408,8 +419,36 @@ function ExportDialog() {
             />
             {t('export.marks')}
           </label>
+          <div className="picker-row">
+            <Select
+              label={t('export.colors')}
+              value={opts.pdfx ? 'cmyk' : (opts.color ?? 'rgb')}
+              options={[
+                { value: 'rgb', label: t('docsetup.rgb') },
+                { value: 'cmyk', label: t('docsetup.cmyk') },
+              ]}
+              onChange={(v) =>
+                setOpts({ ...opts, color: v as 'rgb' | 'cmyk', pdfx: v === 'rgb' ? false : opts.pdfx })
+              }
+              width={200}
+              testId="export-color"
+            />
+          </div>
+          <label className="check">
+            <input
+              type="checkbox"
+              data-testid="export-pdfx"
+              checked={!!opts.pdfx}
+              onChange={(e) =>
+                setOpts({ ...opts, pdfx: e.target.checked, color: e.target.checked ? 'cmyk' : opts.color })
+              }
+            />
+            {t('export.pdfx')}
+          </label>
+          {(opts.pdfx || opts.color === 'cmyk') && <p className="note small">{t('export.cmykHint')}</p>}
         </>
       )}
+      {opts.kind === 'psd' && <p className="note small">{t('export.psdHint')}</p>}
       {raster && (
         <div className="picker-row">
           <Select
@@ -444,6 +483,10 @@ function ExportDialog() {
       )}
       {opts.kind === 'pdf' && <p className="note">{t('export.pdfFonts')}</p>}
       <footer>
+        <button className="btn" data-testid="export-batch" onClick={() => ui.set({ dialog: 'batch' })}>
+          {t('export.batch')}
+        </button>
+        <span className="spacer" />
         <button className="btn" onClick={close}>
           {t('new.cancel')}
         </button>
@@ -455,6 +498,110 @@ function ExportDialog() {
             setBusy(true);
             try {
               await exportDocument(opts);
+              close();
+            } finally {
+              setBusy(false);
+            }
+          }}
+        >
+          <Icon name="export" />
+          {t('export.go')}
+        </button>
+      </footer>
+    </Modal>
+  );
+}
+
+/** Export par lots : plusieurs plans de travail, plusieurs formats et tailles, dans un fichier ZIP. */
+function BatchDialog() {
+  const t = useT();
+  const { doc } = useEditor();
+  const [opts, setOpts] = useState<BatchExportOptions>({
+    artboardIds: doc.artboards.filter((a) => !a.master).map((a) => a.id),
+    formats: ['png'],
+    scales: [1, 2],
+    quality: 0.92,
+    transparent: false,
+    cmyk: doc.layout?.colorMode === 'cmyk',
+  });
+  const [busy, setBusy] = useState(false);
+  const toggle = <T,>(list: T[], v: T) => (list.includes(v) ? list.filter((x) => x !== v) : [...list, v]);
+  const raster = opts.formats.includes('png') || opts.formats.includes('jpeg');
+  return (
+    <Modal title={t('export.batchTitle')} onClose={close} wide>
+      <p className="note">{t('export.batchHint')}</p>
+      <h4 className="sub">{t('export.batchPages')}</h4>
+      <div className="batch-list">
+        {doc.artboards.map((a) => (
+          <label key={a.id} className="check">
+            <input
+              type="checkbox"
+              checked={opts.artboardIds.includes(a.id)}
+              onChange={() => setOpts({ ...opts, artboardIds: toggle(opts.artboardIds, a.id) })}
+            />
+            {a.name}
+            {a.master ? ` (${t('pages.masterTag')})` : ''}
+          </label>
+        ))}
+      </div>
+      <h4 className="sub">{t('export.format')}</h4>
+      <div className="picker-row">
+        {(['png', 'jpeg', 'svg', 'pdf', 'psd'] as ExportKind[]).map((k) => (
+          <label key={k} className="check">
+            <input
+              type="checkbox"
+              data-testid={`batch-${k}`}
+              checked={opts.formats.includes(k)}
+              onChange={() => setOpts({ ...opts, formats: toggle(opts.formats, k) })}
+            />
+            {k.toUpperCase()}
+          </label>
+        ))}
+      </div>
+      {raster && (
+        <>
+          <h4 className="sub">{t('export.scale')}</h4>
+          <div className="picker-row">
+            {[0.5, 1, 2, 3, 4].map((sc) => (
+              <label key={sc} className="check">
+                <input
+                  type="checkbox"
+                  data-testid={`batch-scale-${sc}`}
+                  checked={opts.scales.includes(sc)}
+                  onChange={() => setOpts({ ...opts, scales: toggle(opts.scales, sc).sort((a, b) => a - b) })}
+                />
+                {sc}×
+              </label>
+            ))}
+          </div>
+        </>
+      )}
+      {opts.formats.includes('pdf') && (
+        <label className="check">
+          <input
+            type="checkbox"
+            checked={opts.cmyk}
+            onChange={(e) => setOpts({ ...opts, cmyk: e.target.checked })}
+          />
+          {t('export.batchCmyk')}
+        </label>
+      )}
+      <footer>
+        <button className="btn" onClick={() => ui.set({ dialog: 'export' })}>
+          {t('export.back')}
+        </button>
+        <span className="spacer" />
+        <button className="btn" onClick={close}>
+          {t('new.cancel')}
+        </button>
+        <button
+          className="btn primary"
+          data-testid="batch-go"
+          disabled={busy || !opts.artboardIds.length || !opts.formats.length}
+          onClick={async () => {
+            setBusy(true);
+            try {
+              await batchExport(opts);
               close();
             } finally {
               setBusy(false);
@@ -585,6 +732,7 @@ function DocumentDialog() {
     outside: m ? toMm(m.outside) : defaultMargin,
   });
   const [bleed, setBleed] = useState(layout.bleed ? toMm(layout.bleed) : 0);
+  const [colorMode, setColorMode] = useState<'rgb' | 'cmyk'>(layout.colorMode ?? 'rgb');
   const ab = doc.artboards.find((a) => a.id === activeArtboardId) ?? doc.artboards[0];
   const px = (v: number) => Math.round(mmToPx(asDoc, v) * 100) / 100;
   const field = (key: keyof typeof margins, label: string) => (
@@ -674,6 +822,21 @@ function DocumentDialog() {
         />
         <p className="note small grow">{t('docsetup.bleedHint')}</p>
       </div>
+      <h4 className="sub">{t('docsetup.colors')}</h4>
+      <div className="picker-row">
+        <Select
+          label={t('docsetup.colorMode')}
+          value={colorMode}
+          options={[
+            { value: 'rgb', label: t('docsetup.rgb') },
+            { value: 'cmyk', label: t('docsetup.cmyk') },
+          ]}
+          onChange={(v) => setColorMode(v as 'rgb' | 'cmyk')}
+          width={200}
+          testId="doc-color"
+        />
+        <p className="note small grow">{t('docsetup.colorHint')}</p>
+      </div>
       <footer>
         <button className="btn" onClick={close}>
           {t('new.cancel')}
@@ -686,6 +849,7 @@ function DocumentDialog() {
               dpi,
               facing: facing || undefined,
               firstNumber: first !== 1 ? first : undefined,
+              colorMode: colorMode === 'cmyk' ? 'cmyk' : undefined,
               bleed: bleed > 0 ? px(bleed) : undefined,
               margins: showMargins
                 ? {
@@ -829,6 +993,7 @@ export function Dialogs() {
   if (dialog === 'resize') return <ResizeDialog />;
   if (dialog === 'offset') return <OffsetDialog />;
   if (dialog === 'document') return <DocumentDialog />;
+  if (dialog === 'batch') return <BatchDialog />;
   if (dialog === 'filter') return <FilterDialog />;
   if (dialog === 'selectionModify') return <SelectionModifyDialog />;
   return null;

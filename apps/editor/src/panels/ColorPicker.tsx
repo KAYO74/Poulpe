@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import {
+  cmykToColor,
   formatColor,
   hslToRgb,
   hsvToRgb,
@@ -7,6 +8,7 @@ import {
   parseColor,
   rgbToHsl,
   rgbToHsv,
+  type Cmyk,
   type HSVA,
 } from '@poulpe/core';
 import { NumberField } from '../components/fields';
@@ -14,18 +16,38 @@ import { useT } from '../i18n';
 
 export type Phase = 'start' | 'move' | 'end' | 'set';
 
-/** Sélecteur de couleur : carré saturation / luminosité, teinte, opacité, hexadécimal, RVB ou TSL. */
+/**
+ * Sélecteur de couleur : carré saturation / luminosité, teinte, opacité, hexadécimal, RVB, TSL ou
+ * CMJN. En CMJN (`cmyk` donné), les valeurs saisies sont gardées telles quelles pour l'impression.
+ */
 export function ColorPicker({
   color,
   onChange,
+  cmyk,
+  onCmyk,
+  outOfGamut,
+  preferCmyk,
 }: {
   color: string;
   onChange: (c: string, phase: Phase) => void;
+  /** Valeurs CMJN de la couleur (affiche le mode CMJN). */
+  cmyk?: Cmyk;
+  /** Couleur choisie en CMJN : sa couleur à l'écran et ses valeurs exactes. */
+  onCmyk?: (c: string, cmyk: Cmyk) => void;
+  /** La couleur change nettement à l'impression. */
+  outOfGamut?: boolean;
+  /** Ouvrir en mode CMJN (document d'impression). */
+  preferCmyk?: boolean;
 }) {
   const t = useT();
   const [hsv, setHsv] = useState<HSVA>(() => rgbToHsv(parseColor(color)));
-  const [mode, setMode] = useState<'rgb' | 'hsl'>('rgb');
+  const [mode, setMode] = useState<'rgb' | 'hsl' | 'cmyk'>(preferCmyk && cmyk ? 'cmyk' : 'rgb');
   const lastEmitted = useRef(color);
+  // Le document passe en CMJN : le sélecteur suit.
+  useEffect(() => {
+    if (preferCmyk && cmyk) setMode('cmyk');
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [preferCmyk]);
 
   // Couleur changée de l'extérieur (autre objet sélectionné, annulation…).
   useEffect(() => {
@@ -162,8 +184,36 @@ export function ColorPicker({
           <button aria-pressed={mode === 'hsl'} onClick={() => setMode('hsl')}>
             {t('color.hsl')}
           </button>
+          {cmyk && onCmyk && (
+            <button aria-pressed={mode === 'cmyk'} data-testid="mode-cmyk" onClick={() => setMode('cmyk')}>
+              {t('color.cmyk')}
+            </button>
+          )}
         </div>
-        {mode === 'rgb' ? (
+        {mode === 'cmyk' && cmyk && onCmyk ? (
+          <>
+            {([0, 1, 2, 3] as const).map((i) => (
+              <NumberField
+                key={i}
+                label={t('color.cmyk')[i]}
+                value={Math.round(cmyk[i])}
+                min={0}
+                max={100}
+                width={56}
+                testId={`cmyk-${i}`}
+                onChange={(v) => {
+                  const next = [...cmyk] as Cmyk;
+                  next[i] = Math.max(0, Math.min(100, v));
+                  const c = cmykToColor(next);
+                  const withA = formatColor({ ...parseColor(c), a: hsv.a });
+                  setHsv({ ...rgbToHsv(parseColor(c)), a: hsv.a });
+                  lastEmitted.current = withA;
+                  onCmyk(withA, next);
+                }}
+              />
+            ))}
+          </>
+        ) : mode === 'rgb' ? (
           <>
             {(['r', 'g', 'b'] as const).map((k) => (
               <NumberField
@@ -206,6 +256,11 @@ export function ColorPicker({
           </>
         )}
       </div>
+      {outOfGamut && (
+        <p className="note small gamut" data-testid="gamut-warning">
+          {t('color.outOfGamut')}
+        </p>
+      )}
     </div>
   );
 }

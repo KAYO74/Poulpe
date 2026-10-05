@@ -1,5 +1,5 @@
 /**
- * Modèle de document Poulpe (format `.poulpe`, version 5).
+ * Modèle de document Poulpe (format `.poulpe`, version 6).
  *
  * Toutes les coordonnées sont en pixels, dans l'espace du document (« monde ») :
  * les objets d'un plan de travail ne sont pas relatifs à ce plan de travail.
@@ -352,6 +352,10 @@ export interface DocumentLayout {
   facing?: boolean;
   /** Numéro de la première page (1 si absent). */
   firstNumber?: number;
+  /** Mode couleur de l'impression : `cmyk` montre les valeurs CMJN et prépare les PDF en CMJN. */
+  colorMode?: 'rgb' | 'cmyk';
+  /** Couleurs choisies en CMJN : valeurs exactes (en %), par couleur `#rrggbb`. */
+  cmyk?: Record<Color, [number, number, number, number]>;
 }
 
 export interface Asset {

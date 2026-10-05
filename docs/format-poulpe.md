@@ -58,6 +58,13 @@ Une page est un plan de travail ; l'ordre des pages est celui de `artboards`. De
 | `facing`      | `true` : pages en vis-à-vis (page 1 seule à droite, puis doubles pages ; les pages paires sont à gauche). |
 | `firstNumber` | Numéro de la première page (1 si absent).                                                                 |
 
+Version 6, pour l'impression (facultatifs) :
+
+| Champ       | Contenu                                                                                                       |
+| ----------- | ------------------------------------------------------------------------------------------------------------- |
+| `colorMode` | `"rgb"` (par défaut) ou `"cmyk"` : le document est destiné à l'imprimerie (saisie CMJN, épreuvage, PDF CMJN). |
+| `cmyk`      | Valeurs CMJN exactes saisies par l'utilisateur, par couleur : `{ "#00a0e6": [100, 0, 0, 0] }` (de 0 à 100).   |
+
 ### Objets
 
 Champs communs : `id`, `name`, `x`, `y`, `width`, `height`, `rotation`, `opacity` (0 à 1), `blendMode`, `visible`, `locked`, `effects` et `mask` (facultatifs, voir plus bas).
@@ -167,3 +174,4 @@ Un logiciel qui ne connaît pas les calques de réglage peut les ignorer : le re
 - **3** (Poulpe 0.3) : contours avancés (`cap`, `join`, `dash`, `start`, `end`), `effects` sur tous les objets, `path` sur les textes. Tous ces champs sont facultatifs : un fichier de version 1 ou 2 s'ouvre sans changement ; un fichier de version 3 ne s'ouvre pas dans Poulpe 0.2.
 - **4** (Poulpe 0.4) : objets `adjustment` (calques de réglage et filtres dynamiques) et `mask` sur tous les objets. Un fichier des versions 1 à 3 s'ouvre sans changement ; un fichier de version 4 ne s'ouvre pas dans Poulpe 0.3.
 - **5** (Poulpe 0.5, mise en page) : `layout` du document, `master` et `masterId` des plans de travail, `frame` et `next` des textes, champs `{page}` et `{pages}`. Tous facultatifs : les fichiers des versions 1 à 4 s'ouvrent sans changement ; un fichier de version 5 ne s'ouvre pas dans Poulpe 0.4.
+- **6** (Poulpe 0.5, impression) : `colorMode` et `cmyk` dans `layout`. Facultatifs : les fichiers des versions 1 à 5 s'ouvrent sans changement ; un fichier de version 6 ne s'ouvre pas dans une version de Poulpe qui ne connaît que la version 5.
