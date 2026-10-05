@@ -382,7 +382,7 @@ function gradientPaint(
   let cur: XmlElement | undefined = el;
   while (cur && chain.length < 8) {
     chain.push(cur);
-    const href: string | undefined = cur.attrs.href ?? cur.attrs["xlink:href"];
+    const href: string | undefined = cur.attrs.href ?? cur.attrs['xlink:href'];
     cur = href?.startsWith('#') ? ctx.ids.get(href.slice(1)) : undefined;
   }
   const attr = (k: string) => chain.find((c) => c.attrs[k] !== undefined)?.attrs[k];

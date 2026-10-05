@@ -10,6 +10,11 @@ import type { ArrowHead, PathNode, SceneNode, Stroke, StrokeCap, StrokeJoin, Tex
  * le monde, courbe d'un texte sur tracé.
  */
 
+/** Copie profonde de données JSON ; contrairement à `structuredClone`, accepte les brouillons immer. */
+export function cloneData<T>(v: T): T {
+  return JSON.parse(JSON.stringify(v)) as T;
+}
+
 export const strokeCap = (s: Stroke): StrokeCap => s.cap ?? 'round';
 export const strokeJoin = (s: Stroke): StrokeJoin => s.join ?? 'round';
 
@@ -169,7 +174,7 @@ export function worldOutline(node: SceneNode): PathCommand[] | null {
  * Renvoie null pour un texte (il faut ses polices), une image ou un groupe.
  */
 export function toPathNode(node: SceneNode): PathNode | null {
-  if (node.type === 'path') return structuredClone(node) as PathNode;
+  if (node.type === 'path') return cloneData(node) as PathNode;
   if (node.type === 'text' || node.type === 'image' || node.type === 'group') return null;
   const p: PathNode = {
     id: node.id,
@@ -183,7 +188,7 @@ export function toPathNode(node: SceneNode): PathNode | null {
     blendMode: node.blendMode,
     visible: node.visible,
     locked: node.locked,
-    ...(node.effects ? { effects: structuredClone(node.effects) } : {}),
+    ...(node.effects ? { effects: cloneData(node.effects) } : {}),
     type: 'path',
     fill: node.type === 'line' ? { type: 'none' } : node.fill,
     stroke: node.stroke,

@@ -105,8 +105,25 @@ export function MenuBar() {
         <Item id="layer.ungroup" />
         <Item id="layer.clip" />
         <Sep />
+        <Sub label={t('menu.geometry')}>
+          <Item id="geometry.unite" />
+          <Item id="geometry.subtract" />
+          <Item id="geometry.intersect" />
+          <Item id="geometry.exclude" />
+          <Item id="geometry.divide" />
+        </Sub>
+        <Item id="layer.convertToCurves" />
+        <Item id="layer.outlineStroke" />
+        <Item id="layer.offset" />
+        <Sep />
         <Item id="layer.lock" />
         <Item id="layer.hide" />
+      </Top>
+      <Top label={t('menu.text')}>
+        <Item id="text.onPath" />
+        <Item id="text.offPath" />
+        <Sep />
+        <Item id="text.toCurves" />
       </Top>
       <Top label={t('menu.arrange')}>
         <Item id="arrange.front" />

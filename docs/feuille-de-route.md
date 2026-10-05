@@ -71,6 +71,8 @@ Livrée le 5 octobre 2026, voir [cote-canva-v0.2.md](cote-canva-v0.2.md).
 
 ### v0.3 Vectoriel pro (Illustrator, Affinity Designer)
 
+Première partie livrée le 5 octobre 2026, voir [vectoriel-pro-v0.3.md](vectoriel-pro-v0.3.md) : plume, crayon, outil Nœud, les cinq opérations booléennes, décalage de tracé, conversion en courbes (textes compris), pointillés, extrémités, jonctions et flèches, cinq effets (ombre portée, ombre interne, lueur externe, lueur interne, flou), texte sur tracé et import SVG. Le reste de la liste ci-dessous (symboles, styles, mesh, coniques, motifs, épaisseur variable, contours multiples, OpenType, colonnes, Shape Builder, ciseaux, couteau, biseau) suivra dans une v0.3.x. Le passage du rendu à CanvasKit est reporté : le rendu Canvas 2D actuel suffit pour tout ce qui précède, et les opérations booléennes passent par Paper.js.
+
 - **Tracés :** plume, nœuds, poignées, crayon, lissage, ciseaux, couteau, outil coin (arrondir un angle).
 - **Géométrie :** union, soustraction, intersection, exclusion, division, Shape Builder, décalage de tracé.
 - **Contours avancés :** pointillés, extrémités, flèches, épaisseur variable, contours multiples par objet.

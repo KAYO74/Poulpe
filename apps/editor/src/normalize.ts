@@ -9,7 +9,8 @@ export function normalizeTexts(doc: PoulpeDocument): void {
   const visit = (nodes: SceneNode[]) => {
     for (const n of nodes) {
       if (n.type === 'group') visit(n.children);
-      else if (n.type === 'text') {
+      // Un texte sur tracé garde la boîte de sa courbe.
+      else if (n.type === 'text' && !n.path) {
         const layout = layoutText(n, measureText);
         if (n.autoWidth) {
           const w = Math.max(1, layout.width);

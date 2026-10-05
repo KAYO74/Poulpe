@@ -6,7 +6,7 @@ import { parseSvgPath } from './path';
 import { findNode, topLevelIds, walkDocument } from './tree';
 import type { Parent, PathNode, PoulpeDocument, SceneNode, StrokeJoin } from './types';
 import { createPath } from './factory';
-import { worldOutline } from './vector';
+import { cloneData, worldOutline } from './vector';
 
 /*
  * Opérations de géométrie (union, soustraction, intersection, exclusion, division) et décalage
@@ -92,12 +92,12 @@ export function pathNodeFromWorld(cmds: PathCommand[], style: SceneNode, name: s
     name,
   });
   if (leaf) {
-    node.fill = structuredClone(leaf.fill);
-    node.stroke = structuredClone(leaf.stroke);
+    node.fill = cloneData(leaf.fill);
+    node.stroke = cloneData(leaf.stroke);
   }
   node.opacity = style.opacity;
   node.blendMode = style.blendMode;
-  if (style.effects) node.effects = structuredClone(style.effects);
+  if (style.effects) node.effects = cloneData(style.effects);
   return node;
 }
 
@@ -223,4 +223,21 @@ export function applyOutlineStroke(doc: PoulpeDocument, id: string, name: string
   if (n.type === 'line' || n.fill.type === 'none') loc.parent.children.splice(loc.index, 1);
   else n.stroke = { ...n.stroke, paint: { type: 'none' } };
   return node.id;
+}
+
+/**
+ * Lisse un tracé à main levée : les points relevés sont remplacés par quelques courbes de Bézier
+ * (algorithme de Schneider). `tolerance` : écart maximal admis, en unités des points.
+ */
+export function simplifyPoints(
+  points: { x: number; y: number }[],
+  tolerance: number,
+  closed = false,
+): PathCommand[] {
+  if (points.length < 2) return [];
+  const s = ps();
+  const path = new s.Path({ segments: points.map((p) => [p.x, p.y]), insert: false });
+  if (closed) path.closed = true;
+  path.simplify(Math.max(0.05, tolerance));
+  return fromItem(path);
 }
