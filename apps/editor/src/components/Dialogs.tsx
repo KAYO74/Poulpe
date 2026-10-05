@@ -34,6 +34,7 @@ import { setSettings, ui, useEditor, useUi } from '../store';
 import { NumberField, Select } from './fields';
 import { Icon } from './Icon';
 import { ShortcutsDialog } from './ShortcutsDialog';
+import { UpdateDialog } from './UpdateDialog';
 import { ExtensionParamsDialog, ExtensionsDialog } from '../extensions/ExtensionsDialog';
 import { VectorizeDialog } from '../smart/VectorizeDialog';
 
@@ -957,5 +958,6 @@ export function Dialogs() {
   if (dialog === 'vectorize') return <VectorizeDialog />;
   if (dialog === 'extensions') return <ExtensionsDialog />;
   if (dialog === 'extensionParams') return <ExtensionParamsDialog />;
+  if (dialog === 'update') return <UpdateDialog />;
   return null;
 }

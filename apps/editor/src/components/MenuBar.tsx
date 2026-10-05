@@ -329,6 +329,7 @@ export function MenuBar() {
       <ExtensionsMenu />
       <Top label={t('menu.help')}>
         <Item id="help.shortcuts" />
+        <Item id="help.checkUpdates" />
         <Item id="help.about" />
       </Top>
     </nav>

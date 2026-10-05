@@ -106,6 +106,17 @@ export const frV1 = {
   'shortcuts.needModifier': 'Ajoutez Ctrl ou Alt : les lettres seules servent aux outils.',
   'shortcuts.reassigned': 'Raccourci retiré de « {name} ».',
   'shortcuts.space': 'Espace',
+
+  'help.checkUpdates': 'Rechercher les mises à jour…',
+  'update.title': 'Mise à jour disponible',
+  'update.available': 'Poulpe {version} est disponible. Vous avez la version {current}.',
+  'update.downloading': 'Téléchargement…',
+  'update.install': 'Installer et redémarrer',
+  'update.later': 'Plus tard',
+  'update.auto': 'Chercher au démarrage',
+  'update.none': 'Poulpe est à jour (version {version}).',
+  'update.error': 'Impossible de vérifier ou d’installer la mise à jour. Réessayez plus tard.',
+  'update.web': 'La version en ligne de Poulpe est toujours à jour.',
 };
 
 export type MessageKeyV1 = keyof typeof frV1;
@@ -213,4 +224,15 @@ export const enV1: Record<MessageKeyV1, string> = {
   'shortcuts.needModifier': 'Add Ctrl or Alt: single letters are for tools.',
   'shortcuts.reassigned': 'Shortcut removed from “{name}”.',
   'shortcuts.space': 'Space',
+
+  'help.checkUpdates': 'Check for Updates…',
+  'update.title': 'Update Available',
+  'update.available': 'Poulpe {version} is available. You have version {current}.',
+  'update.downloading': 'Downloading…',
+  'update.install': 'Install and Restart',
+  'update.later': 'Later',
+  'update.auto': 'Check at startup',
+  'update.none': 'Poulpe is up to date (version {version}).',
+  'update.error': 'Could not check for or install the update. Please try again later.',
+  'update.web': 'The online version of Poulpe is always up to date.',
 };

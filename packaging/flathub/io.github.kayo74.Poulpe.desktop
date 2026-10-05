@@ -1,0 +1,13 @@
+[Desktop Entry]
+Type=Application
+Name=Poulpe
+GenericName=Graphic Design
+GenericName[fr]=Création graphique
+Comment=Vector drawing, photo editing and layout
+Comment[fr]=Dessin vectoriel, retouche photo et mise en page
+Exec=poulpe %F
+Icon=io.github.kayo74.Poulpe
+Terminal=false
+Categories=Graphics;VectorGraphics;RasterGraphics;
+MimeType=application/x-poulpe;
+Keywords=design;vector;photo;illustration;layout;
