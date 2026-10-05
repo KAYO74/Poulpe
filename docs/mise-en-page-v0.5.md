@@ -39,7 +39,7 @@ Le format de fichier passe en version 5 (voir [format-poulpe.md](format-poulpe.m
 - **Une page est un plan de travail.** Les pages gardent tout ce que savent faire les plans de travail (outils, calques, exports) ; une page maître est un plan de travail marqué `master`, rangé à gauche des pages. Les pages maîtres sont simples (une page, pas de double page maître) et ne s'imbriquent pas.
 - **Le fond perdu est une marge commune aux quatre côtés.** En vis-à-vis, il n'est pas dessiné du côté de la reliure, mais le PDF l'exporte sur les quatre côtés de chaque page (c'est ce que demandent la plupart des imprimeurs pour des pages séparées).
 - **Traits de coupe** en couleur de repérage (100 % de chaque encre), à 3 pt du fond perdu, longs de 12 pt.
-- **Pas encore de CMJN.** Le PDF reste en RVB : la gestion couleur (CMJN, profils ICC, épreuvage à l'écran) et le PDF/X arrivent dans la deuxième partie, avec l'ouverture des fichiers PSD, PDF et AI, l'export PSD et l'export par lots.
+- **CMJN dans la deuxième partie.** La gestion couleur (CMJN, profil ICC, épreuvage à l'écran), le PDF/X, l'ouverture des fichiers PSD, PDF et AI, l'export PSD et l'export par lots sont décrits dans [impression-v0.5.md](impression-v0.5.md).
 - **Pas encore de styles de paragraphe, de colonnes ni d'habillage** : ils sont dans la liste de la v0.3.x (texte avancé).
 
 ## Tests

@@ -93,6 +93,7 @@ const PATHS = {
   master: 'M3.5 1.5h9v13h-9z M5.5 4h5 M5.5 6.5h5 M6.5 11.5h3',
   duplicate: 'M5.5 5.5h8v8h-8z M2.5 10.5v-8h8',
   textFrame: 'M2.5 2.5h11v11h-11z M5 5h6 M8 5v6',
+  proof: 'M8 2.5a5.5 5.5 0 1 1 0 11 5.5 5.5 0 0 1 0-11z M8 2.5v11 M8 5.5h5 M8 10.5h5',
   pageNumber: 'M3.5 1.5h9v13h-9z M6.5 10.5h3 M7 8.5l1-1v3',
   arrange: 'M2.5 2.5h4.5v5H2.5z M9 2.5h4.5v5H9z M2.5 9.5h4.5v4H2.5z M9 9.5h4.5v4H9z',
   settings:
