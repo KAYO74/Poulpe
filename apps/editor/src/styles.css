@@ -1967,6 +1967,7 @@ input.search {
   border-radius: 6px;
   padding: 8px;
   margin: 0;
+}
 .anchor-grid {
   display: grid;
   grid-template-columns: repeat(3, 18px);
