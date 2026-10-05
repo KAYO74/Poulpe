@@ -42,7 +42,7 @@ export const isDesktop = (): boolean => typeof window !== 'undefined' && '__TAUR
 
 const exportImages = new ImageCache();
 
-type FileKind = 'poulpe' | 'png' | 'jpeg' | 'svg' | 'pdf' | 'psd' | 'zip';
+export type FileKind = 'poulpe' | 'png' | 'jpeg' | 'svg' | 'pdf' | 'psd' | 'zip' | 'macro' | 'extension';
 const KINDS: Record<FileKind, { ext: string; mime: string; label: string }> = {
   poulpe: { ext: POULPE_EXTENSION, mime: 'application/x-poulpe', label: 'Poulpe' },
   png: { ext: 'png', mime: 'image/png', label: 'PNG' },
@@ -51,6 +51,8 @@ const KINDS: Record<FileKind, { ext: string; mime: string; label: string }> = {
   pdf: { ext: 'pdf', mime: 'application/pdf', label: 'PDF' },
   psd: { ext: 'psd', mime: 'image/vnd.adobe.photoshop', label: 'Photoshop' },
   zip: { ext: 'zip', mime: 'application/zip', label: 'ZIP' },
+  macro: { ext: 'poulpemacro', mime: 'application/json', label: 'Macro Poulpe' },
+  extension: { ext: 'js', mime: 'text/javascript', label: 'Extension Poulpe' },
 };
 
 /** Formats que « Ouvrir » sait lire, en plus des documents Poulpe. */
@@ -68,7 +70,7 @@ function safeName(name: string): string {
 }
 
 /** Enregistre des octets sous un nom choisi par l'utilisateur. Renvoie le chemin ou le nom, ou null si annulé. */
-async function saveBytes(
+export async function saveBytes(
   bytes: Uint8Array,
   kind: FileKind,
   suggested: string,

@@ -1,4 +1,5 @@
 import { useSyncExternalStore } from 'react';
+import { enV1, frV1, type MessageKeyV1 } from './i18n-v1';
 
 export type Lang = 'fr' | 'en';
 
@@ -915,9 +916,9 @@ const fr = {
   'char.columnsFixed': 'Les colonnes demandent un cadre de largeur fixe.',
 } as const;
 
-export type MessageKey = keyof typeof fr;
+export type MessageKey = keyof typeof fr | MessageKeyV1;
 
-const en: Record<MessageKey, string> = {
+const en: Record<Exclude<MessageKey, MessageKeyV1>, string> = {
   'app.name': 'Poulpe',
   'app.untitled': 'Untitled',
 
@@ -1817,7 +1818,10 @@ const en: Record<MessageKey, string> = {
   'char.columnsFixed': 'Columns need a fixed-width frame.',
 };
 
-const dictionaries: Record<Lang, Record<MessageKey, string>> = { fr, en };
+const dictionaries: Record<Lang, Record<MessageKey, string>> = {
+  fr: { ...fr, ...frV1 },
+  en: { ...en, ...enV1 },
+};
 
 function initialLang(): Lang {
   try {
@@ -1848,7 +1852,10 @@ export function setLang(next: Lang): void {
 }
 
 export function t(key: MessageKey | string, vars?: Record<string, string | number>): string {
-  let s = (dictionaries[lang] as Record<string, string>)[key] ?? (fr as Record<string, string>)[key] ?? key;
+  let s =
+    (dictionaries[lang] as Record<string, string>)[key] ??
+    (dictionaries.fr as Record<string, string>)[key] ??
+    key;
   if (vars) for (const [k, v] of Object.entries(vars)) s = s.replace(`{${k}}`, String(v));
   return s;
 }

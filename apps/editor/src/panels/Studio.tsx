@@ -26,6 +26,7 @@ import { HistoryPanel } from './HistoryPanel';
 import { LayersPanel } from './LayersPanel';
 import { StrokePanel } from './StrokePanel';
 import { TransformPanel } from './TransformPanel';
+import { MacrosPanel } from '../macros/MacrosPanel';
 
 interface Tab {
   id: string;
@@ -163,15 +164,19 @@ const TABS: Record<string, Tab> = {
   histogram: { id: 'histogram', label: 'studio.histogram', render: () => <HistogramPanel /> },
   layers: { id: 'layers', label: 'studio.layers', render: () => <LayersPanel /> },
   history: { id: 'history', label: 'studio.history', render: () => <HistoryPanel /> },
+  macros: { id: 'macros', label: 'macro.title', render: () => <MacrosPanel /> },
 };
 
 const TOP_DRAW = ['color', 'stroke', 'effects', 'transform', 'character'];
 const TOP_PHOTO = ['color', 'brush', 'adjustment', 'histogram', 'effects'];
 const BOTTOM = ['layers', 'history'];
+const BOTTOM_DRAW = [...BOTTOM, 'macros'];
 
 /** Onglets du Studio d'une Persona, dans l'ordre (pour la boîte « Espace de travail »). */
 export function studioTabsFor(persona: Persona): { id: string; label: MessageKey }[] {
-  return [...(persona === 'photo' ? TOP_PHOTO : TOP_DRAW), ...BOTTOM].map((id) => TABS[id]);
+  return [...(persona === 'photo' ? [...TOP_PHOTO, ...BOTTOM] : [...TOP_DRAW, ...BOTTOM_DRAW])].map(
+    (id) => TABS[id],
+  );
 }
 
 function useGroups(): GroupDef[] {
@@ -194,7 +199,11 @@ function useGroups(): GroupDef[] {
       ),
       tabs: top,
     },
-    { id: 'studio-bottom', stateKey: 'layers', tabs: pick(BOTTOM) },
+    {
+      id: 'studio-bottom',
+      stateKey: photo ? 'layers' : 'layers-draw',
+      tabs: pick(photo ? BOTTOM : BOTTOM_DRAW),
+    },
   ];
   return groups.filter((g) => g.tabs.length > 0);
 }

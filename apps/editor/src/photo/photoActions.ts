@@ -33,6 +33,7 @@ import {
   selectedImage,
 } from './pixels';
 import { clearSelection, getSelection, selectionIn, selectAll } from './selection';
+import { recordStep } from '../macros/recorder';
 
 /*
  * Commandes de la Persona Photo : masques, calques de réglage, filtres appliqués aux pixels,
@@ -170,6 +171,7 @@ export function addAdjustment(
     else findArtboard(d, ab.id)!.children.push(node);
     return [node.id];
   });
+  recordStep({ kind: 'adjustment', adjustment, nodeId: node.id });
   if (sel) clearSelection(false);
 }
 
@@ -283,6 +285,7 @@ export function previewFilter(adj: Adjustment | null): void {
 export function applyFilter(adj: Adjustment): void {
   const r = filteredPixels(adj);
   if (!r) return;
+  recordStep({ kind: 'filter', adjustment: adj });
   setLiveBitmap(r.assetId, null);
   commitBitmap(r.nodeId, 'pixels', r.canvas, 'history.filter');
 }
