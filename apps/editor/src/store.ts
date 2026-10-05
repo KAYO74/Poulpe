@@ -1,5 +1,6 @@
 import { useEffect, useReducer, useSyncExternalStore } from 'react';
 import { t } from './i18n';
+import type { PanelId } from './panels/panelLayout';
 import {
   Editor,
   createDocument,
@@ -160,6 +161,8 @@ export interface UiState {
   dialog: Dialog;
   toast: string | null;
   cursor: { x: number; y: number } | null;
+  /** Panneau glissé au-dessus de sa zone d'ancrage (surbrillance du point de chute). */
+  panelDock: PanelId | null;
 }
 
 const SETTINGS_KEY = 'poulpe.settings';
@@ -241,6 +244,7 @@ export const ui = new Store<UiState>({
   dialog: null,
   toast: null,
   cursor: null,
+  panelDock: null,
 });
 
 export function setSettings(patch: Partial<Settings>): void {

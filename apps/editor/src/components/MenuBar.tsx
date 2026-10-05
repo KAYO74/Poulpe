@@ -289,6 +289,7 @@ export function MenuBar() {
             </Menu.Item>
           ))}
         </Sub>
+        <Item id="view.resetPanels" />
         <Sub label={t('view.language')}>
           {(['fr', 'en'] as const).map((l) => (
             <Menu.Item key={l} className="menu-item" onSelect={() => setLang(l)}>
