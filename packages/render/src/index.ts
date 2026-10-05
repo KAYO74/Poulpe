@@ -2,6 +2,13 @@ import {
   activeEffects,
   adjustmentReach,
   applyAdjustment,
+  chainHead,
+  flowText,
+  masterOf,
+  needsFlow,
+  pageFields,
+  type PageFields,
+  type TextFlow,
   arrowPaths,
   charX,
   dashPattern,
@@ -152,9 +159,48 @@ export function cachedLayout(node: TextNode, measure: MeasureText = measureText)
   return layout;
 }
 
+let flowCache = new WeakMap<PoulpeDocument, Map<string, TextFlow>>();
+
+/**
+ * Répartition d'un texte de mise en page (cadre, chaîne de cadres liés ou champs), mémorisée tant
+ * que le document ne change pas. `fields` null : champs laissés tels quels (texte en édition).
+ */
+export function cachedFlow(
+  doc: PoulpeDocument,
+  id: string,
+  fields: PageFields | null,
+  measure: MeasureText = measureText,
+): TextFlow {
+  const head = chainHead(doc, id);
+  const key = `${head?.id ?? id}|${fields ? `${fields.page}/${fields.pages}` : ''}`;
+  if (!Object.isFrozen(doc) || measure !== measureText) return flowText(doc, id, measure, fields);
+  let map = flowCache.get(doc);
+  if (!map) flowCache.set(doc, (map = new Map()));
+  let flow = map.get(key);
+  if (!flow) map.set(key, (flow = flowText(doc, id, measure, fields)));
+  return flow;
+}
+
+/**
+ * Mise en page d'un texte telle qu'affichée : seul, ou sa part d'une chaîne de cadres liés.
+ * Null : le cadre n'affiche rien (tout le texte tient dans les cadres précédents).
+ */
+export function textLayoutIn(
+  doc: PoulpeDocument,
+  node: TextNode,
+  opts: { measure?: MeasureText; fields?: PageFields | null; editingId?: string | null } = {},
+): TextLayout | null {
+  const measure = opts.measure ?? measureText;
+  if (!needsFlow(doc, node)) return cachedLayout(node, measure);
+  const raw = !!opts.editingId && chainHead(doc, node.id)?.id === opts.editingId;
+  const flow = cachedFlow(doc, node.id, raw ? null : (opts.fields ?? null), measure);
+  return flow.parts.find((p) => p.node.id === node.id)?.layout ?? null;
+}
+
 /** À appeler quand les mesures changent (une police vient de se charger). */
 export function clearLayoutCache(): void {
   layoutCache = new WeakMap();
+  flowCache = new WeakMap();
   renderRevision++;
 }
 
@@ -217,6 +263,10 @@ export interface RenderOptions {
   measure?: MeasureText;
   /** Objets à ne pas dessiner (par ex. le texte en cours d'édition). */
   hidden?: Set<string>;
+  /** Numéro de page et nombre de pages, pour les champs des textes. */
+  fields?: PageFields | null;
+  /** Texte en cours d'édition : ses champs restent affichés tels quels. */
+  editingId?: string | null;
 }
 
 function applyNodeTransform(ctx: Ctx, node: SceneNode) {
@@ -225,7 +275,8 @@ function applyNodeTransform(ctx: Ctx, node: SceneNode) {
   ctx.translate(-node.width / 2, -node.height / 2);
 }
 
-function drawText(ctx: Ctx, node: TextNode, measure: MeasureText) {
+function drawText(ctx: Ctx, doc: PoulpeDocument, node: TextNode, opts: RenderOptions) {
+  const measure = opts.measure ?? measureText;
   const fill = canvasPaint(ctx, node.fill, node.width, node.height);
   const stroke =
     node.stroke.paint.type !== 'none' && node.stroke.width > 0
@@ -254,7 +305,8 @@ function drawText(ctx: Ctx, node: TextNode, measure: MeasureText) {
     }
     return;
   }
-  const layout = cachedLayout(node, measure);
+  const layout = textLayoutIn(doc, node, opts);
+  if (!layout) return;
   for (const line of layout.lines) {
     const y = line.baseline;
     for (const seg of line.segments) {
@@ -367,7 +419,7 @@ function drawContent(ctx: Ctx, doc: PoulpeDocument, node: SceneNode, opts: Rende
       } else ctx.drawImage(img, 0, 0, w, h);
     }
   } else if (node.type === 'text') {
-    drawText(ctx, node, measure);
+    drawText(ctx, doc, node, opts);
   } else if (node.type !== 'adjustment') {
     const path = nodePath(node);
     if (node.type !== 'line') {
@@ -598,7 +650,21 @@ export function drawArtboard(
     }
     ctx.restore();
   }
-  drawChildren(ctx, doc, ab.children, opts, { x: ab.x, y: ab.y, width: ab.width, height: ab.height });
+  const pageOpts = { ...opts, fields: pageFields(doc, ab) };
+  // Les objets de la page maître passent sous ceux de la page, au même endroit relatif.
+  const master = masterOf(doc, ab);
+  if (master) {
+    ctx.save();
+    ctx.translate(ab.x - master.x, ab.y - master.y);
+    drawChildren(ctx, doc, master.children, pageOpts, {
+      x: master.x,
+      y: master.y,
+      width: master.width,
+      height: master.height,
+    });
+    ctx.restore();
+  }
+  drawChildren(ctx, doc, ab.children, pageOpts, { x: ab.x, y: ab.y, width: ab.width, height: ab.height });
   ctx.restore();
 }
 
@@ -658,7 +724,22 @@ export function drawChildren(
   const w = x1 - x0,
     h = y1 - y0;
   if (w > 0 && h > 0 && w * h <= 64e6) {
-    const key = [m.a, m.b, m.c, m.d, m.e, m.f, x0, y0, w, h, renderRevision, [...(opts.hidden ?? [])].join()].join('|');
+    const key = [
+      m.a,
+      m.b,
+      m.c,
+      m.d,
+      m.e,
+      m.f,
+      x0,
+      y0,
+      w,
+      h,
+      renderRevision,
+      [...(opts.hidden ?? [])].join(),
+      opts.fields?.page,
+      opts.editingId,
+    ].join('|');
     let hit = Object.isFrozen(nodes) ? adjustCache.get(nodes) : undefined;
     if (!hit || hit.key !== key) {
       const buf = makeCanvas(w, h);
@@ -667,12 +748,20 @@ export function drawChildren(
         const n = nodes[i];
         if (n.type === 'adjustment') {
           if (n.visible && !opts.hidden?.has(n.id))
-            applyAdjustmentLayer(buf, doc, n, opts, scale, { x: m.e - x0, y: m.f - y0 }, {
-              x: fx0 - x0,
-              y: fy0 - y0,
-              width: fx1 - fx0,
-              height: fy1 - fy0,
-            });
+            applyAdjustmentLayer(
+              buf,
+              doc,
+              n,
+              opts,
+              scale,
+              { x: m.e - x0, y: m.f - y0 },
+              {
+                x: fx0 - x0,
+                y: fy0 - y0,
+                width: fx1 - fx0,
+                height: fy1 - fy0,
+              },
+            );
         } else drawNode(buf.ctx, doc, n, opts);
       }
       hit = { key, canvas: buf.canvas, x: x0, y: y0 };

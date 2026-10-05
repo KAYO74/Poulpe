@@ -5,6 +5,7 @@ import { useT } from '../i18n';
 import { editor, ui, useEditor, useUi, type ToolId } from '../store';
 import { getController } from './Viewport';
 import { convertToCurves, removeTextFromPath, setTextPathOffset } from '../vectorActions';
+import { canLinkSelection, linkSelection, toggleFrame } from '../layoutActions';
 import { NumberField, Select, paintPreview } from './fields';
 import { PhotoContext } from './PhotoContext';
 import { isPhotoTool } from '../photo/photoTools';
@@ -314,7 +315,24 @@ export function ContextBar() {
               width={80}
               onChange={(v) => setTextStyle({ fontSize: v })}
             />
+            {shape?.type === 'text' && !shape.path && (
+              <label className="check" title={t('ctx.frameHint')}>
+                <input
+                  type="checkbox"
+                  data-testid="text-frame"
+                  checked={!!shape.frame || !!shape.next}
+                  disabled={!!shape.next}
+                  onChange={toggleFrame}
+                />
+                {t('ctx.frame')}
+              </label>
+            )}
           </>
+        )}
+        {canLinkSelection() && (
+          <button className="btn small" data-testid="link-frames" onClick={linkSelection}>
+            {t('text.link')}
+          </button>
         )}
       </>
     );

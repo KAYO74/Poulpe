@@ -6,11 +6,20 @@ import { measureText } from '@poulpe/render';
  * son bord gauche, son centre ou son bord droit selon son alignement.
  */
 export function normalizeTexts(doc: PoulpeDocument): void {
+  // Les cadres de texte (et tous les cadres liés) gardent la taille qu'on leur a donnée.
+  const linked = new Set<string>();
+  const collect = (nodes: SceneNode[]) => {
+    for (const n of nodes) {
+      if (n.type === 'group') collect(n.children);
+      else if (n.type === 'text' && n.next) linked.add(n.id).add(n.next);
+    }
+  };
+  for (const ab of doc.artboards) collect(ab.children);
   const visit = (nodes: SceneNode[]) => {
     for (const n of nodes) {
       if (n.type === 'group') visit(n.children);
       // Un texte sur tracé garde la boîte de sa courbe.
-      else if (n.type === 'text' && !n.path) {
+      else if (n.type === 'text' && !n.path && !n.frame && !linked.has(n.id)) {
         const layout = layoutText(n, measureText);
         if (n.autoWidth) {
           const w = Math.max(1, layout.width);

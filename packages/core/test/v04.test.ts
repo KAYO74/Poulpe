@@ -196,7 +196,8 @@ describe('gomme magique', () => {
     const W = 64;
     const px = solid(W, W, [0, 0, 0, 255]);
     for (let y = 0; y < W; y++)
-      for (let x = 0; x < W; x++) if (Math.floor(x / 4) % 2 === 0) px.data.set([255, 255, 255, 255], (y * W + x) * 4);
+      for (let x = 0; x < W; x++)
+        if (Math.floor(x / 4) % 2 === 0) px.data.set([255, 255, 255, 255], (y * W + x) * 4);
     const ref = new Uint8ClampedArray(px.data);
     const hole = new Uint8Array(W * W);
     for (let y = 26; y < 38; y++)
@@ -241,7 +242,7 @@ describe('format 4', () => {
     doc.artboards[0].children.push(img, layer);
     const back = decodePoulpe(encodePoulpe(doc));
     expect(back.version).toBe(FORMAT_VERSION);
-    expect(FORMAT_VERSION).toBe(4);
+    expect(FORMAT_VERSION).toBeGreaterThanOrEqual(4);
     const [bi, ba] = back.artboards[0].children;
     expect(bi.mask).toEqual({ assetId: 'm', enabled: true });
     expect(ba.type === 'adjustment' && ba.adjustment).toEqual(adj);
@@ -250,7 +251,7 @@ describe('format 4', () => {
 
   it('ouvre les documents de la version 3', () => {
     const v3 = { ...createDocument(), version: 3 } as unknown as Record<string, unknown>;
-    expect(migrate(v3).version).toBe(4);
+    expect(migrate(v3).version).toBe(FORMAT_VERSION);
   });
 
   it("export SVG : masque alpha, réglage ignoré (mis en image par l'appli)", () => {

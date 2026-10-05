@@ -1397,6 +1397,137 @@ kbd {
   max-height: 36px;
 }
 
+/* ——— Panneau Pages (Persona Mise en page) ——— */
+.pages-scroll {
+  padding: 8px 10px 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.pages-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+.pages-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(110px, 1fr));
+  gap: 8px;
+}
+.pages-grid.masters {
+  grid-template-columns: repeat(auto-fill, minmax(90px, 1fr));
+}
+.pages-spreads {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.spread {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+}
+.spread .page-card:first-child .page-thumb {
+  justify-content: flex-end;
+}
+.spread .page-card:last-child .page-thumb {
+  justify-content: flex-start;
+}
+.page-card {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 4px;
+  padding: 4px;
+  border-radius: 6px;
+  color: var(--muted);
+  font-size: 11px;
+  min-width: 0;
+}
+.page-card:hover {
+  background: var(--panel-2);
+}
+.page-card.on {
+  color: var(--fg);
+}
+.page-card.on .page-canvas {
+  outline: 2px solid var(--sel);
+  outline-offset: 1px;
+}
+.page-card.drop {
+  background: var(--accent-soft);
+}
+.page-card.empty {
+  visibility: hidden;
+}
+.page-thumb {
+  position: relative;
+  display: flex;
+  justify-content: center;
+  align-items: flex-end;
+  min-height: 88px;
+}
+.page-paper {
+  position: relative;
+  display: block;
+}
+.page-canvas {
+  display: block;
+  background: #fff;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.45);
+}
+.page-badge {
+  position: absolute;
+  right: 4px;
+  top: 4px;
+  min-width: 16px;
+  height: 16px;
+  padding: 0 3px;
+  border-radius: 4px;
+  background: var(--panel);
+  color: var(--fg);
+  font-size: 10px;
+  font-weight: 600;
+  line-height: 16px;
+  text-align: center;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.4);
+}
+.page-label {
+  text-align: center;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.pages-foot {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 8px 10px;
+  border-top: 1px solid var(--line);
+}
+.pages-actions {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+}
+.grow {
+  flex: 1;
+}
+.text-input {
+  height: 28px;
+  padding: 0 8px;
+  border-radius: 6px;
+  background: var(--input);
+  border: 1px solid var(--line);
+  color: var(--fg);
+  font: inherit;
+}
+.text-input:focus {
+  outline: none;
+  border-color: var(--sel);
+}
+.spread .page-card {
+  padding-inline: 0;
+}
 /* ——— Persona Photo ——— */
 .pslider {
   display: inline-flex;

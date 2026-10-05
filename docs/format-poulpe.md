@@ -17,7 +17,7 @@ Le code de lecture et d'écriture est dans [`packages/core/src/file.ts`](../pack
 ```json
 {
   "format": "poulpe",
-  "version": 3,
+  "version": 4,
   "generator": "Poulpe 0.2.0",
   "created": "2026-10-04T09:43:00.000Z",
   "files": ["document.json", "assets/images/img_1a2b3c.png", "thumbnail.png"]
@@ -35,8 +35,28 @@ Le code de lecture et d'écriture est dans [`packages/core/src/file.ts`](../pack
 | `swatches`   | liste de couleurs | Nuancier du document.                                                                                                                  |
 | `assets`     | objet             | Images, par identifiant : `mime`, `width`, `height` et `path` dans l'archive.                                                          |
 | `guides`     | objet, facultatif | Repères tirés depuis les règles : `x` (repères verticaux) et `y` (repères horizontaux), listes de positions dans l'espace du document. |
+| `layout`     | objet, facultatif | Mise en page et impression (version 4), voir plus bas.                                                                                 |
 
 Toutes les coordonnées sont en pixels dans l'espace du document : un objet n'est pas relatif à son plan de travail. Chaque objet est une boîte `x`, `y`, `width`, `height` tournée de `rotation` degrés autour de son centre. Les listes `children` vont du dessous vers le dessus.
+
+### Pages et pages maîtres (version 5)
+
+Une page est un plan de travail ; l'ordre des pages est celui de `artboards`. Deux champs facultatifs s'ajoutent aux plans de travail :
+
+| Champ      | Contenu                                                                                                              |
+| ---------- | -------------------------------------------------------------------------------------------------------------------- |
+| `master`   | `true` : page maître. Elle n'est pas une page (pas de numéro, pas exportée avec « toutes les pages »).               |
+| `masterId` | Identifiant de la page maître de cette page. Ses objets sont dessinés sous ceux de la page, au même endroit relatif. |
+
+`layout` du document :
+
+| Champ         | Contenu                                                                                                   |
+| ------------- | --------------------------------------------------------------------------------------------------------- |
+| `dpi`         | Pixels par pouce (96 si absent). Donne la taille réelle des pages à l'impression et dans le PDF.          |
+| `bleed`       | Fond perdu autour de chaque page, en pixels.                                                              |
+| `margins`     | `{ "top", "bottom", "inside", "outside" }` en pixels ; `inside` est du côté de la reliure.                |
+| `facing`      | `true` : pages en vis-à-vis (page 1 seule à droite, puis doubles pages ; les pages paires sont à gauche). |
+| `firstNumber` | Numéro de la première page (1 si absent).                                                                 |
 
 ### Objets
 
@@ -60,6 +80,10 @@ Champs communs : `id`, `name`, `x`, `y`, `width`, `height`, `rotation`, `opacity
 `runs` d'un texte : styles par caractère, triés et sans chevauchement. Chaque plage vaut `{ "start": 8, "end": 12, "style": { … } }` : elle couvre les caractères `start` à `end - 1` (indices UTF-16 de `text`) et ne contient que ce qui diffère du `style` du texte, parmi `fontFamily`, `fontSize`, `fontWeight`, `italic`, `underline`, `strike`, `letterSpacing` et `color` (couleur unie qui remplace le remplissage). L'alignement, l'interligne et les capitales valent pour tout le texte.
 
 `d` d'un tracé : données de tracé SVG (commandes `M L H V C S Q T A Z`, absolues ou relatives), dans le repère `viewBox` (`{ "x", "y", "width", "height" }`). Le tracé est étiré pour remplir la boîte de l'objet. `fillRule` vaut `nonzero` (par défaut) ou `evenodd`.
+
+`frame` d'un texte (version 4) : `true` pour un cadre de texte, dont la hauteur reste fixe ; le texte qui ne tient pas est caché, ou passe au cadre suivant. `next` : identifiant du cadre suivant d'une chaîne de cadres liés. Le premier cadre de la chaîne porte le texte, son style et ses plages ; le `text` des cadres suivants est ignoré (vide).
+
+Champs d'un texte (version 4) : `{page}` est remplacé à l'affichage par le numéro de la page, `{pages}` par le nombre de pages. Sur une page maître, ils s'affichent « # » ; sur une page qui l'utilise, ils prennent les valeurs de cette page.
 
 `path` d'un texte : courbe que suit le texte, `{ "d", "viewBox", "offset" }`. `d` et `viewBox` se lisent comme ceux d'un tracé, étirés sur la boîte du texte. `offset` (0 à 1) place le texte le long de la courbe : son début s'il est aligné à gauche, son milieu s'il est centré, sa fin s'il est aligné à droite. Un texte sur tracé ne passe pas à la ligne.
 
@@ -142,3 +166,4 @@ Un logiciel qui ne connaît pas les calques de réglage peut les ignorer : le re
 - **2** (Poulpe 0.2) : ajout des objets `path`. Un fichier de version 1 s'ouvre sans changement ; un fichier de version 2 ne s'ouvre pas dans Poulpe 0.1.
 - **3** (Poulpe 0.3) : contours avancés (`cap`, `join`, `dash`, `start`, `end`), `effects` sur tous les objets, `path` sur les textes. Tous ces champs sont facultatifs : un fichier de version 1 ou 2 s'ouvre sans changement ; un fichier de version 3 ne s'ouvre pas dans Poulpe 0.2.
 - **4** (Poulpe 0.4) : objets `adjustment` (calques de réglage et filtres dynamiques) et `mask` sur tous les objets. Un fichier des versions 1 à 3 s'ouvre sans changement ; un fichier de version 4 ne s'ouvre pas dans Poulpe 0.3.
+- **5** (Poulpe 0.5, mise en page) : `layout` du document, `master` et `masterId` des plans de travail, `frame` et `next` des textes, champs `{page}` et `{pages}`. Tous facultatifs : les fichiers des versions 1 à 4 s'ouvrent sans changement ; un fichier de version 5 ne s'ouvre pas dans Poulpe 0.4.

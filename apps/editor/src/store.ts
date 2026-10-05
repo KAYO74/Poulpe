@@ -41,7 +41,7 @@ export type ToolId =
   | 'sharpenBrush';
 
 /** Espaces de travail, comme les Personas d'Affinity. */
-export type Persona = 'draw' | 'photo';
+export type Persona = 'draw' | 'photo' | 'layout';
 
 /** Combinaison d'une nouvelle sélection de pixels avec l'ancienne. */
 export type SelectionMode = 'replace' | 'add' | 'subtract' | 'intersect';
@@ -67,7 +67,8 @@ export type Dialog =
   | 'resize'
   | 'offset'
   | 'filter'
-  | 'selectionModify';
+  | 'selectionModify'
+  | 'document';
 
 export interface Settings {
   theme: Theme;
@@ -90,6 +91,7 @@ export interface View {
 }
 
 export interface UiState {
+  persona: Persona;
   tool: ToolId;
   view: View;
   settings: Settings;
@@ -105,7 +107,6 @@ export interface UiState {
   nodeSelection: string[];
   /** Lissage du crayon, de 0 à 100. */
   pencilSmoothing: number;
-  persona: Persona;
   /** Réglages des pinceaux, par outil (pinceau, gomme, tampon…). */
   brushes: Partial<Record<ToolId, BrushSettings>>;
   /** Couleurs de peinture de la Persona Photo : principale et secondaire. */
@@ -127,6 +128,8 @@ export interface UiState {
   selectionModify: 'feather' | 'grow' | 'shrink' | null;
   /** Calcul long en cours (gomme magique) : avancement de 0 à 1. */
   busy: { label: string; progress: number } | null;
+  /** Cadre de texte dont on choisit le cadre suivant (après un clic sur son indicateur de débordement). */
+  linkFrom: string | null;
   /** Fichier courant : chemin (bureau) ou nom (navigateur). */
   filePath: string | null;
   dialog: Dialog;
@@ -179,6 +182,7 @@ export function starterDocument(): PoulpeDocument {
 export const editor = new Editor(starterDocument());
 
 export const ui = new Store<UiState>({
+  persona: 'draw',
   tool: 'select',
   view: { zoom: 0.5, panX: 100, panY: 60 },
   settings: loadSettings(),
@@ -189,7 +193,6 @@ export const ui = new Store<UiState>({
   cropId: null,
   nodeSelection: [],
   pencilSmoothing: 50,
-  persona: 'draw',
   brushes: {},
   brushColor: '#1a1a1d',
   brushColor2: '#ffffff',
@@ -202,6 +205,7 @@ export const ui = new Store<UiState>({
   filterKind: null,
   selectionModify: null,
   busy: null,
+  linkFrom: null,
   filePath: null,
   dialog: null,
   toast: null,

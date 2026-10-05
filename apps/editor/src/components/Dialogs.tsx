@@ -1,5 +1,15 @@
 import { useEffect, useRef, useState } from 'react';
-import { FORMAT_PRESETS, defaultAdjustment, type Adjustment, type FormatCategory } from '@poulpe/core';
+import {
+  FORMAT_PRESETS,
+  defaultAdjustment,
+  documentDpi,
+  findFormat,
+  mmToPx,
+  printablePages,
+  pxToMm,
+  type Adjustment,
+  type FormatCategory,
+} from '@poulpe/core';
 import { TEMPLATES } from '@poulpe/library';
 import { COMMANDS, TOOL_KEYS, formatShortcut } from '../commands';
 import { discardDraft, getPendingDraft, restoreDraft } from '../drafts';
@@ -11,6 +21,7 @@ import { modifySelection } from '../photo/selection';
 import { newFromTemplate, resizeDesign } from '../libraryActions';
 import { TemplateCard } from '../panels/Library';
 import { offsetPath } from '../vectorActions';
+import { updateLayout } from '../layoutActions';
 import { setSettings, ui, useEditor, useUi } from '../store';
 import { NumberField, Select } from './fields';
 import { Icon } from './Icon';
@@ -75,6 +86,11 @@ function NewDialog() {
   const [preset, setPreset] = useState('portrait');
   const [size, setSize] = useState({ width: 1080, height: 1350 });
   const [format, setFormat] = useState<string | null>(null);
+  const [pageCount, setPageCount] = useState(1);
+  const [facing, setFacing] = useState(false);
+  const print = section === 'print' || findFormat(preset)?.category === 'print';
+  const create = (w: number, h: number, isPrint = print) =>
+    newDocument(w, h, isPrint ? { dpi: 300, pages: pageCount, facing } : {});
   const formats = section === 'templates' ? [] : FORMAT_PRESETS.filter((f) => f.category === section);
   const templates = TEMPLATES.filter((d) => !format || d.format === format);
   const usedFormats = [...new Set(TEMPLATES.map((d) => d.format))];
@@ -143,7 +159,7 @@ function NewDialog() {
                     setPreset(f.id);
                     setSize({ width: f.width, height: f.height });
                   }}
-                  onDoubleClick={() => newDocument(f.width, f.height)}
+                  onDoubleClick={() => create(f.width, f.height, f.category === 'print')}
                 >
                   <span className="preset-shape" style={{ aspectRatio: `${f.width} / ${f.height}` }} />
                   <b>{t(`format.${f.id}`)}</b>
@@ -166,6 +182,23 @@ function NewDialog() {
           {t('new.showAtStartup')}
         </label>
         <span className="spacer" />
+        {print && (
+          <>
+            <NumberField
+              label={t('new.pages')}
+              value={pageCount}
+              min={1}
+              max={500}
+              width={80}
+              testId="new-pages"
+              onChange={setPageCount}
+            />
+            <label className="check">
+              <input type="checkbox" checked={facing} onChange={(e) => setFacing(e.target.checked)} />
+              {t('docsetup.facing')}
+            </label>
+          </>
+        )}
         <span className="muted">{t('new.custom2')}</span>
         <NumberField
           label={t('new.width')}
@@ -188,7 +221,7 @@ function NewDialog() {
         <button
           className="btn primary"
           data-testid="new-create"
-          onClick={() => newDocument(size.width, size.height)}
+          onClick={() => create(size.width, size.height)}
         >
           {t('new.blank')}
         </button>
@@ -284,15 +317,23 @@ function ResizeDialog() {
 function ExportDialog() {
   const t = useT();
   const { doc, activeArtboardId } = useEditor();
+  const pages = printablePages(doc);
+  const bleed = doc.layout?.bleed ?? 0;
   const [opts, setOpts] = useState<ExportOptions>({
     kind: 'png',
     artboardId: activeArtboardId,
     scale: 1,
     quality: 0.92,
     transparent: false,
+    pages: '',
+    bleed: bleed > 0,
+    marks: false,
   });
   const [busy, setBusy] = useState(false);
   const raster = opts.kind === 'png' || opts.kind === 'jpeg';
+  const pdf = opts.kind === 'pdf';
+  const mm = (px: number) => Math.round(pxToMm(doc, px) * 10) / 10;
+  const ref = doc.artboards.find((a) => a.id === activeArtboardId) ?? pages[0];
   return (
     <Modal title={t('export.title')} onClose={close}>
       <div className="seg full" role="group" aria-label={t('export.format')}>
@@ -301,7 +342,14 @@ function ExportDialog() {
             key={k}
             aria-pressed={opts.kind === k}
             data-testid={`export-${k}`}
-            onClick={() => setOpts({ ...opts, kind: k })}
+            onClick={() =>
+              setOpts({
+                ...opts,
+                kind: k,
+                // Le PDF est un document de plusieurs pages : toutes les pages par défaut.
+                artboardId: k === 'pdf' && pages.length > 1 ? 'all' : opts.artboardId,
+              })
+            }
           >
             {k.toUpperCase()}
           </button>
@@ -311,11 +359,57 @@ function ExportDialog() {
         label={t('export.artboard')}
         value={opts.artboardId}
         options={[
-          ...doc.artboards.map((a) => ({ value: a.id, label: `${a.name} · ${a.width} × ${a.height}` })),
-          ...(doc.artboards.length > 1 ? [{ value: 'all', label: t('export.allArtboards') }] : []),
+          ...doc.artboards.map((a) => ({
+            value: a.id,
+            label: `${a.name} · ${a.width} × ${a.height}${a.master ? ` (${t('pages.masterTag')})` : ''}`,
+          })),
+          ...(pages.length > 1 ? [{ value: 'all', label: t('export.allArtboards') }] : []),
+          ...(pdf && pages.length > 1 ? [{ value: 'range', label: t('export.range') }] : []),
         ]}
         onChange={(v) => setOpts({ ...opts, artboardId: v })}
       />
+      {pdf && opts.artboardId === 'range' && (
+        <label className="field">
+          <span className="field-label">{t('export.rangeLabel')}</span>
+          <input
+            className="text-input"
+            data-testid="export-range"
+            placeholder="1-3, 5"
+            value={opts.pages}
+            onChange={(e) => setOpts({ ...opts, pages: e.target.value })}
+          />
+        </label>
+      )}
+      {pdf && (
+        <>
+          <p className="note small">
+            {t('export.printSize', {
+              w: mm(ref.width),
+              h: mm(ref.height),
+              dpi: documentDpi(doc),
+            })}
+          </p>
+          <label className="check">
+            <input
+              type="checkbox"
+              data-testid="export-bleed"
+              checked={opts.bleed}
+              disabled={!bleed}
+              onChange={(e) => setOpts({ ...opts, bleed: e.target.checked })}
+            />
+            {bleed ? t('export.bleed', { mm: mm(bleed) }) : t('export.noBleed')}
+          </label>
+          <label className="check">
+            <input
+              type="checkbox"
+              data-testid="export-marks"
+              checked={opts.marks}
+              onChange={(e) => setOpts({ ...opts, marks: e.target.checked })}
+            />
+            {t('export.marks')}
+          </label>
+        </>
+      )}
       {raster && (
         <div className="picker-row">
           <Select
@@ -468,6 +562,150 @@ function OffsetDialog() {
   );
 }
 
+/**
+ * Réglages du document (comme « Configuration du document » d'Affinity Publisher) : résolution,
+ * pages en vis-à-vis, numérotation, marges et fond perdu. Les longueurs se règlent en millimètres.
+ */
+function DocumentDialog() {
+  const t = useT();
+  const { doc, activeArtboardId } = useEditor();
+  const layout = doc.layout ?? {};
+  const [dpi, setDpi] = useState(documentDpi(doc));
+  const asDoc = { layout: { dpi } };
+  const toMm = (px: number) => Math.round(pxToMm(asDoc, px) * 10) / 10;
+  const [facing, setFacing] = useState(!!layout.facing);
+  const [first, setFirst] = useState(layout.firstNumber ?? 1);
+  const [showMargins, setShowMargins] = useState(!!layout.margins);
+  const m = layout.margins;
+  const defaultMargin = Math.round(pxToMm(doc, (doc.artboards[0]?.width ?? 1000) * 0.06));
+  const [margins, setMargins] = useState({
+    top: m ? toMm(m.top) : defaultMargin,
+    bottom: m ? toMm(m.bottom) : defaultMargin,
+    inside: m ? toMm(m.inside) : defaultMargin,
+    outside: m ? toMm(m.outside) : defaultMargin,
+  });
+  const [bleed, setBleed] = useState(layout.bleed ? toMm(layout.bleed) : 0);
+  const ab = doc.artboards.find((a) => a.id === activeArtboardId) ?? doc.artboards[0];
+  const px = (v: number) => Math.round(mmToPx(asDoc, v) * 100) / 100;
+  const field = (key: keyof typeof margins, label: string) => (
+    <NumberField
+      label={label}
+      value={margins[key]}
+      min={0}
+      max={1000}
+      decimals={1}
+      unit="mm"
+      width={110}
+      disabled={!showMargins}
+      testId={`margin-${key}`}
+      onChange={(v) => setMargins({ ...margins, [key]: v })}
+    />
+  );
+  return (
+    <Modal title={t('docsetup.title')} onClose={close} wide>
+      <div className="picker-row">
+        <Select
+          label={t('docsetup.dpi')}
+          value={[72, 96, 150, 300, 600].includes(dpi) ? dpi : 0}
+          options={[
+            ...[72, 96, 150, 300, 600].map((v) => ({ value: v, label: `${v} ${t('docsetup.ppi')}` })),
+            ...([72, 96, 150, 300, 600].includes(dpi)
+              ? []
+              : [{ value: 0, label: `${dpi} ${t('docsetup.ppi')}` }]),
+          ]}
+          onChange={(v) => v && setDpi(v)}
+          width={140}
+        />
+        {ab && (
+          <p className="note small grow">
+            {t('docsetup.size', { w: toMm(ab.width), h: toMm(ab.height), pw: ab.width, ph: ab.height })}
+          </p>
+        )}
+      </div>
+      <p className="note small">{t('docsetup.dpiHint')}</p>
+      <h4 className="sub">{t('docsetup.pages')}</h4>
+      <div className="picker-row">
+        <label className="check">
+          <input
+            type="checkbox"
+            data-testid="doc-facing"
+            checked={facing}
+            onChange={(e) => setFacing(e.target.checked)}
+          />
+          {t('docsetup.facing')}
+        </label>
+        <NumberField
+          label={t('docsetup.firstNumber')}
+          value={first}
+          min={1}
+          max={9999}
+          width={110}
+          onChange={setFirst}
+        />
+      </div>
+      <h4 className="sub">{t('docsetup.margins')}</h4>
+      <label className="check">
+        <input
+          type="checkbox"
+          data-testid="doc-margins"
+          checked={showMargins}
+          onChange={(e) => setShowMargins(e.target.checked)}
+        />
+        {t('docsetup.showMargins')}
+      </label>
+      <div className="picker-row">
+        {field('top', t('docsetup.top'))}
+        {field('bottom', t('docsetup.bottom'))}
+        {field('inside', facing ? t('docsetup.inside') : t('docsetup.left'))}
+        {field('outside', facing ? t('docsetup.outside') : t('docsetup.right'))}
+      </div>
+      <h4 className="sub">{t('docsetup.bleed')}</h4>
+      <div className="picker-row">
+        <NumberField
+          label={t('docsetup.bleedAll')}
+          value={bleed}
+          min={0}
+          max={100}
+          decimals={1}
+          unit="mm"
+          width={110}
+          testId="doc-bleed"
+          onChange={setBleed}
+        />
+        <p className="note small grow">{t('docsetup.bleedHint')}</p>
+      </div>
+      <footer>
+        <button className="btn" onClick={close}>
+          {t('new.cancel')}
+        </button>
+        <button
+          className="btn primary"
+          data-testid="doc-apply"
+          onClick={() => {
+            updateLayout({
+              dpi,
+              facing: facing || undefined,
+              firstNumber: first !== 1 ? first : undefined,
+              bleed: bleed > 0 ? px(bleed) : undefined,
+              margins: showMargins
+                ? {
+                    top: px(margins.top),
+                    bottom: px(margins.bottom),
+                    inside: px(margins.inside),
+                    outside: px(margins.outside),
+                  }
+                : undefined,
+            });
+            close();
+          }}
+        >
+          {t('docsetup.apply')}
+        </button>
+      </footer>
+    </Modal>
+  );
+}
+
 /** Filtre appliqué aux pixels du calque choisi, avec aperçu en direct. */
 function FilterDialog() {
   const t = useT();
@@ -590,6 +828,7 @@ export function Dialogs() {
   if (dialog === 'draft') return <DraftDialog />;
   if (dialog === 'resize') return <ResizeDialog />;
   if (dialog === 'offset') return <OffsetDialog />;
+  if (dialog === 'document') return <DocumentDialog />;
   if (dialog === 'filter') return <FilterDialog />;
   if (dialog === 'selectionModify') return <SelectionModifyDialog />;
   return null;
