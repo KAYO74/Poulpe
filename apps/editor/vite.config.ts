@@ -11,6 +11,8 @@ export default defineConfig({
   // Paper.js sans PaperScript (ni son analyseur JavaScript) : seule la géométrie nous sert.
   resolve: { alias: [{ find: /^paper$/, replacement: 'paper/dist/paper-core.js' }] },
   define: { __APP_VERSION__: JSON.stringify(pkg.version) },
+  // La gomme magique calcule dans un Web Worker (module ES).
+  worker: { format: 'es' },
   clearScreen: false,
   server: { port: 5173, strictPort: true },
   build: { target: 'es2022', sourcemap: true, chunkSizeWarningLimit: 1500 },

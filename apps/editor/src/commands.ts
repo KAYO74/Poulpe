@@ -1,11 +1,15 @@
-import { findNode } from '@poulpe/core';
+import { COLOR_ADJUSTMENTS, LIVE_FILTERS, findNode, type AdjustmentKind } from '@poulpe/core';
 import * as A from './actions';
 import { beginTextEdit, endTextEdit, isEditingText } from './canvas/textEdit';
 import { getController } from './components/Viewport';
 import { setLang, getLang, type MessageKey } from './i18n';
 import { exportDocument, importImage, openDocument, saveDocument } from './io';
 import * as V from './vectorActions';
-import { editor, setSettings, setTool, ui, type ToolId } from './store';
+import { editor, setSettings, setTool, ui, type Persona, type ToolId } from './store';
+import * as P from './photo/photoActions';
+import { clearSelection, invertSelection, selectAll, selectFromLayer } from './photo/selection';
+import { images, newPixelLayer, selectedImage } from './photo/pixels';
+import { openPhoto, setPersona } from './photo/persona';
 
 export interface Command {
   label: MessageKey;
@@ -13,6 +17,25 @@ export interface Command {
   shortcut?: string;
   run: () => void;
   enabled?: () => boolean;
+  /** Commande propre à une Persona : son raccourci n'agit que dans celle-ci, et seulement si elle est disponible. */
+  persona?: Persona;
+}
+
+const photoSel = () => ui.get().hasPixelSelection;
+const pixelSel = () => photoSel() && selectedImage() !== null;
+
+/** Une commande par réglage (calque de réglage) et par filtre (appliqué aux pixels). */
+function adjustmentCommands() {
+  const out: Record<string, Command> = {};
+  for (const kind of [...COLOR_ADJUSTMENTS, ...LIVE_FILTERS] as AdjustmentKind[]) {
+    out[`adjust.${kind}`] = { label: `adjust.${kind}` as MessageKey, run: () => P.addAdjustment(kind) };
+    out[`filter.${kind}`] = {
+      label: `adjust.${kind}` as MessageKey,
+      run: () => ui.set({ dialog: 'filter', filterKind: kind }),
+      enabled: P.canFilter,
+    };
+  }
+  return out as Record<`adjust.${AdjustmentKind}` | `filter.${AdjustmentKind}`, Command>;
 }
 
 const hasSel = () => editor.selection.length > 0;
@@ -30,6 +53,7 @@ export const COMMANDS = {
   'file.save': { label: 'file.save', shortcut: 'Mod+S', run: () => void saveDocument() },
   'file.saveAs': { label: 'file.saveAs', shortcut: 'Mod+Shift+S', run: () => void saveDocument(true) },
   'file.importImage': { label: 'file.importImage', shortcut: 'Mod+Shift+I', run: () => void importImage() },
+  'file.openPhoto': { label: 'file.openPhoto', shortcut: 'Mod+Alt+O', run: () => void openPhoto() },
   'file.export': { label: 'file.export', shortcut: 'Mod+Shift+E', run: () => ui.set({ dialog: 'export' }) },
   'file.exportPng': {
     label: 'file.exportPng',
@@ -72,6 +96,87 @@ export const COMMANDS = {
     run: () => editor.select([]),
     enabled: hasSel,
   },
+
+  // ————— Persona Photo —————
+  'select.all': { label: 'select.all', shortcut: 'Mod+A', persona: 'photo', run: selectAll },
+  'select.deselect': {
+    label: 'select.deselect',
+    shortcut: 'Mod+D',
+    persona: 'photo',
+    run: clearSelection,
+    enabled: photoSel,
+  },
+  'select.invert': {
+    label: 'select.invert',
+    shortcut: 'Mod+Shift+I',
+    persona: 'photo',
+    run: invertSelection,
+  },
+  'select.feather': {
+    label: 'select.feather',
+    run: () => ui.set({ dialog: 'selectionModify', selectionModify: 'feather' }),
+    enabled: photoSel,
+  },
+  'select.grow': {
+    label: 'select.grow',
+    run: () => ui.set({ dialog: 'selectionModify', selectionModify: 'grow' }),
+    enabled: photoSel,
+  },
+  'select.shrink': {
+    label: 'select.shrink',
+    run: () => ui.set({ dialog: 'selectionModify', selectionModify: 'shrink' }),
+    enabled: photoSel,
+  },
+  'select.fromLayer': {
+    label: 'select.fromLayer',
+    run: () => {
+      const n = selectedImage();
+      if (n) selectFromLayer(n, images());
+    },
+    enabled: () => selectedImage() !== null,
+  },
+  'edit.clearPixels': {
+    label: 'edit.clearPixels',
+    shortcut: 'Delete',
+    persona: 'photo',
+    run: () => void P.clearSelectedPixels(),
+    enabled: pixelSel,
+  },
+  'edit.contentAwareFill': {
+    label: 'edit.contentAwareFill',
+    run: () => void getController()?.photo.contentAwareFill(),
+    enabled: pixelSel,
+  },
+  'layer.copyToLayer': {
+    label: 'layer.copyToLayer',
+    shortcut: 'Mod+J',
+    persona: 'photo',
+    run: () => void P.copySelectionToLayer(),
+    enabled: pixelSel,
+  },
+  'layer.newPixel': {
+    label: 'layer.newPixel',
+    shortcut: 'Mod+Shift+N',
+    run: () => void newPixelLayer(),
+  },
+  'layer.addMask': { label: 'layer.addMask', run: () => P.addMask(), enabled: P.canAddMask },
+  'layer.editMask': {
+    label: 'layer.editMask',
+    run: () => P.toggleMaskEdit(),
+    enabled: () => {
+      const n = P.selectedNode();
+      return !!n && n.type !== 'group';
+    },
+  },
+  'layer.toggleMask': { label: 'layer.toggleMask', run: P.toggleMask, enabled: P.hasMask },
+  'layer.invertMask': { label: 'layer.invertMask', run: P.invertMask, enabled: P.hasMask },
+  'layer.removeMask': { label: 'layer.removeMask', run: P.removeMask, enabled: P.hasMask },
+  'layer.rasterize': { label: 'layer.rasterize', run: P.rasterizeSelection, enabled: P.canRasterize },
+  'layer.mergeVisible': { label: 'layer.mergeVisible', shortcut: 'Mod+Alt+Shift+E', run: P.mergeVisible },
+  'adjust.auto': { label: 'adjust.auto', run: P.addAutoLevels },
+  ...adjustmentCommands(),
+  'persona.draw': { label: 'persona.draw', run: () => setPersona('draw') },
+  'persona.photo': { label: 'persona.photo', run: () => setPersona('photo') },
 
   'layer.group': { label: 'layer.group', shortcut: 'Mod+G', run: A.groupSelection, enabled: hasSel },
   'layer.ungroup': {
@@ -264,6 +369,25 @@ export function command(id: CommandId): Command {
   return COMMANDS[id];
 }
 
+/** Raccourcis des outils de la Persona Photo. */
+export const PHOTO_TOOL_KEYS: Record<string, ToolId> = {
+  v: 'select',
+  m: 'marqueeRect',
+  l: 'lasso',
+  w: 'magicWand',
+  b: 'brush',
+  e: 'eraser',
+  g: 'fill',
+  j: 'magicEraser',
+  s: 'clone',
+  o: 'dodge',
+  r: 'blurBrush',
+  t: 'text',
+  i: 'eyedropper',
+  h: 'hand',
+  z: 'zoom',
+};
+
 /** Raccourcis d'outils, sans modificateur, comme dans Affinity. */
 export const TOOL_KEYS: Record<string, ToolId> = {
   v: 'select',
@@ -331,7 +455,21 @@ export function handleKeyDown(e: KeyboardEvent): void {
     e.preventDefault();
     return;
   }
+  if (!e.ctrlKey && !e.metaKey && !e.altKey && getController()?.photo.key(e)) {
+    e.preventDefault();
+    return;
+  }
+  const persona = ui.get().persona;
+  // Les raccourcis propres à la Persona passent d'abord, s'ils ont quelque chose à faire.
   for (const cmd of Object.values(COMMANDS) as Command[]) {
+    if (cmd.persona !== persona || !cmd.shortcut || !matches(e, cmd.shortcut)) continue;
+    if (cmd.enabled && !cmd.enabled()) continue;
+    e.preventDefault();
+    cmd.run();
+    return;
+  }
+  for (const cmd of Object.values(COMMANDS) as Command[]) {
+    if (cmd.persona) continue;
     if (cmd.shortcut && matches(e, cmd.shortcut)) {
       e.preventDefault();
       if (!cmd.enabled || cmd.enabled()) cmd.run();
@@ -364,7 +502,7 @@ export function handleKeyDown(e: KeyboardEvent): void {
     beginTextEdit(editor.selection[0], false);
     return;
   }
-  const tool = TOOL_KEYS[e.key.toLowerCase()];
+  const tool = (persona === 'photo' ? PHOTO_TOOL_KEYS : TOOL_KEYS)[e.key.toLowerCase()];
   if (tool && !e.shiftKey) {
     e.preventDefault();
     if (tool === 'image') void importImage();

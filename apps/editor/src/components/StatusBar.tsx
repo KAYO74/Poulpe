@@ -28,15 +28,25 @@ export function StatusBar() {
   const cursor = useUi((s) => s.cursor);
   const toastMsg = useUi((s) => s.toast);
   const cropping = useUi((s) => s.cropId !== null);
+  const busy = useUi((s) => s.busy);
   const { doc, selection, activeArtboardId } = useEditor();
   const ab = findArtboard(doc, activeArtboardId);
   const b = selection.length ? boundsOf(doc, selection) : null;
   return (
     <footer className="statusbar">
       <span className="hint">
-        <b>{cropping ? t('ctx.crop') : t(`tool.${tool}`)}</b> : {t(cropping ? 'hint.crop' : HINTS[tool])}
+        <b>{cropping ? t('ctx.crop') : t(`tool.${tool}`)}</b> :{' '}
+        {t(cropping ? 'hint.crop' : (HINTS[tool] ?? `hint.${tool}`))}
       </span>
       <span className="spacer" />
+      {busy && (
+        <span className="busy" role="status" data-testid="busy">
+          {busy.label}
+          <span className="progress">
+            <span style={{ width: `${Math.round(busy.progress * 100)}%` }} />
+          </span>
+        </span>
+      )}
       {toastMsg && (
         <span className="toast" role="status">
           {toastMsg}

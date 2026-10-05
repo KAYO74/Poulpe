@@ -193,6 +193,7 @@ export function shapePath(node: SceneNode): PathCommand[] {
     case 'text':
     case 'image':
     case 'group':
+    case 'adjustment':
       return roundRectPath(0, 0, w, h, 0);
   }
 }
@@ -249,7 +250,8 @@ const flatCache = new WeakMap<SceneNode, ReturnType<typeof flattenCommands>>();
 
 /** Le point du monde touche-t-il l'objet ? `tolerance` en unités du monde. */
 export function hitNode(node: SceneNode, p: Vec, tolerance = 0): boolean {
-  if (!node.visible) return false;
+  // Un calque de réglage couvre tout le plan de travail : on le choisit dans le panneau Calques.
+  if (!node.visible || node.type === 'adjustment') return false;
   if (node.type === 'group') return node.children.some((c) => hitNode(c, p, tolerance));
   const l = worldToLocal(node, p);
   if (node.type === 'line') {

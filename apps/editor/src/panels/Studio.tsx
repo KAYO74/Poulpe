@@ -1,7 +1,11 @@
 import { useState } from 'react';
 import { Icon } from '../components/Icon';
 import { useT, type MessageKey } from '../i18n';
-import { useUi } from '../store';
+import { useEditor, useUi } from '../store';
+import { findNode } from '@poulpe/core';
+import { AdjustmentPanel } from './AdjustmentPanel';
+import { BrushPanel } from './BrushPanel';
+import { HistogramPanel } from './HistogramPanel';
 import { CharacterPanel } from './CharacterPanel';
 import { ColorPanel } from './ColorPanel';
 import { EffectsPanel } from './EffectsPanel';
@@ -60,6 +64,33 @@ function StudioGroup({ tabs, grow, initial = 0 }: { tabs: Tab[]; grow?: boolean;
 
 export function Studio() {
   const editingText = useUi((s) => s.tool === 'text');
+  const persona = useUi((s) => s.persona);
+  const { doc, selection } = useEditor();
+  const adjusting = selection.length === 1 && findNode(doc, selection[0])?.node.type === 'adjustment';
+  if (persona === 'photo') {
+    return (
+      <aside className="studio" aria-label="Studio">
+        <StudioGroup
+          key={adjusting ? 'adjust' : 'photo'}
+          initial={adjusting ? 2 : 0}
+          tabs={[
+            { id: 'color', label: 'studio.color', render: () => <ColorPanel /> },
+            { id: 'brush', label: 'studio.brush', render: () => <BrushPanel /> },
+            { id: 'adjustment', label: 'studio.adjustment', render: () => <AdjustmentPanel /> },
+            { id: 'histogram', label: 'studio.histogram', render: () => <HistogramPanel /> },
+            { id: 'effects', label: 'studio.effects', render: () => <EffectsPanel /> },
+          ]}
+        />
+        <StudioGroup
+          grow
+          tabs={[
+            { id: 'layers', label: 'studio.layers', render: () => <LayersPanel /> },
+            { id: 'history', label: 'studio.history', render: () => <HistoryPanel /> },
+          ]}
+        />
+      </aside>
+    );
+  }
   return (
     <aside className="studio" aria-label="Studio">
       <StudioGroup

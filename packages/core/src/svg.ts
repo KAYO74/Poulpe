@@ -150,11 +150,20 @@ function nodeToSvg(node: SceneNode, ctx: Ctx): string {
   if (!node.visible) return '';
   const replaced = ctx.override?.(node);
   if (replaced != null) return replaced;
-  const body = nodeContentToSvg(node, ctx);
+  let body = nodeContentToSvg(node, ctx);
   const fx = body ? effectsFilter(node, ctx.defs) : null;
-  if (!fx) return body;
   // Le filtre est posé sur un groupe sans transformation : décalages dans le repère du monde.
-  return `<g filter="url(#${fx})">${body}</g>`;
+  if (fx) body = `<g filter="url(#${fx})">${body}</g>`;
+  const mask = node.mask?.enabled ? ctx.doc.assets[node.mask.assetId] : undefined;
+  if (body && mask) {
+    // Masque de calque : seule l'opacité de l'image du masque compte.
+    const id = ctx.defs.id('mask');
+    ctx.defs.add(
+      `<mask id="${id}" maskUnits="userSpaceOnUse" style="mask-type:alpha"><image transform="${transformAttr(node)}" width="${n(node.width)}" height="${n(node.height)}" preserveAspectRatio="none" href="${mask.data}"/></mask>`,
+    );
+    body = `<g mask="url(#${id})">${body}</g>`;
+  }
+  return body;
 }
 
 function nodeContentToSvg(node: SceneNode, ctx: Ctx): string {
@@ -175,6 +184,8 @@ function nodeContentToSvg(node: SceneNode, ctx: Ctx): string {
     }
     return `<g${label}${commonAttrs(node)}>${kids.map((c) => nodeToSvg(c, ctx)).join('')}</g>`;
   }
+  // Les réglages ne s'expriment pas en SVG : l'export les met en image (voir `override`).
+  if (node.type === 'adjustment') return '';
   const w = node.width,
     h = node.height;
   const open = `<g${label} transform="${transformAttr(node)}"${commonAttrs(node)}>`;

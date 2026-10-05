@@ -1,6 +1,8 @@
 import { COMMANDS, formatShortcut, type CommandId } from '../commands';
 import { getLang, setLang, useT } from '../i18n';
 import { setSettings, ui, useEditor, useUi } from '../store';
+import { setPersona } from '../photo/persona';
+import { AdjustmentMenu } from './AdjustmentMenu';
 import { Icon, type IconName } from './Icon';
 
 function CmdButton({ id, icon }: { id: CommandId; icon: IconName }) {
@@ -42,18 +44,29 @@ function Toggle({
 export function Toolbar() {
   const t = useT();
   const settings = useUi((s) => s.settings);
+  const persona = useUi((s) => s.persona);
+  const photo = persona === 'photo';
   return (
     <div className="toolbar" role="toolbar" aria-label="Barre d'outils">
       <div className="personas" role="group" aria-label="Personas">
         <button
           className="persona"
-          aria-pressed="true"
+          aria-pressed={!photo}
           title={t('persona.draw')}
           aria-label={t('persona.draw')}
+          data-testid="persona-draw"
+          onClick={() => setPersona('draw')}
         >
           <Icon name="draw" />
         </button>
-        <button className="persona" disabled title={t('persona.photo')} aria-label={t('persona.photo')}>
+        <button
+          className="persona"
+          aria-pressed={photo}
+          title={t('persona.photo')}
+          aria-label={t('persona.photo')}
+          data-testid="persona-photo"
+          onClick={() => setPersona('photo')}
+        >
           <Icon name="photo" />
         </button>
         <button className="persona" disabled title={t('persona.layout')} aria-label={t('persona.layout')}>
@@ -95,11 +108,24 @@ export function Toolbar() {
       <CmdButton id="layer.ungroup" icon="ungroup" />
       <CmdButton id="layer.clip" icon="mask" />
       <span className="tsep" />
-      <CmdButton id="geometry.unite" icon="unite" />
-      <CmdButton id="geometry.subtract" icon="subtract" />
-      <CmdButton id="geometry.intersect" icon="intersect" />
-      <CmdButton id="geometry.exclude" icon="exclude" />
-      <CmdButton id="geometry.divide" icon="divide" />
+      {photo ? (
+        <>
+          <CmdButton id="layer.newPixel" icon="pixelLayer" />
+          <CmdButton id="layer.addMask" icon="addMask" />
+          <AdjustmentMenu />
+          <span className="tsep" />
+          <CmdButton id="select.deselect" icon="deselect" />
+          <CmdButton id="select.invert" icon="invertSel" />
+        </>
+      ) : (
+        <>
+          <CmdButton id="geometry.unite" icon="unite" />
+          <CmdButton id="geometry.subtract" icon="subtract" />
+          <CmdButton id="geometry.intersect" icon="intersect" />
+          <CmdButton id="geometry.exclude" icon="exclude" />
+          <CmdButton id="geometry.divide" icon="divide" />
+        </>
+      )}
       <span className="tsep" />
       <CmdButton id="arrange.alignLeft" icon="alignLeft" />
       <CmdButton id="arrange.alignHCenter" icon="alignHCenter" />
