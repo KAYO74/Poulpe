@@ -111,7 +111,7 @@ async function saveBytes(
   return fileName;
 }
 
-async function pickFile(
+export async function pickFile(
   accept: string[],
   mimes: string,
 ): Promise<{ name: string; bytes: Uint8Array } | null> {

@@ -11,6 +11,8 @@ import * as P from './photo/photoActions';
 import { clearSelection, invertSelection, selectAll, selectFromLayer } from './photo/selection';
 import { images, newPixelLayer, selectedImage } from './photo/pixels';
 import { openPhoto, setPersona } from './photo/persona';
+import { addLutPreset, loadLutFile } from './photo/retouchActions';
+import { LUT_PRESETS, type LutPreset } from '@poulpe/core';
 
 export interface Command {
   label: MessageKey;
@@ -37,6 +39,14 @@ function adjustmentCommands() {
     };
   }
   return out as Record<`adjust.${AdjustmentKind}` | `filter.${AdjustmentKind}`, Command>;
+}
+
+/** Une commande par look intégré (table LUT calculée). */
+function lutCommands() {
+  const out: Record<string, Command> = {};
+  for (const preset of Object.keys(LUT_PRESETS) as LutPreset[])
+    out[`lut.${preset}`] = { label: `lut.${preset}` as MessageKey, run: () => addLutPreset(preset) };
+  return out as Record<`lut.${LutPreset}`, Command>;
 }
 
 const hasSel = () => editor.selection.length > 0;
@@ -177,6 +187,8 @@ export const COMMANDS = {
   'layer.mergeVisible': { label: 'layer.mergeVisible', shortcut: 'Mod+Alt+Shift+E', run: P.mergeVisible },
   'adjust.auto': { label: 'adjust.auto', run: P.addAutoLevels },
   ...adjustmentCommands(),
+  ...lutCommands(),
+  'lut.load': { label: 'lut.load', run: () => void loadLutFile() },
   'persona.draw': { label: 'persona.draw', run: () => setPersona('draw') },
   'persona.photo': { label: 'persona.photo', run: () => setPersona('photo') },
 
@@ -310,6 +322,8 @@ export const COMMANDS = {
 
   'document.addArtboard': { label: 'document.addArtboard', run: () => A.addArtboard() },
   'document.resize': { label: 'document.resize', run: () => ui.set({ dialog: 'resize' }) },
+  'document.imageSize': { label: 'document.imageSize', run: () => ui.set({ dialog: 'imageSize' }) },
+  'document.canvasSize': { label: 'document.canvasSize', run: () => ui.set({ dialog: 'canvasSize' }) },
   'document.deleteArtboard': {
     label: 'document.deleteArtboard',
     run: () => A.deleteArtboard(),
@@ -399,7 +413,12 @@ export const PHOTO_TOOL_KEYS: Record<string, ToolId> = {
   e: 'eraser',
   g: 'fill',
   j: 'magicEraser',
+  y: 'heal',
   s: 'clone',
+  p: 'polyLasso',
+  q: 'quickSelect',
+  u: 'smudge',
+  k: 'liquify',
   o: 'dodge',
   r: 'blurBrush',
   t: 'text',

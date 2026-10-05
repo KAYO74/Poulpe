@@ -1,4 +1,5 @@
-import { findNode } from '@poulpe/core';
+import { findNode, type LiquifyMode } from '@poulpe/core';
+import { getController } from './Viewport';
 import { useT } from '../i18n';
 import { isPhotoTool } from '../photo/photoTools';
 import {
@@ -81,7 +82,25 @@ function BrushFields({ tool }: { tool: ToolId }) {
   const t = useT();
   useUi((s) => s.brushes);
   const b = brushSettings(tool);
-  const retouch = tool === 'dodge' || tool === 'burn' || tool === 'blurBrush' || tool === 'sharpenBrush';
+  const retouch =
+    tool === 'dodge' ||
+    tool === 'burn' ||
+    tool === 'blurBrush' ||
+    tool === 'sharpenBrush' ||
+    tool === 'smudge' ||
+    tool === 'liquify';
+  if (tool === 'quickSelect')
+    return (
+      <Slider
+        label={t('ctx.size')}
+        value={b.size}
+        min={1}
+        max={1000}
+        unit="px"
+        testId="brush-size"
+        onChange={(size) => setBrush({ size }, tool)}
+      />
+    );
   return (
     <>
       <Slider
@@ -112,17 +131,48 @@ function BrushFields({ tool }: { tool: ToolId }) {
             testId="brush-opacity"
             onChange={(opacity) => setBrush({ opacity }, tool)}
           />
-          <Slider
-            label={t('ctx.flow')}
-            value={b.flow}
-            min={1}
-            max={100}
-            unit="%"
-            onChange={(flow) => setBrush({ flow }, tool)}
-          />
+          {tool !== 'smudge' && tool !== 'liquify' && (
+            <Slider
+              label={t('ctx.flow')}
+              value={b.flow}
+              min={1}
+              max={100}
+              unit="%"
+              onChange={(flow) => setBrush({ flow }, tool)}
+            />
+          )}
         </>
       )}
     </>
+  );
+}
+
+const LIQUIFY: { id: LiquifyMode; icon: IconName }[] = [
+  { id: 'push', icon: 'liquify' },
+  { id: 'twirl', icon: 'rotateRight' },
+  { id: 'bloat', icon: 'modeAdd' },
+  { id: 'pinch', icon: 'modeIntersect' },
+];
+
+function LiquifyModes() {
+  const t = useT();
+  const mode = useUi((s) => s.liquifyMode);
+  return (
+    <span className="seg" role="group" aria-label={t('ctx.mode')}>
+      {LIQUIFY.map((m, i) => (
+        <button
+          key={m.id}
+          className="ib small"
+          aria-pressed={mode === m.id}
+          title={`${t(`liquify.${m.id}`)} (${i + 1})`}
+          aria-label={t(`liquify.${m.id}`)}
+          data-testid={`liquify-${m.id}`}
+          onClick={() => ui.set({ liquifyMode: m.id })}
+        >
+          <Icon name={m.icon} size={14} />
+        </button>
+      ))}
+    </span>
   );
 }
 
@@ -134,11 +184,18 @@ export function PhotoContext({ tool }: { tool: ToolId }) {
   const contiguous = useUi((s) => s.contiguous);
   const maskEditId = useUi((s) => s.maskEditId);
   const color = useUi((s) => s.brushColor);
+  const straightenFill = useUi((s) => s.straightenFill);
+  const perspectiveId = useUi((s) => s.perspectiveId);
   const { doc } = useEditor();
   const maskNode = maskEditId ? findNode(doc, maskEditId)?.node : null;
   if (!isPhotoTool(tool)) return null;
   const select =
-    tool === 'marqueeRect' || tool === 'marqueeEllipse' || tool === 'lasso' || tool === 'magicWand';
+    tool === 'marqueeRect' ||
+    tool === 'marqueeEllipse' ||
+    tool === 'lasso' ||
+    tool === 'polyLasso' ||
+    tool === 'magicWand' ||
+    tool === 'quickSelect';
   return (
     <>
       {(isBrushTool(tool) || tool === 'fill') && tool !== 'magicEraser' && (
@@ -154,7 +211,7 @@ export function PhotoContext({ tool }: { tool: ToolId }) {
         </label>
       )}
       {select && <ModeButtons />}
-      {(tool === 'marqueeRect' || tool === 'marqueeEllipse' || tool === 'lasso') && (
+      {(tool === 'marqueeRect' || tool === 'marqueeEllipse' || tool === 'lasso' || tool === 'polyLasso') && (
         <NumberField
           label={t('ctx.feather')}
           value={feather}
@@ -165,7 +222,7 @@ export function PhotoContext({ tool }: { tool: ToolId }) {
           onChange={(v) => ui.set({ feather: v })}
         />
       )}
-      {(tool === 'magicWand' || tool === 'fill') && (
+      {(tool === 'magicWand' || tool === 'fill' || tool === 'quickSelect') && (
         <>
           <Slider
             label={t('ctx.tolerance')}
@@ -175,16 +232,19 @@ export function PhotoContext({ tool }: { tool: ToolId }) {
             testId="tolerance"
             onChange={(v) => ui.set({ tolerance: v })}
           />
-          <label className="check">
-            <input
-              type="checkbox"
-              checked={contiguous}
-              onChange={(e) => ui.set({ contiguous: e.target.checked })}
-            />
-            {t('ctx.contiguous')}
-          </label>
+          {tool !== 'quickSelect' && (
+            <label className="check">
+              <input
+                type="checkbox"
+                checked={contiguous}
+                onChange={(e) => ui.set({ contiguous: e.target.checked })}
+              />
+              {t('ctx.contiguous')}
+            </label>
+          )}
         </>
       )}
+      {tool === 'liquify' && <LiquifyModes />}
       {isBrushTool(tool) && <BrushFields tool={tool} />}
       {tool === 'fill' && (
         <Slider
@@ -196,7 +256,39 @@ export function PhotoContext({ tool }: { tool: ToolId }) {
           onChange={(opacity) => setBrush({ opacity }, 'brush')}
         />
       )}
-      {tool === 'clone' && <span className="ctx-dim">{t('ctx.cloneHint')}</span>}
+      {(tool === 'clone' || tool === 'heal') && <span className="ctx-dim">{t('ctx.cloneHint')}</span>}
+      {tool === 'polyLasso' && <span className="ctx-dim">{t('ctx.polyLassoHint')}</span>}
+      {tool === 'straighten' && (
+        <>
+          <label className="check">
+            <input
+              type="checkbox"
+              checked={straightenFill}
+              onChange={(e) => ui.set({ straightenFill: e.target.checked })}
+            />
+            {t('ctx.straightenFill')}
+          </label>
+          <span className="ctx-dim">{t('ctx.straightenHint')}</span>
+        </>
+      )}
+      {tool === 'perspective' &&
+        (perspectiveId ? (
+          <>
+            <span className="ctx-dim">{t('ctx.perspectiveDrag')}</span>
+            <button className="btn small" onClick={() => getController()?.photo.cancelPerspective()}>
+              {t('new.cancel')}
+            </button>
+            <button
+              className="btn small primary"
+              data-testid="perspective-apply"
+              onClick={() => void getController()?.photo.applyPerspective()}
+            >
+              {t('filter.apply')}
+            </button>
+          </>
+        ) : (
+          <span className="ctx-dim">{t('ctx.perspectiveHint')}</span>
+        ))}
       {tool === 'magicEraser' && <span className="ctx-dim">{t('ctx.magicEraserHint')}</span>}
       {maskNode && (isBrushTool(tool) || tool === 'fill') && (
         <span className="mask-badge" data-testid="mask-badge">

@@ -1,5 +1,5 @@
 /**
- * Modèle de document Poulpe (format `.poulpe`, version 6).
+ * Modèle de document Poulpe (format `.poulpe`, version 7).
  *
  * Toutes les coordonnées sont en pixels, dans l'espace du document (« monde ») :
  * les objets d'un plan de travail ne sont pas relatifs à ce plan de travail.
@@ -292,6 +292,11 @@ export type Adjustment =
   | { kind: 'invert' }
   | { kind: 'threshold'; level: number }
   | { kind: 'posterize'; levels: number }
+  /**
+   * Table de correspondance 3D (fichier `.cube` ou look intégré) : `size`³ couleurs en entiers de
+   * 16 bits, rouge d'abord, encodées en base64 (voir `lut.ts`).
+   */
+  | { kind: 'lut'; name: string; size: number; data: string }
   // Filtres dynamiques (rayons en pixels du document).
   | { kind: 'gaussianBlur'; radius: number }
   | { kind: 'unsharpMask'; amount: number; radius: number; threshold: number }
