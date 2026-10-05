@@ -154,7 +154,8 @@ function nodeToSvg(node: SceneNode, doc: PoulpeDocument, defs: Defs, measure: Me
     return `${open}<text xml:space="preserve"${attrs}>${spans}</text></g>`;
   }
   const d = pathToSvg(shapePath(node));
-  return `${open}<path d="${d}" ${paintAttr('fill', node.type === 'line' ? { type: 'none' } : node.fill, w, h, defs)}${strokeAttrs(node.stroke, w, h, defs)}/></g>`;
+  const rule = node.type === 'path' && node.fillRule === 'evenodd' ? ' fill-rule="evenodd"' : '';
+  return `${open}<path d="${d}"${rule} ${paintAttr('fill', node.type === 'line' ? { type: 'none' } : node.fill, w, h, defs)}${strokeAttrs(node.stroke, w, h, defs)}/></g>`;
 }
 
 /** Exporte un plan de travail en SVG autonome (images incluses). */

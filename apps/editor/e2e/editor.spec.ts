@@ -45,6 +45,11 @@ async function canvas(page: Page) {
 }
 
 test.beforeEach(async ({ page }) => {
+  // L'écran d'accueil masquerait le canevas : les tests partent d'un document vide.
+  await page.addInitScript(() => {
+    if (!localStorage.getItem('poulpe.settings'))
+      localStorage.setItem('poulpe.settings', JSON.stringify({ showWelcome: false }));
+  });
   await page.goto('/');
   // Le téléchargement remplace la boîte de dialogue d'enregistrement du navigateur.
   await page.evaluate(

@@ -31,6 +31,7 @@ import {
 } from '@poulpe/core';
 import { t } from './i18n';
 import { applyEditingStyle, endTextEdit, isEditingText } from './canvas/textEdit';
+import { fillFrame, frameTarget } from './libraryActions';
 import { editor, ui } from './store';
 
 /*
@@ -333,7 +334,10 @@ export function updateArtboard(id: string, patch: Partial<Artboard>, gesture = f
   else editor.apply('history.artboard', recipe);
 }
 
-/** Place une image au centre du plan de travail actif, à une taille raisonnable. */
+/**
+ * Place une image au centre du plan de travail actif, à une taille raisonnable. Déposée sur un
+ * cadre photo (ou importée quand un cadre est sélectionné), elle remplit ce cadre.
+ */
 export function placeImage(
   data: string,
   mime: string,
@@ -342,6 +346,17 @@ export function placeImage(
   at?: { x: number; y: number },
 ): void {
   const doc = editor.doc;
+  const assetId = newId('img');
+  const frame = frameTarget(doc, at);
+  if (frame) {
+    editor.apply('history.image', (d) => {
+      d.assets[assetId] = { id: assetId, mime, width, height, data };
+      const id = fillFrame(frame, assetId, width, height, d);
+      return id ? [id] : undefined;
+    });
+    ui.set({ tool: 'select' });
+    return;
+  }
   const ab = findArtboard(doc, editor.getState().activeArtboardId) ?? doc.artboards[0];
   if (!ab) return;
   const k = Math.min(1, (ab.width * 0.8) / width, (ab.height * 0.8) / height);
@@ -349,7 +364,6 @@ export function placeImage(
     h = height * k;
   const cx = at?.x ?? ab.x + ab.width / 2,
     cy = at?.y ?? ab.y + ab.height / 2;
-  const assetId = newId('img');
   const node = createImage({
     x: cx - w / 2,
     y: cy - h / 2,

@@ -61,6 +61,13 @@ export function Toolbar() {
         </button>
       </div>
       <Toggle
+        on={settings.library}
+        icon="library"
+        label={t('view.library')}
+        onClick={() => setSettings({ library: !settings.library })}
+      />
+      <span className="tsep" />
+      <Toggle
         on={settings.snapping}
         icon="snap"
         label={t('view.snapping')}

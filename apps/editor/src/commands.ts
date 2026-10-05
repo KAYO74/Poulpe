@@ -150,6 +150,7 @@ export const COMMANDS = {
   'arrange.rotateRight': { label: 'arrange.rotateRight', run: () => A.rotateSelection(90), enabled: hasSel },
 
   'document.addArtboard': { label: 'document.addArtboard', run: () => A.addArtboard() },
+  'document.resize': { label: 'document.resize', run: () => ui.set({ dialog: 'resize' }) },
   'document.deleteArtboard': {
     label: 'document.deleteArtboard',
     run: () => A.deleteArtboard(),
@@ -163,6 +164,11 @@ export const COMMANDS = {
     label: 'view.zoom100',
     shortcut: 'Mod+1',
     run: () => getController()?.zoomAt(1),
+  },
+  'view.library': {
+    label: 'view.library',
+    shortcut: 'Mod+Shift+L',
+    run: () => setSettings({ library: !ui.get().settings.library }),
   },
   'view.rulers': {
     label: 'view.rulers',

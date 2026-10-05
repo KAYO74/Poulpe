@@ -251,7 +251,7 @@ export function drawNode(ctx: Ctx, doc: PoulpeDocument, node: SceneNode, opts: R
       const fill = canvasPaint(ctx, node.fill, w, h);
       if (fill) {
         ctx.fillStyle = fill;
-        ctx.fill(path);
+        ctx.fill(path, node.type === 'path' && node.fillRule === 'evenodd' ? 'evenodd' : 'nonzero');
       }
     }
     if (node.stroke.paint.type !== 'none' && node.stroke.width > 0) {

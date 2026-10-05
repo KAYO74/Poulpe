@@ -26,7 +26,7 @@ export type ToolId =
 
 export type Side = 'left' | 'right';
 export type Theme = 'dark' | 'light';
-export type Dialog = null | 'new' | 'export' | 'shortcuts' | 'about' | 'draft';
+export type Dialog = null | 'new' | 'export' | 'shortcuts' | 'about' | 'draft' | 'resize';
 
 export interface Settings {
   theme: Theme;
@@ -35,6 +35,10 @@ export interface Settings {
   rulers: boolean;
   grid: boolean;
   snapping: boolean;
+  /** Panneau Bibliothèque (modèles, éléments, styles) ouvert. */
+  library: boolean;
+  /** Afficher l'écran d'accueil (nouveau document, modèles) au lancement. */
+  showWelcome: boolean;
 }
 
 export interface View {
@@ -73,6 +77,8 @@ function loadSettings(): Settings {
     rulers: true,
     grid: false,
     snapping: true,
+    library: true,
+    showWelcome: true,
   };
   try {
     return { ...fallback, ...JSON.parse(localStorage.getItem(SETTINGS_KEY) ?? '{}') };

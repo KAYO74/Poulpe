@@ -12,6 +12,8 @@ import {
   setTextSelection,
 } from '../canvas/textEdit';
 import { placeImageBytes } from '../io';
+import { addElement, type ElementKind } from '../libraryActions';
+import { ELEMENT_MIME } from '../panels/Library';
 import { ui, useEditor, useUi } from '../store';
 
 let controller: CanvasController | null = null;
@@ -61,6 +63,13 @@ export function Viewport() {
 
   const onDrop = async (e: React.DragEvent) => {
     e.preventDefault();
+    const element = e.dataTransfer.getData(ELEMENT_MIME);
+    if (element && controller) {
+      const rect = canvasRef.current!.getBoundingClientRect();
+      const { kind, id } = JSON.parse(element) as { kind: ElementKind; id: string };
+      addElement(kind, id, controller.toWorld(e.clientX - rect.left, e.clientY - rect.top));
+      return;
+    }
     const file = [...e.dataTransfer.files].find((f) => f.type.startsWith('image/'));
     if (!file || !controller) return;
     const rect = canvasRef.current!.getBoundingClientRect();
