@@ -705,6 +705,41 @@ const fr = {
   'layers.addAdjustment': 'Ajouter un réglage',
   'hist.luminance': 'Luminance',
   'new.openPhoto': 'Ouvrir une photo',
+  // ————— Mise en page v0.5, deuxième partie : impression et formats —————
+  'color.cmyk': 'CMJN',
+  'color.outOfGamut': 'Couleur hors gamut CMJN : elle sortira plus terne à l’impression.',
+  'docsetup.colors': 'Couleurs',
+  'docsetup.colorMode': 'Couleurs du document',
+  'docsetup.rgb': 'RVB (écran)',
+  'docsetup.cmyk': 'CMJN (impression)',
+  'docsetup.colorHint':
+    'En CMJN, le sélecteur de couleur s’ouvre en cyan, magenta, jaune, noir et le PDF sort en CMJN. Affichage > Épreuvage CMJN montre le rendu imprimé.',
+  'view.softProof': 'Épreuvage CMJN',
+  'file.batchExport': 'Exporter par lots…',
+  'file.opening': 'Ouverture…',
+  'file.aiNoPdf':
+    'Ce fichier Illustrator n’a pas de partie PDF. Dans Illustrator, enregistrez-le avec « Créer un fichier compatible PDF ».',
+  'file.pdfOpened': 'Fichier ouvert : textes, tracés et images sont modifiables.',
+  'file.pdfRasterPages': 'Fichier ouvert. {n} page(s) trop complexe(s) importée(s) en image.',
+  'file.importError': 'Ce fichier n’a pas pu être ouvert.',
+  'export.colors': 'Couleurs',
+  'export.pdfx': 'PDF/X-4 pour l’imprimeur (CMJN, profil FOGRA39)',
+  'export.cmykHint':
+    'Les couleurs passent en CMJN avec un profil proche de l’offset couché (FOGRA39). Les couleurs saisies en CMJN gardent leurs valeurs, et le noir pur sort en 100 % noir.',
+  'export.pdfxFontsMissing':
+    'PDF créé, mais pas tout à fait conforme PDF/X : police non incorporée ({fonts}). Vectorisez ces textes ou choisissez une autre police.',
+  'export.rgbImages': 'PDF créé. {n} image(s) n’ont pas pu passer en CMJN.',
+  'export.psdHint':
+    'Un calque Photoshop par objet, les groupes en groupes de calques. Les textes et les formes arrivent en pixels.',
+  'export.batch': 'Exporter par lots…',
+  'export.batchTitle': 'Exporter par lots',
+  'export.batchHint':
+    'Choisissez les pages, les formats et les tailles : tout est réuni dans un fichier ZIP.',
+  'export.batchPages': 'Pages et plans de travail',
+  'export.batchCmyk': 'PDF en CMJN',
+  'export.back': 'Retour',
+  'export.batchProgress': 'Export {n} sur {total}…',
+  'export.batchDone': '{n} fichiers exportés.',
 } as const;
 
 export type MessageKey = keyof typeof fr;
@@ -1406,6 +1441,39 @@ const en: Record<MessageKey, string> = {
   'layers.addAdjustment': 'Add adjustment',
   'hist.luminance': 'Luminance',
   'new.openPhoto': 'Open a photo',
+  // ————— Layout v0.5, part two: print and formats —————
+  'color.cmyk': 'CMYK',
+  'color.outOfGamut': 'Out of CMYK gamut: this color will print duller.',
+  'docsetup.colors': 'Colors',
+  'docsetup.colorMode': 'Document colors',
+  'docsetup.rgb': 'RGB (screen)',
+  'docsetup.cmyk': 'CMYK (print)',
+  'docsetup.colorHint':
+    'In CMYK, the color picker opens in cyan, magenta, yellow, black and the PDF is exported in CMYK. View > CMYK soft proof shows the printed look.',
+  'view.softProof': 'CMYK soft proof',
+  'file.batchExport': 'Batch export…',
+  'file.opening': 'Opening…',
+  'file.aiNoPdf':
+    'This Illustrator file has no PDF part. In Illustrator, save it with “Create PDF Compatible File”.',
+  'file.pdfOpened': 'File opened: texts, paths and images are editable.',
+  'file.pdfRasterPages': 'File opened. {n} page(s) too complex were imported as images.',
+  'file.importError': 'This file could not be opened.',
+  'export.colors': 'Colors',
+  'export.pdfx': 'PDF/X-4 for the printer (CMYK, FOGRA39 profile)',
+  'export.cmykHint':
+    'Colors are converted to CMYK with a profile close to coated offset (FOGRA39). Colors entered in CMYK keep their values, and pure black prints as 100% black.',
+  'export.pdfxFontsMissing':
+    'PDF created, but not fully PDF/X compliant: font not embedded ({fonts}). Convert these texts to curves or pick another font.',
+  'export.rgbImages': 'PDF created. {n} image(s) could not be converted to CMYK.',
+  'export.psdHint': 'One Photoshop layer per object, groups as layer groups. Texts and shapes become pixels.',
+  'export.batch': 'Batch export…',
+  'export.batchTitle': 'Batch export',
+  'export.batchHint': 'Pick pages, formats and sizes: everything is bundled in a ZIP file.',
+  'export.batchPages': 'Pages and artboards',
+  'export.batchCmyk': 'CMYK PDF',
+  'export.back': 'Back',
+  'export.batchProgress': 'Exporting {n} of {total}…',
+  'export.batchDone': '{n} files exported.',
 };
 
 const dictionaries: Record<Lang, Record<MessageKey, string>> = { fr, en };

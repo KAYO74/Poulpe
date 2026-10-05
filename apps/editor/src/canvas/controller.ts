@@ -40,6 +40,7 @@ import {
   type TextNode,
   type Vec,
   pageFields as pageFieldsOf,
+  softProofPixels,
 } from '@poulpe/core';
 import {
   ImageCache,
@@ -1259,6 +1260,27 @@ export class CanvasController {
     }
   }
 
+  /** Épreuvage à l'écran : les pages montrent les couleurs qu'elles auront une fois imprimées en CMJN. */
+  private softProof(doc: PoulpeDocument) {
+    const { view } = ui.get();
+    const k = this.dpr;
+    const W = this.canvas.width,
+      H = this.canvas.height;
+    this.ctx.save();
+    this.ctx.setTransform(1, 0, 0, 1, 0, 0);
+    for (const ab of doc.artboards) {
+      const x0 = Math.max(0, Math.floor((ab.x * view.zoom + view.panX) * k));
+      const y0 = Math.max(0, Math.floor((ab.y * view.zoom + view.panY) * k));
+      const x1 = Math.min(W, Math.ceil(((ab.x + ab.width) * view.zoom + view.panX) * k));
+      const y1 = Math.min(H, Math.ceil(((ab.y + ab.height) * view.zoom + view.panY) * k));
+      if (x1 <= x0 || y1 <= y0) continue;
+      const img = this.ctx.getImageData(x0, y0, x1 - x0, y1 - y0);
+      softProofPixels(img.data);
+      this.ctx.putImageData(img, x0, y0);
+    }
+    this.ctx.restore();
+  }
+
   private toolCursor(tool: ToolId): string {
     if (ui.get().linkFrom) return 'copy';
     switch (tool) {
@@ -1303,6 +1325,7 @@ export class CanvasController {
       drawArtboard(ctx, doc, ab, { images: this.images, editingId: editingTextId });
       if (settings.grid) this.drawGrid(ab);
     }
+    if (ui.get().softProof) this.softProof(doc);
     // Calques d'interface, en pixels d'écran.
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
     if (settings.rulers) this.drawPageGuides(doc);

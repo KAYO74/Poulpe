@@ -104,17 +104,20 @@ export function Select<T extends string | number>({
   onChange,
   label,
   width,
+  testId,
 }: {
   value: T;
   options: { value: T; label: string }[];
   onChange: (v: T) => void;
   label?: string;
   width?: number;
+  testId?: string;
 }) {
   return (
     <label className="field" style={width ? { width } : undefined}>
       {label && <span className="field-label">{label}</span>}
       <select
+        data-testid={testId}
         value={String(value)}
         aria-label={label}
         onChange={(e) => {

@@ -5,6 +5,7 @@ import {
   insertPage,
   masterOf,
   printablePages,
+  preparePrintPdf,
   pxToPt,
   activeEffects,
   artboardToSvg,
@@ -41,14 +42,19 @@ export const isDesktop = (): boolean => typeof window !== 'undefined' && '__TAUR
 
 const exportImages = new ImageCache();
 
-type FileKind = 'poulpe' | 'png' | 'jpeg' | 'svg' | 'pdf';
+type FileKind = 'poulpe' | 'png' | 'jpeg' | 'svg' | 'pdf' | 'psd' | 'zip';
 const KINDS: Record<FileKind, { ext: string; mime: string; label: string }> = {
   poulpe: { ext: POULPE_EXTENSION, mime: 'application/x-poulpe', label: 'Poulpe' },
   png: { ext: 'png', mime: 'image/png', label: 'PNG' },
   jpeg: { ext: 'jpg', mime: 'image/jpeg', label: 'JPEG' },
   svg: { ext: 'svg', mime: 'image/svg+xml', label: 'SVG' },
   pdf: { ext: 'pdf', mime: 'application/pdf', label: 'PDF' },
+  psd: { ext: 'psd', mime: 'image/vnd.adobe.photoshop', label: 'Photoshop' },
+  zip: { ext: 'zip', mime: 'application/zip', label: 'ZIP' },
 };
+
+/** Formats que « Ouvrir » sait lire, en plus des documents Poulpe. */
+export const OPEN_EXTENSIONS = [POULPE_EXTENSION, 'psd', 'pdf', 'ai'];
 
 export function baseName(path: string): string {
   return path
@@ -167,14 +173,50 @@ export function loadBytes(name: string, bytes: Uint8Array): void {
 
 export async function openDocument(): Promise<void> {
   if (!confirmDiscard()) return;
-  const file = await pickFile([POULPE_EXTENSION], `.${POULPE_EXTENSION}`);
-  if (file) loadBytes(file.name, file.bytes);
+  const file = await pickFile(OPEN_EXTENSIONS, OPEN_EXTENSIONS.map((e) => `.${e}`).join(','));
+  if (file) await openBytes(file.name, file.bytes);
+}
+
+/** Ouvre un document Poulpe, Photoshop, PDF ou Illustrator d'après son extension. */
+export async function openBytes(name: string, bytes: Uint8Array): Promise<void> {
+  const ext = name.split('.').pop()!.toLowerCase();
+  if (ext !== 'psd' && ext !== 'pdf' && ext !== 'ai') return loadBytes(name, bytes);
+  toast(t('file.opening'));
+  try {
+    if (ext === 'psd') {
+      const { psdToDocument } = await import('./importers/psd');
+      const doc = await psdToDocument(bytes, baseName(name));
+      editor.load(doc, { unsaved: true });
+      ui.set({ filePath: null, dialog: null, persona: 'photo', tool: 'select', maskEditId: null });
+    } else {
+      // Un fichier Illustrator se lit par sa partie PDF (« Créer un fichier compatible PDF »).
+      const head = new TextDecoder('latin1').decode(bytes.subarray(0, 1024));
+      if (!head.includes('%PDF')) {
+        window.alert(t(ext === 'ai' ? 'file.aiNoPdf' : 'file.invalid'));
+        return;
+      }
+      const { pdfToDocument } = await import('./importers/pdf');
+      const { doc, rasterPages } = await pdfToDocument(bytes, baseName(name));
+      editor.load(doc, { unsaved: true });
+      ui.set({
+        filePath: null,
+        dialog: null,
+        persona: doc.artboards.length > 1 ? 'layout' : 'draw',
+        tool: 'select',
+      });
+      toast(rasterPages ? t('file.pdfRasterPages', { n: rasterPages }) : t('file.pdfOpened'));
+    }
+    requestAnimationFrame(() => window.dispatchEvent(new Event('poulpe:fit')));
+  } catch (e) {
+    console.error(e);
+    window.alert(t('file.importError'));
+  }
 }
 
 /** Ouvre un fichier par son chemin (double-clic sur un `.poulpe` dans l'appli de bureau). */
 export async function openPath(path: string): Promise<void> {
   const { readFile } = await import('@tauri-apps/plugin-fs');
-  loadBytes(path, await readFile(path));
+  await openBytes(path, await readFile(path));
 }
 
 async function thumbnail(doc: PoulpeDocument): Promise<Uint8Array | undefined> {
@@ -272,8 +314,10 @@ export async function placeImageBytes(
   placeImage(data, mime, img.naturalWidth || 512, img.naturalHeight || 512, at);
 }
 
+export type ExportKind = 'png' | 'jpeg' | 'svg' | 'pdf' | 'psd';
+
 export interface ExportOptions {
-  kind: 'png' | 'jpeg' | 'svg' | 'pdf';
+  kind: ExportKind;
   /**
    * `all` : toutes les pages (PDF multipage ; un fichier par page sinon, sans les pages maîtres).
    * `range` : les pages données par `pages` (PDF).
@@ -288,6 +332,10 @@ export interface ExportOptions {
   bleed?: boolean;
   /** PDF : traits de coupe aux coins des pages. */
   marks?: boolean;
+  /** PDF : couleurs RVB (écran) ou CMJN (impression). */
+  color?: 'rgb' | 'cmyk';
+  /** PDF : norme PDF/X-4 pour l'imprimeur (implique le CMJN). */
+  pdfx?: boolean;
 }
 
 /** Pages d'une plage « 1-3, 5 » (numéros à partir de 1), dans l'ordre du document. */
@@ -416,8 +464,9 @@ async function rasterizedParts(
 async function svgToPdf(
   doc: PoulpeDocument,
   artboards: Artboard[],
-  opts: { bleed?: boolean; marks?: boolean } = {},
-): Promise<{ bytes: Uint8Array; missingFonts: string[] }> {
+  opts: { bleed?: boolean; marks?: boolean; color?: 'rgb' | 'cmyk'; pdfx?: boolean } = {},
+): Promise<{ bytes: Uint8Array; missingFonts: string[]; rgbImages: number }> {
+  const cmyk = opts.color === 'cmyk' || !!opts.pdfx;
   const [{ jsPDF }, { svg2pdf }] = await Promise.all([import('jspdf'), import('svg2pdf.js')]);
   const pt = (px: number) => pxToPt(doc, px);
   const bleedPx = opts.bleed ? Math.max(0, doc.layout?.bleed ?? 0) : 0;
@@ -448,6 +497,8 @@ async function svgToPdf(
         override: (n) => fx.get(n.id) ?? null,
       });
       const svg = host.querySelector('svg')!;
+      // Les images JPEG passent en PNG : leurs pixels pourront être convertis en CMJN.
+      if (cmyk) await jpegToPng(svg);
       const W = pt(ab.width),
         H = pt(ab.height);
       await svg2pdf(svg, pdf, { x: pad - bp, y: pad - bp, width: W + 2 * bp, height: H + 2 * bp });
@@ -482,7 +533,40 @@ async function svgToPdf(
     host.remove();
   }
   pdf.setProperties({ title: doc.name, creator: `Poulpe ${__APP_VERSION__}` });
-  return { bytes: new Uint8Array(pdf.output('arraybuffer')), missingFonts };
+  const bytes = new Uint8Array(pdf.output('arraybuffer'));
+  if (!cmyk) return { bytes, missingFonts, rgbImages: 0 };
+  const res = preparePrintPdf(bytes, {
+    pdfx: opts.pdfx,
+    title: doc.name,
+    creator: `Poulpe ${__APP_VERSION__}`,
+    doc,
+  });
+  return {
+    bytes: res.bytes,
+    missingFonts: [...new Set([...missingFonts, ...res.warnings.unembeddedFonts])],
+    rgbImages: res.warnings.rgbImages,
+  };
+}
+
+/** Remplace les images JPEG d'un SVG par des PNG (mêmes pixels). */
+async function jpegToPng(svg: SVGSVGElement): Promise<void> {
+  for (const el of svg.querySelectorAll('image')) {
+    const href = el.getAttribute('href') ?? el.getAttribute('xlink:href') ?? '';
+    if (!/^data:image\/(jpe?g|webp|gif)/.test(href)) continue;
+    const img = new Image();
+    img.src = href;
+    try {
+      await img.decode();
+    } catch {
+      continue;
+    }
+    const canvas = document.createElement('canvas');
+    canvas.width = img.naturalWidth || 1;
+    canvas.height = img.naturalHeight || 1;
+    canvas.getContext('2d')!.drawImage(img, 0, 0);
+    el.setAttribute('href', canvas.toDataURL('image/png'));
+    el.removeAttribute('xlink:href');
+  }
 }
 
 /** Pages à exporter selon les options. */
@@ -504,39 +588,108 @@ export async function exportDocument(opts: ExportOptions): Promise<void> {
     return;
   }
   if (opts.kind === 'pdf') {
-    const { bytes, missingFonts } = await svgToPdf(doc, artboards, opts);
+    const { bytes, missingFonts, rgbImages } = await svgToPdf(doc, artboards, opts);
     if (await saveBytes(bytes, 'pdf', doc.name))
       toast(
         missingFonts.length
-          ? t('export.pdfFontsMissing', { fonts: missingFonts.join(', ') })
-          : t('file.exported'),
+          ? t(opts.pdfx ? 'export.pdfxFontsMissing' : 'export.pdfFontsMissing', {
+              fonts: missingFonts.join(', '),
+            })
+          : rgbImages
+            ? t('export.rgbImages', { n: rgbImages })
+            : t('file.exported'),
       );
     return;
   }
   let done = false;
   for (const ab of artboards) {
     const name = artboards.length > 1 || doc.artboards.length > 1 ? `${doc.name} - ${ab.name}` : doc.name;
-    let bytes: Uint8Array;
-    if (opts.kind === 'svg') {
-      const parts = await rasterizedParts(doc, ab, false);
-      bytes = new TextEncoder().encode(
-        artboardToSvg(await materialize(doc), ab, {
-          measureText,
-          background: !opts.transparent,
-          override: (n) => parts.get(n.id) ?? null,
-        }),
-      );
-    } else {
-      const blob = await rasterizeArtboard(doc, ab, exportImages, {
-        scale: opts.scale,
-        type: opts.kind === 'png' ? 'image/png' : 'image/jpeg',
-        quality: opts.quality,
-        background: !(opts.transparent && opts.kind === 'png'),
-      });
-      bytes = new Uint8Array(await blob.arrayBuffer());
-    }
+    const bytes = await artboardBytes(doc, ab, opts.kind, opts);
     if (!(await saveBytes(bytes, opts.kind, name))) break;
     done = true;
   }
   if (done) toast(t('file.exported'));
+}
+
+/** Fichier d'un plan de travail dans un format d'export (PDF d'une seule page). */
+async function artboardBytes(
+  doc: PoulpeDocument,
+  ab: Artboard,
+  kind: ExportKind,
+  opts: Pick<ExportOptions, 'scale' | 'quality' | 'transparent'> & Partial<ExportOptions>,
+): Promise<Uint8Array> {
+  if (kind === 'pdf') return (await svgToPdf(doc, [ab], opts)).bytes;
+  if (kind === 'psd') {
+    const { artboardToPsd } = await import('./importers/psd');
+    return artboardToPsd(doc, ab, exportImages);
+  }
+  if (kind === 'svg') {
+    const parts = await rasterizedParts(doc, ab, false);
+    return new TextEncoder().encode(
+      artboardToSvg(await materialize(doc), ab, {
+        measureText,
+        background: !opts.transparent,
+        override: (n) => parts.get(n.id) ?? null,
+      }),
+    );
+  }
+  const blob = await rasterizeArtboard(doc, ab, exportImages, {
+    scale: opts.scale,
+    type: kind === 'png' ? 'image/png' : 'image/jpeg',
+    quality: opts.quality,
+    background: !(opts.transparent && kind === 'png'),
+  });
+  return new Uint8Array(await blob.arrayBuffer());
+}
+
+export interface BatchExportOptions {
+  artboardIds: string[];
+  formats: ExportKind[];
+  /** Échelles des images PNG et JPEG (1 = taille du document). */
+  scales: number[];
+  quality: number;
+  transparent: boolean;
+  /** PDF en CMJN pour l'imprimeur. */
+  cmyk: boolean;
+}
+
+/** Exporte plusieurs plans de travail dans plusieurs formats et tailles, réunis dans un fichier ZIP. */
+export async function batchExport(opts: BatchExportOptions): Promise<void> {
+  const doc = editor.doc;
+  const artboards = doc.artboards.filter((a) => opts.artboardIds.includes(a.id));
+  if (!artboards.length || !opts.formats.length) {
+    toast(t('export.noPages'));
+    return;
+  }
+  const { zipSync } = await import('fflate');
+  const files: Record<string, Uint8Array> = {};
+  const used = new Set<string>();
+  const unique = (name: string) => {
+    let n = name,
+      i = 2;
+    while (used.has(n.toLowerCase())) n = name.replace(/(\.[^.]+)$/, ` (${i++})$1`);
+    used.add(n.toLowerCase());
+    return n;
+  };
+  const total = artboards.length * opts.formats.length;
+  let step = 0;
+  for (const ab of artboards) {
+    for (const kind of opts.formats) {
+      toast(t('export.batchProgress', { n: ++step, total }));
+      const scales = kind === 'png' || kind === 'jpeg' ? opts.scales : [1];
+      for (const scale of scales.length ? scales : [1]) {
+        const bytes = await artboardBytes(doc, ab, kind, {
+          scale,
+          quality: opts.quality,
+          transparent: opts.transparent,
+          color: opts.cmyk ? 'cmyk' : 'rgb',
+        });
+        const suffix = scales.length > 1 || scale !== 1 ? `@${scale}x` : '';
+        files[unique(`${safeName(ab.name)}${suffix}.${KINDS[kind].ext}`)] = bytes;
+      }
+    }
+  }
+  const zip = zipSync(files, { level: 0 });
+  if (await saveBytes(zip, 'zip', `${doc.name} - export`))
+    toast(t('export.batchDone', { n: Object.keys(files).length }));
 }

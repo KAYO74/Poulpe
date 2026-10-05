@@ -161,7 +161,7 @@ describe('format v5', () => {
   });
 
   it('ouvre les documents des versions précédentes', () => {
-    expect(FORMAT_VERSION).toBe(5);
+    expect(FORMAT_VERSION).toBeGreaterThanOrEqual(5);
     for (const version of [1, 2, 3, 4]) {
       const old = { ...createDocument(), version } as unknown as Record<string, unknown>;
       expect(migrate(old).version).toBe(FORMAT_VERSION);

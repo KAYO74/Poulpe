@@ -68,7 +68,8 @@ export type Dialog =
   | 'offset'
   | 'filter'
   | 'selectionModify'
-  | 'document';
+  | 'document'
+  | 'batch';
 
 export interface Settings {
   theme: Theme;
@@ -130,6 +131,8 @@ export interface UiState {
   busy: { label: string; progress: number } | null;
   /** Cadre de texte dont on choisit le cadre suivant (après un clic sur son indicateur de débordement). */
   linkFrom: string | null;
+  /** Épreuvage CMJN à l'écran. */
+  softProof: boolean;
   /** Fichier courant : chemin (bureau) ou nom (navigateur). */
   filePath: string | null;
   dialog: Dialog;
@@ -206,6 +209,7 @@ export const ui = new Store<UiState>({
   selectionModify: null,
   busy: null,
   linkFrom: null,
+  softProof: false,
   filePath: null,
   dialog: null,
   toast: null,

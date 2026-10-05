@@ -1682,3 +1682,15 @@ fieldset.tone legend {
 .modal footer .spacer {
   flex: 1;
 }
+
+/* ——— Impression : CMJN, export par lots ——— */
+.gamut {
+  color: #f5a524;
+}
+.batch-list {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+  gap: 4px 12px;
+  max-height: 180px;
+  overflow: auto;
+}

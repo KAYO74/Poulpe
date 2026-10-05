@@ -56,6 +56,7 @@ export const COMMANDS = {
   'file.importImage': { label: 'file.importImage', shortcut: 'Mod+Shift+I', run: () => void importImage() },
   'file.openPhoto': { label: 'file.openPhoto', shortcut: 'Mod+Alt+O', run: () => void openPhoto() },
   'file.export': { label: 'file.export', shortcut: 'Mod+Shift+E', run: () => ui.set({ dialog: 'export' }) },
+  'file.batchExport': { label: 'file.batchExport', run: () => ui.set({ dialog: 'batch' }) },
   'file.exportPng': {
     label: 'file.exportPng',
     run: () =>
@@ -350,6 +351,11 @@ export const COMMANDS = {
     label: 'cmd.clearGuides',
     enabled: () => !!(editor.doc.guides?.x.length || editor.doc.guides?.y.length),
     run: () => editor.apply('history.guide', (d) => void delete d.guides),
+  },
+  'view.softProof': {
+    label: 'view.softProof',
+    shortcut: 'Mod+Y',
+    run: () => ui.set({ softProof: !ui.get().softProof }),
   },
   'view.snapping': {
     label: 'view.snapping',

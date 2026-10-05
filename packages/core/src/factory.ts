@@ -19,7 +19,7 @@ import type {
   TextStyle,
 } from './types';
 
-export const FORMAT_VERSION = 5;
+export const FORMAT_VERSION = 6;
 
 export type FormatCategory = 'social' | 'print' | 'screen';
 

@@ -1,6 +1,16 @@
 import { useState } from 'react';
-import { findNode, isStyled, rgbaToCss, sampleStops, type GradientStop, type Paint } from '@poulpe/core';
-import { addSwatch, removeSwatch, setPaint } from '../actions';
+import {
+  colorToCmyk,
+  findNode,
+  isStyled,
+  opaque,
+  outOfGamut,
+  rgbaToCss,
+  sampleStops,
+  type GradientStop,
+  type Paint,
+} from '@poulpe/core';
+import { addSwatch, removeSwatch, setPaint, withCmyk } from '../actions';
 import { NumberField, paintPreview } from '../components/fields';
 import { Icon } from '../components/Icon';
 import { useT } from '../i18n';
@@ -65,6 +75,9 @@ export function ColorPanel() {
   const recent = useUi((s) => s.recentColors);
   const { doc } = useEditor();
   const [stopIndex, setStopIndex] = useState(0);
+  const photo = useUi((s) => s.persona) === 'photo';
+  // Document d'impression : le sélecteur s'ouvre en CMJN et signale les couleurs hors gamut.
+  const print = doc.layout?.colorMode === 'cmyk';
 
   const switchType = (type: Paint['type']) => {
     const base = firstColor(paint);
@@ -172,7 +185,14 @@ export function ColorPanel() {
         </div>
       )}
       {editColor !== null ? (
-        <ColorPicker color={editColor} onChange={onColor} />
+        <ColorPicker
+          color={editColor}
+          onChange={onColor}
+          cmyk={photo ? undefined : colorToCmyk(editColor, doc)}
+          onCmyk={(c, cmyk) => withCmyk(opaque(c), cmyk, () => onColor(c, 'set'))}
+          preferCmyk={print}
+          outOfGamut={print && !doc.layout?.cmyk?.[opaque(editColor).toLowerCase()] && outOfGamut(editColor)}
+        />
       ) : (
         <p className="empty">{hasSelection ? '' : t('color.nothing')}</p>
       )}
