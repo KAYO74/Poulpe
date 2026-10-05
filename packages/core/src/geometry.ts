@@ -1,3 +1,4 @@
+import { distanceToPolylines, flattenCommands, pointInPolylines } from './bezier';
 import { cachedSvgPath, fitCommands } from './path';
 import type { SceneNode, Artboard, Paint } from './types';
 
@@ -244,6 +245,8 @@ function distToSegment(p: Vec, a: Vec, b: Vec): number {
   return Math.hypot(p.x - (a.x + t * dx), p.y - (a.y + t * dy));
 }
 
+const flatCache = new WeakMap<SceneNode, ReturnType<typeof flattenCommands>>();
+
 /** Le point du monde touche-t-il l'objet ? `tolerance` en unités du monde. */
 export function hitNode(node: SceneNode, p: Vec, tolerance = 0): boolean {
   if (!node.visible) return false;
@@ -262,6 +265,22 @@ export function hitNode(node: SceneNode, p: Vec, tolerance = 0): boolean {
     const nx = (l.x - node.width / 2) / rx,
       ny = (l.y - node.height / 2) / ry;
     return nx * nx + ny * ny <= 1;
+  }
+  if (node.type === 'path' || node.type === 'polygon' || node.type === 'star') {
+    // Forme libre : on touche le remplissage ou le trait, pas la boîte entière.
+    let polys = flatCache.get(node);
+    if (!polys) {
+      polys = flattenCommands(shapePath(node), 1);
+      if (Object.isFrozen(node)) flatCache.set(node, polys);
+    }
+    const stroked = node.stroke.paint.type !== 'none' && node.stroke.width > 0;
+    if (
+      node.fill.type !== 'none' &&
+      pointInPolylines(polys, l, node.type === 'path' ? node.fillRule : 'nonzero')
+    )
+      return true;
+    const reach = (stroked ? node.stroke.width / 2 : 0) + Math.max(t, 1);
+    return distanceToPolylines(polys, l) <= reach;
   }
   return true;
 }

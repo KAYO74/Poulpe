@@ -1,5 +1,5 @@
 /**
- * Modèle de document Poulpe (format `.poulpe`, version 2).
+ * Modèle de document Poulpe (format `.poulpe`, version 3).
  *
  * Toutes les coordonnées sont en pixels, dans l'espace du document (« monde ») :
  * les objets d'un plan de travail ne sont pas relatifs à ce plan de travail.
@@ -23,10 +23,52 @@ export type Paint =
   /** Centre et rayon en fractions de la boîte de l'objet. */
   | { type: 'radial'; stops: GradientStop[]; cx: number; cy: number; r: number };
 
+export type StrokeCap = 'butt' | 'round' | 'square';
+export type StrokeJoin = 'miter' | 'round' | 'bevel';
+/** Extrémités décoratives d'un tracé ouvert. */
+export type ArrowHead = 'none' | 'triangle' | 'arrow' | 'circle' | 'square' | 'bar';
+
 export interface Stroke {
   paint: Paint;
   width: number;
+  /** Extrémités des traits (`round` si absent). */
+  cap?: StrokeCap;
+  /** Jonctions des traits (`round` si absent). */
+  join?: StrokeJoin;
+  /** Pointillés : longueurs alternées trait / espace, en multiples de l'épaisseur. Absent : trait plein. */
+  dash?: number[];
+  /** Flèche au début et à la fin d'un tracé ouvert. */
+  start?: ArrowHead;
+  end?: ArrowHead;
 }
+
+/** Ombre portée (sous l'objet) ou ombre interne. Décalage et flou en pixels. */
+export interface ShadowEffect {
+  type: 'dropShadow' | 'innerShadow';
+  enabled: boolean;
+  color: Color;
+  x: number;
+  y: number;
+  blur: number;
+}
+
+/** Lueur externe ou interne. */
+export interface GlowEffect {
+  type: 'outerGlow' | 'innerGlow';
+  enabled: boolean;
+  color: Color;
+  blur: number;
+}
+
+/** Flou gaussien de l'objet lui-même. */
+export interface BlurEffect {
+  type: 'blur';
+  enabled: boolean;
+  radius: number;
+}
+
+export type Effect = ShadowEffect | GlowEffect | BlurEffect;
+export type EffectType = Effect['type'];
 
 export const BLEND_MODES = [
   'normal',
@@ -62,6 +104,8 @@ interface NodeBase {
   blendMode: BlendMode;
   visible: boolean;
   locked: boolean;
+  /** Effets de calque (au plus un de chaque type). */
+  effects?: Effect[];
 }
 
 interface Styled {
@@ -142,6 +186,19 @@ export interface TextNode extends NodeBase, Styled {
   runs?: TextRun[];
   /** Texte artistique : la largeur suit le texte. Sinon bloc de texte : le texte passe à la ligne. */
   autoWidth: boolean;
+  /** Texte sur tracé : le texte suit cette courbe, sur une seule ligne. */
+  path?: TextPath;
+}
+
+/** Courbe suivie par un texte, exprimée dans `viewBox` et étirée sur la boîte du texte. */
+export interface TextPath {
+  d: string;
+  viewBox: { x: number; y: number; width: number; height: number };
+  /**
+   * Position du texte le long de la courbe, de 0 (début) à 1 (fin) : début du texte aligné à
+   * gauche, milieu d'un texte centré, fin d'un texte aligné à droite.
+   */
+  offset: number;
 }
 
 /**
