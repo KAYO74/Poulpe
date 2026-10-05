@@ -143,6 +143,8 @@ export function MenuBar() {
           ))}
         </Sub>
         <Item id="document.deleteArtboard" />
+        <Sep />
+        <Item id="document.resize" />
       </Top>
       <Top label={t('menu.view')}>
         <Item id="view.zoomIn" />
@@ -150,6 +152,7 @@ export function MenuBar() {
         <Item id="view.zoomFit" />
         <Item id="view.zoom100" />
         <Sep />
+        <Item id="view.library" checked={settings.library} />
         <Item id="view.rulers" checked={settings.rulers} />
         <Item id="view.clearGuides" />
         <Item id="view.grid" checked={settings.grid} />

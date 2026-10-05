@@ -1,4 +1,4 @@
-# Format de fichier `.poulpe` (version 1)
+# Format de fichier `.poulpe` (version 2)
 
 Un document Poulpe est une archive ZIP. Tout y est lisible avec des outils standard : un logiciel de décompression suffit pour récupérer les images d'origine et le document en JSON.
 
@@ -17,8 +17,8 @@ Le code de lecture et d'écriture est dans [`packages/core/src/file.ts`](../pack
 ```json
 {
   "format": "poulpe",
-  "version": 1,
-  "generator": "Poulpe 0.1.0",
+  "version": 2,
+  "generator": "Poulpe 0.2.0",
   "created": "2026-10-04T09:43:00.000Z",
   "files": ["document.json", "assets/images/img_1a2b3c.png", "thumbnail.png"]
 }
@@ -26,15 +26,15 @@ Le code de lecture et d'écriture est dans [`packages/core/src/file.ts`](../pack
 
 ## document.json
 
-| Champ | Type | Contenu |
-| --- | --- | --- |
-| `format` | `"poulpe"` | Toujours `poulpe`. |
-| `version` | entier | Version du format. Poulpe migre les anciennes versions et refuse proprement une version plus récente que la sienne. |
-| `id`, `name` | texte | Identifiant stable et nom du document. |
-| `artboards` | liste | Plans de travail, chacun avec `x`, `y`, `width`, `height`, `background` (peinture) et `children`. |
-| `swatches` | liste de couleurs | Nuancier du document. |
-| `assets` | objet | Images, par identifiant : `mime`, `width`, `height` et `path` dans l'archive. |
-| `guides` | objet, facultatif | Repères tirés depuis les règles : `x` (repères verticaux) et `y` (repères horizontaux), listes de positions dans l'espace du document. |
+| Champ        | Type              | Contenu                                                                                                                                |
+| ------------ | ----------------- | -------------------------------------------------------------------------------------------------------------------------------------- |
+| `format`     | `"poulpe"`        | Toujours `poulpe`.                                                                                                                     |
+| `version`    | entier            | Version du format. Poulpe migre les anciennes versions et refuse proprement une version plus récente que la sienne.                    |
+| `id`, `name` | texte             | Identifiant stable et nom du document.                                                                                                 |
+| `artboards`  | liste             | Plans de travail, chacun avec `x`, `y`, `width`, `height`, `background` (peinture) et `children`.                                      |
+| `swatches`   | liste de couleurs | Nuancier du document.                                                                                                                  |
+| `assets`     | objet             | Images, par identifiant : `mime`, `width`, `height` et `path` dans l'archive.                                                          |
+| `guides`     | objet, facultatif | Repères tirés depuis les règles : `x` (repères verticaux) et `y` (repères horizontaux), listes de positions dans l'espace du document. |
 
 Toutes les coordonnées sont en pixels dans l'espace du document : un objet n'est pas relatif à son plan de travail. Chaque objet est une boîte `x`, `y`, `width`, `height` tournée de `rotation` degrés autour de son centre. Les listes `children` vont du dessous vers le dessus.
 
@@ -42,20 +42,23 @@ Toutes les coordonnées sont en pixels dans l'espace du document : un objet n'es
 
 Champs communs : `id`, `name`, `x`, `y`, `width`, `height`, `rotation`, `opacity` (0 à 1), `blendMode`, `visible`, `locked`.
 
-| `type` | Champs propres |
-| --- | --- |
-| `rect` | `fill`, `stroke`, `cornerRadius` |
-| `ellipse` | `fill`, `stroke` |
-| `polygon` | `fill`, `stroke`, `sides` |
-| `star` | `fill`, `stroke`, `points`, `innerRatio` |
-| `line` | `stroke`, `direction` (1 : haut gauche vers bas droit, -1 : bas gauche vers haut droit) |
-| `text` | `text`, `style`, `fill`, `stroke`, `autoWidth`, `runs` (facultatif) |
-| `image` | `assetId`, `crop` (facultatif) |
-| `group` | `children`, `clip` (l'objet du dessous sert de masque d'écrêtage) |
+| `type`    | Champs propres                                                                          |
+| --------- | --------------------------------------------------------------------------------------- |
+| `rect`    | `fill`, `stroke`, `cornerRadius`                                                        |
+| `ellipse` | `fill`, `stroke`                                                                        |
+| `polygon` | `fill`, `stroke`, `sides`                                                               |
+| `star`    | `fill`, `stroke`, `points`, `innerRatio`                                                |
+| `path`    | `fill`, `stroke`, `d`, `viewBox`, `fillRule` (facultatif)                               |
+| `line`    | `stroke`, `direction` (1 : haut gauche vers bas droit, -1 : bas gauche vers haut droit) |
+| `text`    | `text`, `style`, `fill`, `stroke`, `autoWidth`, `runs` (facultatif)                     |
+| `image`   | `assetId`, `crop` (facultatif)                                                          |
+| `group`   | `children`, `clip` (l'objet du dessous sert de masque d'écrêtage)                       |
 
 `style` d'un texte : `fontFamily`, `fontSize`, `fontWeight`, `italic`, `align` (`left`, `center`, `right`, `justify`), `lineHeight` (multiplicateur), `letterSpacing` (px), `underline`, `strike`, `uppercase`.
 
 `runs` d'un texte : styles par caractère, triés et sans chevauchement. Chaque plage vaut `{ "start": 8, "end": 12, "style": { … } }` : elle couvre les caractères `start` à `end - 1` (indices UTF-16 de `text`) et ne contient que ce qui diffère du `style` du texte, parmi `fontFamily`, `fontSize`, `fontWeight`, `italic`, `underline`, `strike`, `letterSpacing` et `color` (couleur unie qui remplace le remplissage). L'alignement, l'interligne et les capitales valent pour tout le texte.
+
+`d` d'un tracé : données de tracé SVG (commandes `M L H V C S Q T A Z`, absolues ou relatives), dans le repère `viewBox` (`{ "x", "y", "width", "height" }`). Le tracé est étiré pour remplir la boîte de l'objet. `fillRule` vaut `nonzero` (par défaut) ou `evenodd`.
 
 `crop` d'une image : partie de l'image source affichée dans la boîte de l'objet, `{ "x", "y", "width", "height" }` en fractions (0 à 1) de l'image. Sans `crop`, l'image entière remplit la boîte.
 
@@ -75,3 +78,8 @@ Les couleurs sont en hexadécimal `#rrggbb` ou `#rrggbbaa`.
 L'angle d'un dégradé linéaire est en degrés (0 : de gauche à droite, 90 : de haut en bas) et la ligne du dégradé couvre toute la boîte, comme en CSS. Le centre et le rayon d'un dégradé radial sont des fractions de la boîte (le rayon, de sa plus grande dimension).
 
 Un contour vaut `{ "paint": <peinture>, "width": <px> }`, centré sur le tracé.
+
+## Versions
+
+- **1** (Poulpe 0.1) : version initiale.
+- **2** (Poulpe 0.2) : ajout des objets `path`. Un fichier de version 1 s'ouvre sans changement ; un fichier de version 2 ne s'ouvre pas dans Poulpe 0.1.

@@ -16,34 +16,34 @@ Poulpe atteint l'essentiel d'Illustrator, Photoshop et Affinity en v1.0, en cinq
 
 Les fonctions phares des trois logiciels, et le jalon où Poulpe les apporte. « AI » = Illustrator, « PS » = Photoshop, « AF » = Affinity (Designer, Photo, Publisher).
 
-| Fonctionnalité | Chez qui | Poulpe |
-| --- | --- | --- |
-| Formes, rectangles arrondis, polygones, étoiles | AI, AF | v0.1 |
-| Calques, groupes, verrouillage, visibilité | AI, PS, AF | v0.1 |
-| Texte artistique et texte en bloc, polices Google Fonts | AI, PS, AF | v0.1 |
-| Remplissage, contour, dégradés linéaires et radiaux | AI, PS, AF | v0.1 |
-| Plans de travail multiples (artboards) | AI, PS, AF | v0.1 |
-| Annuler / rétablir illimité, historique | AI, PS, AF | v0.1 |
-| Export PNG, JPEG, SVG, PDF | AI, PS, AF | v0.1 |
-| Modèles, bibliothèque d'éléments, formats réseaux sociaux | (Canva) | v0.2 |
-| Plume, nœuds, courbes de Bézier, crayon | AI, AF | v0.3 |
-| Opérations booléennes, Pathfinder, Shape Builder | AI, AF | v0.3 |
-| Symboles, styles de calque, styles de texte et de paragraphe | AI, AF | v0.3 |
-| Texte sur tracé, OpenType avancé, vectorisation du texte | AI, AF | v0.3 |
-| Dégradés de forme (mesh), dégradés coniques, motifs | AI, AF | v0.3 |
-| Pinceaux pixel, gomme, tampon, correcteur | PS, AF | v0.4 |
-| Sélections (lasso, baguette magique, sélection rapide) | PS, AF | v0.4 |
-| Masques de calque et masques d'écrêtage | PS, AF | v0.1 (simples), v0.4 (pixel) |
-| Calques de réglage (niveaux, courbes, TSL, balance) | PS, AF | v0.4 |
-| Filtres dynamiques (flou, netteté, bruit, déformation) | PS, AF | v0.4 |
-| Modes de fusion et effets (ombre, lueur, biseau) | PS, AF | v0.1 (fusion), v0.3 (effets) |
-| Recadrage, redressement, transformation perspective | PS, AF | v0.4 |
-| Gestion couleur RVB / CMJN, profils ICC, nuanciers | AI, PS, AF | v0.5 |
-| Pages maîtres, cadres de texte liés, styles de mise en page | AF Publisher | v0.5 |
-| Export PDF/X d'impression, fonds perdus, traits de coupe | AI, AF | v0.5 |
-| Ouverture PSD, SVG, PDF et AI (compatibilité PDF) | AI, PS, AF | v0.3 (SVG), v0.5 (PSD, PDF, AI) |
-| Vectorisation d'image (Image Trace) | AI | v1.0 |
-| Détourage auto et remplissage selon le contenu | PS | v1.0 (modèles locaux) |
+| Fonctionnalité                                               | Chez qui     | Poulpe                          |
+| ------------------------------------------------------------ | ------------ | ------------------------------- |
+| Formes, rectangles arrondis, polygones, étoiles              | AI, AF       | v0.1                            |
+| Calques, groupes, verrouillage, visibilité                   | AI, PS, AF   | v0.1                            |
+| Texte artistique et texte en bloc, polices Google Fonts      | AI, PS, AF   | v0.1                            |
+| Remplissage, contour, dégradés linéaires et radiaux          | AI, PS, AF   | v0.1                            |
+| Plans de travail multiples (artboards)                       | AI, PS, AF   | v0.1                            |
+| Annuler / rétablir illimité, historique                      | AI, PS, AF   | v0.1                            |
+| Export PNG, JPEG, SVG, PDF                                   | AI, PS, AF   | v0.1                            |
+| Modèles, bibliothèque d'éléments, formats réseaux sociaux    | (Canva)      | v0.2                            |
+| Plume, nœuds, courbes de Bézier, crayon                      | AI, AF       | v0.3                            |
+| Opérations booléennes, Pathfinder, Shape Builder             | AI, AF       | v0.3                            |
+| Symboles, styles de calque, styles de texte et de paragraphe | AI, AF       | v0.3                            |
+| Texte sur tracé, OpenType avancé, vectorisation du texte     | AI, AF       | v0.3                            |
+| Dégradés de forme (mesh), dégradés coniques, motifs          | AI, AF       | v0.3                            |
+| Pinceaux pixel, gomme, tampon, correcteur                    | PS, AF       | v0.4                            |
+| Sélections (lasso, baguette magique, sélection rapide)       | PS, AF       | v0.4                            |
+| Masques de calque et masques d'écrêtage                      | PS, AF       | v0.1 (simples), v0.4 (pixel)    |
+| Calques de réglage (niveaux, courbes, TSL, balance)          | PS, AF       | v0.4                            |
+| Filtres dynamiques (flou, netteté, bruit, déformation)       | PS, AF       | v0.4                            |
+| Modes de fusion et effets (ombre, lueur, biseau)             | PS, AF       | v0.1 (fusion), v0.3 (effets)    |
+| Recadrage, redressement, transformation perspective          | PS, AF       | v0.4                            |
+| Gestion couleur RVB / CMJN, profils ICC, nuanciers           | AI, PS, AF   | v0.5                            |
+| Pages maîtres, cadres de texte liés, styles de mise en page  | AF Publisher | v0.5                            |
+| Export PDF/X d'impression, fonds perdus, traits de coupe     | AI, AF       | v0.5                            |
+| Ouverture PSD, SVG, PDF et AI (compatibilité PDF)            | AI, PS, AF   | v0.3 (SVG), v0.5 (PSD, PDF, AI) |
+| Vectorisation d'image (Image Trace)                          | AI           | v1.0                            |
+| Détourage auto et remplissage selon le contenu               | PS           | v1.0 (modèles locaux)           |
 
 ## Jalons détaillés
 
@@ -63,8 +63,10 @@ Chaque jalon s'appuie sur le précédent : le vectoriel pro, la photo et la mise
 
 ### v0.2 Côté Canva
 
+Livrée le 5 octobre 2026, voir [cote-canva-v0.2.md](cote-canva-v0.2.md).
+
 - Modèles par format (Instagram, story, A4, affiche, carte de visite, miniature YouTube).
-- Bibliothèque d'éléments libres (formes, icônes, illustrations, photos CC0).
+- Bibliothèque d'éléments libres (formes, icônes, illustrations). Les photos CC0 intégrées sont reportées : on importe ses propres photos dans des cadres.
 - Combinaisons de polices prêtes, palettes de couleurs suggérées, redimensionnement d'un design vers un autre format.
 
 ### v0.3 Vectoriel pro (Illustrator, Affinity Designer)

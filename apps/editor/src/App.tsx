@@ -9,6 +9,7 @@ import { ToolColumn } from './components/ToolColumn';
 import { Toolbar } from './components/Toolbar';
 import { Viewport } from './components/Viewport';
 import { useT } from './i18n';
+import { Library } from './panels/Library';
 import { Studio } from './panels/Studio';
 import { editor, useEditor, useUi } from './store';
 
@@ -59,6 +60,7 @@ export function App() {
       <ContextBar />
       <main className="workspace">
         <ToolColumn />
+        {settings.library && <Library />}
         <div className="doc-area">
           <div className="doc-tabs" role="tablist">
             <span className="doc-tab" role="tab" aria-selected="true">
