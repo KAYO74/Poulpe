@@ -27,3 +27,7 @@ export * from './icc';
 export * from './pdfPrint';
 export * from './lut';
 export * from './retouch';
+export * from './symbols';
+export * from './strokeProfile';
+export * from './pathCut';
+export * from './styles';

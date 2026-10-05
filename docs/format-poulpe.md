@@ -81,8 +81,9 @@ Champs communs : `id`, `name`, `x`, `y`, `width`, `height`, `rotation`, `opacity
 | `image`      | `assetId`, `crop` (facultatif)                                                          |
 | `group`      | `children`, `clip` (l'objet du dessous sert de masque d'écrêtage)                       |
 | `adjustment` | `adjustment` : réglage ou filtre dynamique (voir « Calques de réglage »)                |
+| `symbol`     | `symbolId` : instance d'un symbole du document (version 7, voir « Symboles »)           |
 
-`style` d'un texte : `fontFamily`, `fontSize`, `fontWeight`, `italic`, `align` (`left`, `center`, `right`, `justify`), `lineHeight` (multiplicateur), `letterSpacing` (px), `underline`, `strike`, `uppercase`.
+`style` d'un texte : `fontFamily`, `fontSize`, `fontWeight`, `italic`, `align` (`left`, `center`, `right`, `justify`), `lineHeight` (multiplicateur), `letterSpacing` (px), `underline`, `strike`, `uppercase`. Facultatifs (version 7) : `features`, la liste des fonctions OpenType actives (`smcp`, `c2sc`, `kern`, `liga`, `dlig`, `onum`, `tnum`, `frac`, `ss01`), et `columns`, les colonnes du bloc : `{ "count": 2, "gap": 16 }` (`gap` en pixels). Un lecteur qui ne les connaît pas affiche le texte sur une colonne, sans ces fonctions : le document reste juste.
 
 `runs` d'un texte : styles par caractère, triés et sans chevauchement. Chaque plage vaut `{ "start": 8, "end": 12, "style": { … } }` : elle couvre les caractères `start` à `end - 1` (indices UTF-16 de `text`) et ne contient que ce qui diffère du `style` du texte, parmi `fontFamily`, `fontSize`, `fontWeight`, `italic`, `underline`, `strike`, `letterSpacing` et `color` (couleur unie qui remplace le remplissage). L'alignement, l'interligne et les capitales valent pour tout le texte.
 
@@ -107,9 +108,13 @@ Les couleurs sont en hexadécimal `#rrggbb` ou `#rrggbbaa`.
 { "type": "solid", "color": "#2ba59a" }
 { "type": "linear", "angle": 90, "stops": [{ "offset": 0, "color": "#2ba59a" }, { "offset": 1, "color": "#ffffff" }] }
 { "type": "radial", "cx": 0.5, "cy": 0.5, "r": 0.5, "stops": [ … ] }
+{ "type": "conic", "angle": 0, "cx": 0.5, "cy": 0.5, "stops": [ … ] }
+{ "type": "pattern", "assetId": "img_…", "scale": 1, "angle": 0 }
 ```
 
 L'angle d'un dégradé linéaire est en degrés (0 : de gauche à droite, 90 : de haut en bas) et la ligne du dégradé couvre toute la boîte, comme en CSS. Le centre et le rayon d'un dégradé radial sont des fractions de la boîte (le rayon, de sa plus grande dimension).
+
+Un dégradé conique (version 7) tourne autour de son centre : `angle` donne la direction de l'arrêt 0, les `offset` des arrêts sont des fractions du tour. Un motif (version 7) répète l'image `assetId` ; `scale` multiplie la taille de la tuile et `angle` la fait tourner. Le SVG exporté approche un dégradé conique par des secteurs, car SVG n'en a pas.
 
 Un contour vaut `{ "paint": <peinture>, "width": <px> }`, centré sur le tracé. Champs facultatifs (version 3) :
 
@@ -119,6 +124,10 @@ Un contour vaut `{ "paint": <peinture>, "width": <px> }`, centré sur le tracé.
 | `join`         | `miter`, `round` (par défaut), `bevel` : jonctions des traits                                          |
 | `dash`         | longueurs alternées trait / espace, en multiples de l'épaisseur (`[3, 2]`) ; absent : trait plein      |
 | `start`, `end` | `none`, `triangle`, `arrow`, `circle`, `square`, `bar` : flèche au début et à la fin d'un tracé ouvert |
+| `align`        | `center` (par défaut), `inside`, `outside` : position du trait par rapport au tracé (version 7)        |
+| `profile`      | largeur variable : multiplicateurs de l'épaisseur du début (0) à la fin (1), `[0.05, 1, 0.05]` (v. 7)  |
+
+Un objet peut aussi porter `strokes` (version 7) : des contours dessinés **sous** son `stroke`, du premier au dernier de la liste. Un lecteur qui ne connaît pas `strokes` n'affiche que le contour principal.
 
 ### Effets
 
@@ -130,7 +139,10 @@ Un contour vaut `{ "paint": <peinture>, "width": <px> }`, centré sur le tracé.
 { "type": "outerGlow", "enabled": true, "color": "#ffd166cc", "blur": 12 }
 { "type": "innerGlow", "enabled": true, "color": "#ffffffaa", "blur": 8 }
 { "type": "blur", "enabled": true, "radius": 4 }
+{ "type": "bevel", "enabled": true, "style": "bevel", "angle": 135, "depth": 6, "softness": 4, "intensity": 70, "light": "#ffffff", "shadow": "#000000" }
 ```
+
+Le biseau (version 7) simule un relief éclairé depuis `angle` degrés : `depth` en pixels, `softness` adoucit l'arête, `intensity` (0 à 100) dose lumière et ombre. `style` vaut `bevel` (relief vers l'extérieur) ou `emboss` (vers l'intérieur).
 
 ### Masques de calque
 
@@ -140,7 +152,7 @@ Un objet `image` retouché (pinceau, gomme, gomme magique, filtres) pointe simpl
 
 ### Calques de réglage
 
-Un objet `adjustment` modifie tout ce qui est dessous lui dans le même parent (plan de travail ou groupe), sans toucher aux pixels : on peut le régler, le masquer ou le supprimer à tout moment. Son `opacity` dose l'effet, son `mask` le limite à une zone. Seul le mode de fusion `normal` est appliqué pour l'instant. Le champ `adjustment` a un `kind` et ses réglages :
+Un objet `adjustment` modifie tout ce qui est dessous lui dans le même parent (plan de travail ou groupe), sans toucher aux pixels : on peut le régler, le masquer ou le supprimer à tout moment. Son `opacity` dose l'effet, son `mask` le limite à une zone. Le champ `adjustment` a un `kind` et ses réglages :
 
 | `kind`               | Réglages                                                                                     |
 | -------------------- | -------------------------------------------------------------------------------------------- |
@@ -167,6 +179,27 @@ Un objet `adjustment` modifie tout ce qui est dessous lui dans le même parent (
 
 Un logiciel qui ne connaît pas les calques de réglage peut les ignorer : le reste du document reste juste, seules les corrections manquent.
 
+Depuis la version 7, le `blendMode` d'un calque de réglage est appliqué comme celui d'un objet ordinaire.
+
+### Symboles et styles enregistrés (version 7)
+
+`symbols` range les symboles du document, par identifiant :
+
+```json
+"symbols": {
+  "sym_a1": {
+    "id": "sym_a1",
+    "name": "Puce",
+    "box": { "x": 0, "y": 0, "width": 24, "height": 24 },
+    "children": [ … ]
+  }
+}
+```
+
+Les objets d'un symbole sont exprimés dans sa `box`. Chaque objet `symbol` du document les ramène dans sa propre boîte (position, taille et rotation comprises), si bien que modifier le symbole met à jour toutes ses instances. Un lecteur qui ne connaît pas les symboles peut dessiner le contenu du symbole à la place de l'instance, ou l'ignorer.
+
+`styles` est la liste des styles enregistrés. Chaque style porte `id`, `name` et seulement ce qu'il applique : `fill`, `stroke`, `strokes`, `effects`, `opacity`, `blendMode` et `text` (réglages de caractère, pour les textes). Les champs absents ne touchent pas à l'objet. Les styles ne changent rien à l'affichage du document : ils sont là pour l'interface.
+
 ## Versions
 
 - **1** (Poulpe 0.1) : version initiale.
@@ -174,4 +207,5 @@ Un logiciel qui ne connaît pas les calques de réglage peut les ignorer : le re
 - **3** (Poulpe 0.3) : contours avancés (`cap`, `join`, `dash`, `start`, `end`), `effects` sur tous les objets, `path` sur les textes. Tous ces champs sont facultatifs : un fichier de version 1 ou 2 s'ouvre sans changement ; un fichier de version 3 ne s'ouvre pas dans Poulpe 0.2.
 - **4** (Poulpe 0.4) : objets `adjustment` (calques de réglage et filtres dynamiques) et `mask` sur tous les objets. Un fichier des versions 1 à 3 s'ouvre sans changement ; un fichier de version 4 ne s'ouvre pas dans Poulpe 0.3.
 - **5** (Poulpe 0.5, mise en page) : `layout` du document, `master` et `masterId` des plans de travail, `frame` et `next` des textes, champs `{page}` et `{pages}`. Tous facultatifs : les fichiers des versions 1 à 4 s'ouvrent sans changement ; un fichier de version 5 ne s'ouvre pas dans Poulpe 0.4.
+- **7** (Poulpe 0.6, outils vectoriels) : objets `symbol`, `symbols` et `styles` du document, peintures `conic` et `pattern`, `align`, `profile` et `strokes` des contours, effet `bevel`, `features` et `columns` des textes. Tous facultatifs : les fichiers des versions 1 à 6 s'ouvrent sans changement ; un fichier de version 7 ne s'ouvre pas dans Poulpe 0.5.
 - **6** (Poulpe 0.5, impression) : `colorMode` et `cmyk` dans `layout`. Facultatifs : les fichiers des versions 1 à 5 s'ouvrent sans changement ; un fichier de version 6 ne s'ouvre pas dans une version de Poulpe qui ne connaît que la version 5.

@@ -1,15 +1,20 @@
 import {
   anchorKey,
+  applyBoolean,
+  applyKnife,
   artboardAt,
   bendSegment,
   cachedSvgPath,
   cloneSubpaths,
+  cornerKeys,
   createPath,
+  cutPathAtPoint,
   deleteAnchors,
   exactBounds,
   findArtboard,
   findNode,
   fromSubpaths,
+  hasClosedSubpath,
   insertAnchor,
   isSmooth,
   moveAnchors,
@@ -20,12 +25,16 @@ import {
   pathToSvg,
   pathToWorld,
   removeNodes,
+  roundCorners,
   setAnchorKind,
   setPathCommands,
   simplifyPoints,
+  toPathNode,
+  topLevelIds,
   toSubpaths,
   worldToPath,
   type Anchor,
+  type PathCommand,
   type PathNode,
   type Paint,
   type Stroke,
@@ -33,7 +42,7 @@ import {
   type Vec,
 } from '@poulpe/core';
 import { t } from '../i18n';
-import { editor, ui } from '../store';
+import { editor, toast, ui } from '../store';
 import type { CanvasController } from './controller';
 import { collectSnapLines, snapPoint } from './snapping';
 
@@ -89,6 +98,16 @@ export class PathTools {
   private hover: Vec | null = null;
   private pencil: { points: Vec[]; artboardId: string } | null = null;
   private drag: NodeDrag | null = null;
+  /** Ligne en cours de tracé (cutter, Shape Builder). */
+  private line: { tool: 'knife' | 'shapeBuilder'; a: Vec; b: Vec; alt: boolean } | null = null;
+  /** Arrondi en cours (outil Coin). */
+  private corner: {
+    node: PathNode;
+    base: SubPath[];
+    keys: string[];
+    origin: Vec;
+    radius: number;
+  } | null = null;
 
   constructor(private readonly c: CanvasController) {
     window.addEventListener('poulpe:toolchange', this.finishPen);
@@ -99,7 +118,7 @@ export class PathTools {
   }
 
   get busy(): boolean {
-    return !!(this.pen || this.pencil || this.drag);
+    return !!(this.pen || this.pencil || this.drag || this.line || this.corner);
   }
 
   private dist(a: Vec, b: Vec): number {
@@ -425,10 +444,174 @@ export class PathTools {
     });
   }
 
+  // ————— Ciseaux, cutter, outil Coin et Shape Builder —————
+
+  /** Objet découpable sous le point : une forme ou un tracé, pas un texte ni une image. */
+  private cuttable(p: Vec): PathNode | null {
+    const hit = this.c.hitTest(p, true);
+    if (!hit || hit.locked || !hit.visible) return null;
+    return toPathNode(hit);
+  }
+
+  /** Tracé prêt à prendre la place de l'objet d'origine (une forme devient une courbe). */
+  private cutNode(pn: PathNode, cmds: PathCommand[]): PathNode {
+    const node = structuredClone(pn);
+    setPathCommands(node, cmds);
+    if (!hasClosedSubpath(cmds)) node.fill = { type: 'none' };
+    return node;
+  }
+
+  private replaceWithPath(node: PathNode, label: string): void {
+    editor.apply(label, (d) => {
+      const loc = findNode(d, node.id);
+      if (!loc) return;
+      loc.parent.children.splice(loc.index, 1, node);
+      return [node.id];
+    });
+  }
+
+  /** Ciseaux : un clic sur le contour ouvre le tracé à cet endroit. */
+  private scissors(p: Vec): void {
+    const pn = this.cuttable(p);
+    const cut = pn && cutPathAtPoint(cachedSvgPath(pn.d), worldToPath(pn, p), (HIT + 2) / this.c.view.zoom);
+    if (!pn || !cut) {
+      toast(t('vector.cutNothing'));
+      return;
+    }
+    this.replaceWithPath(this.cutNode(pn, cut), 'history.scissors');
+  }
+
+  /** Cutter : la ligne tracée coupe en deux les objets qu'elle traverse. */
+  private knife(a: Vec, b: Vec): void {
+    const doc = editor.doc;
+    // Sans sélection, le cutter coupe ce que la ligne traverse.
+    const ids = editor.selection.length ? topLevelIds(doc, editor.selection) : this.alongLine(a, b);
+    if (!ids.length) {
+      toast(t('vector.cutNothing'));
+      return;
+    }
+    let made: string[] | null = null;
+    editor.apply('history.knife', (d) => {
+      made = applyKnife(d, ids, a, b, t('name.curve'));
+      return made ?? undefined;
+    });
+    if (!made) toast(t('vector.cutNothing'));
+  }
+
+  /** Objets rencontrés le long d'une ligne, du premier au dernier, sans doublon. */
+  private alongLine(a: Vec, b: Vec): string[] {
+    const doc = editor.doc;
+    const steps = Math.max(8, Math.ceil(this.dist(a, b) / 3));
+    const seen = new Set<string>();
+    for (let i = 0; i <= steps; i++) {
+      const q = { x: a.x + ((b.x - a.x) * i) / steps, y: a.y + ((b.y - a.y) * i) / steps };
+      const hit = this.c.hitTest(q, false);
+      if (hit && !hit.locked) seen.add(hit.id);
+    }
+    return topLevelIds(doc, [...seen]);
+  }
+
+  /** Shape Builder : la ligne réunit les formes qu'elle traverse (Alt : elle les soustrait). */
+  private shapeBuilder(a: Vec, b: Vec, alt: boolean): void {
+    const ids = this.alongLine(a, b);
+    if (ids.length < 2) {
+      toast(t('vector.shapeBuilderNeedsTwo'));
+      return;
+    }
+    let ok = true;
+    editor.apply(alt ? 'history.subtract' : 'history.unite', (d) => {
+      const out = applyBoolean(d, ids, alt ? 'subtract' : 'unite', t('name.curve'));
+      if (!out) {
+        ok = false;
+        return;
+      }
+      return out;
+    });
+    if (!ok) toast(t('vector.booleanUnsupported'));
+  }
+
+  /** Outil Coin : le nœud anguleux le plus proche du point, dans les coordonnées du tracé. */
+  private nearestCorner(pn: PathNode, p: Vec): { keys: string[]; origin: Vec } | null {
+    const sps = toSubpaths(cachedSvgPath(pn.d));
+    const keys = cornerKeys(cachedSvgPath(pn.d));
+    if (!keys.length) return null;
+    const pp = worldToPath(pn, p);
+    let best: { key: string; origin: Vec; d: number } | null = null;
+    for (const key of keys) {
+      const [si, ai] = parseAnchorKey(key);
+      const a = sps[si]?.anchors[ai];
+      if (!a) continue;
+      const d = Math.hypot(a.x - pp.x, a.y - pp.y);
+      if (!best || d < best.d) best = { key, origin: { x: a.x, y: a.y }, d };
+    }
+    return best ? { keys: [best.key], origin: best.origin } : null;
+  }
+
+  private cornerDown(e: PointerEvent, p: Vec): boolean {
+    const pn = this.cuttable(p);
+    if (!pn) return false;
+    const near = this.nearestCorner(pn, p);
+    if (!near) {
+      toast(t('vector.noCorner'));
+      return true;
+    }
+    // Alt : tous les angles du tracé d'un coup.
+    const keys = e.altKey ? cornerKeys(cachedSvgPath(pn.d)) : near.keys;
+    editor.begin();
+    this.corner = { node: pn, base: toSubpaths(cachedSvgPath(pn.d)), keys, origin: near.origin, radius: 0 };
+    return true;
+  }
+
+  /** Tracé arrondi au rayon donné, prêt à remplacer l'objet. */
+  private corneredNode(radius: number): PathNode {
+    const g = this.corner!;
+    const sps = roundCorners(cloneSubpaths(g.base), g.keys, radius, ui.get().cornerKind);
+    return this.cutNode(g.node, fromSubpaths(sps));
+  }
+
+  private cornerMove(p: Vec): void {
+    const g = this.corner;
+    if (!g) return;
+    const pp = worldToPath(g.node, p);
+    g.radius = Math.max(0, Math.hypot(pp.x - g.origin.x, pp.y - g.origin.y));
+    const node = this.corneredNode(g.radius);
+    editor.preview((d) => {
+      const loc = findNode(d, g.node.id);
+      if (!loc) return;
+      loc.parent.children.splice(loc.index, 1, node);
+      return [node.id];
+    });
+  }
+
+  private cornerUp(): void {
+    const g = this.corner;
+    if (!g) return;
+    // Un simple clic arrondit avec le rayon de la barre contextuelle.
+    const radius = g.radius < 0.5 ? ui.get().cornerRadiusTool : g.radius;
+    if (radius < 0.5) {
+      editor.cancel();
+      this.corner = null;
+      return;
+    }
+    const node = this.corneredNode(radius);
+    this.corner = null;
+    editor.cancel();
+    this.replaceWithPath(node, 'history.corner');
+  }
+
   // ————— Évènements, appelés par le contrôleur du canevas —————
 
   pointerDown(e: PointerEvent, p: Vec, s: Vec): boolean {
     const tool = ui.get().tool;
+    if (tool === 'scissors') {
+      this.scissors(p);
+      return true;
+    }
+    if (tool === 'knife' || tool === 'shapeBuilder') {
+      this.line = { tool, a: p, b: p, alt: e.altKey };
+      return true;
+    }
+    if (tool === 'corner') return this.cornerDown(e, p);
     if (tool === 'pen') {
       this.penDown(e, p);
       return true;
@@ -451,6 +634,15 @@ export class PathTools {
 
   pointerMove(e: PointerEvent, p: Vec, s: Vec): boolean {
     const tool = ui.get().tool;
+    if (this.line) {
+      this.line.b = e.shiftKey ? constrain45(this.line.a, p) : p;
+      this.c.requestDraw();
+      return true;
+    }
+    if (this.corner) {
+      this.cornerMove(p);
+      return true;
+    }
     if (tool === 'pen') {
       this.penMove(e, p);
       return true;
@@ -471,6 +663,18 @@ export class PathTools {
   }
 
   pointerUp(): boolean {
+    const line = this.line;
+    if (line) {
+      this.line = null;
+      if (this.dist(line.a, line.b) < 4) toast(t('vector.drawLine'));
+      else if (line.tool === 'knife') this.knife(line.a, line.b);
+      else this.shapeBuilder(line.a, line.b, line.alt);
+      return true;
+    }
+    if (this.corner) {
+      this.cornerUp();
+      return true;
+    }
     if (ui.get().tool === 'pen' && this.pen) {
       this.penUp();
       return true;
@@ -487,8 +691,10 @@ export class PathTools {
   }
 
   pointerCancel(): void {
-    if (this.drag) editor.cancel();
+    if (this.drag || this.corner) editor.cancel();
     this.drag = null;
+    this.corner = null;
+    this.line = null;
     this.pencil = null;
   }
 
@@ -596,6 +802,32 @@ export class PathTools {
       pts.forEach((q, i) => (i ? ctx.lineTo(q.x, q.y) : ctx.moveTo(q.x, q.y)));
       ctx.lineWidth = 1.5;
       ctx.stroke();
+    }
+
+    const line = this.line;
+    if (line) {
+      const a = this.c.toScreen(line.a),
+        b = this.c.toScreen(line.b);
+      ctx.save();
+      ctx.setLineDash(line.tool === 'knife' ? [] : [5, 4]);
+      ctx.lineWidth = 1.5;
+      ctx.beginPath();
+      ctx.moveTo(a.x, a.y);
+      ctx.lineTo(b.x, b.y);
+      ctx.stroke();
+      ctx.restore();
+    }
+
+    const corner = this.corner;
+    if (corner) {
+      const o = this.c.toScreen(pathToWorld(corner.node, corner.origin));
+      ctx.save();
+      ctx.setLineDash([3, 3]);
+      ctx.beginPath();
+      ctx.arc(o.x, o.y, Math.max(2, corner.radius * this.c.view.zoom), 0, Math.PI * 2);
+      ctx.stroke();
+      ctx.restore();
+      square(pathToWorld(corner.node, corner.origin), true, 6);
     }
 
     const n = this.editablePath();

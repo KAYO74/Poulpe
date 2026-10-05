@@ -1,4 +1,4 @@
-import type { Color } from './types';
+import type { Color, GradientPaint, Paint } from './types';
 
 export interface RGBA {
   r: number;
@@ -115,6 +115,11 @@ export function hslToRgb(h: number, s: number, l: number, a = 1): RGBA {
   const c = (1 - Math.abs(2 * l - 1)) * s;
   const v = l + c / 2;
   return hsvToRgb({ h, s: v ? c / v : 0, v, a });
+}
+
+/** Vrai pour un dégradé (linéaire, radial ou conique) : les peintures à échelons de couleur. */
+export function isGradient(p: Paint): p is GradientPaint {
+  return p.type === 'linear' || p.type === 'radial' || p.type === 'conic';
 }
 
 /** Couleur interpolée le long d'un dégradé, utile pour ajouter un arrêt au bon endroit. */

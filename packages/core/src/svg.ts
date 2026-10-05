@@ -1,4 +1,4 @@
-import { opaque, alphaOf } from './color';
+import { opaque, alphaOf, sampleStops, withAlpha } from './color';
 import { activeEffects, effectMargin } from './effects';
 import { linearGradientPoints, nodeBounds, pathToSvg, radialGradientRadius, shapePath } from './geometry';
 import { flowText, needsFlow, type PageFields } from './flow';
@@ -11,7 +11,10 @@ import {
   type MeasureText,
   type TextLayout,
 } from './text';
-import type { Artboard, Paint, PoulpeDocument, SceneNode, Stroke, TextNode } from './types';
+import { featureSettings } from './text';
+import { hasWidthProfile, visibleStrokes, widthProfileOutline } from './strokeProfile';
+import { symbolContent } from './symbols';
+import type { Artboard, BevelEffect, Paint, PoulpeDocument, SceneNode, Stroke, TextNode } from './types';
 import { arrowPaths, dashPattern, layoutTextOnPath, strokeCap, strokeJoin } from './vector';
 
 export interface SvgExportOptions {
@@ -34,8 +37,13 @@ const n = (v: number) => String(+v.toFixed(3));
 class Defs {
   private items: string[] = [];
   private count = 0;
+  constructor(private doc?: PoulpeDocument) {}
   id(prefix: string) {
     return `${prefix}${++this.count}`;
+  }
+  /** Image du document, pour les motifs. */
+  asset(id: string) {
+    return this.doc?.assets[id];
   }
   add(s: string) {
     this.items.push(s);
@@ -82,6 +90,41 @@ function paintAttr(attr: 'fill' | 'stroke', paint: Paint, w: number, h: number, 
       );
       return `${attr}="url(#${id})"`;
     }
+    case 'conic': {
+      // Le SVG n'a pas de dégradé conique : il est approché par des secteurs de couleur unie.
+      const id = defs.id('cg');
+      const steps = 72;
+      const cx = paint.cx * w,
+        cy = paint.cy * h;
+      const r = Math.hypot(w, h);
+      let body = '';
+      for (let i = 0; i < steps; i++) {
+        const a0 = ((paint.angle + (i * 360) / steps) * Math.PI) / 180;
+        // Les secteurs se chevauchent d'un peu pour ne pas laisser de liseré.
+        const a1 = ((paint.angle + ((i + 1.02) * 360) / steps) * Math.PI) / 180;
+        const color = sampleStops(paint.stops, (i + 0.5) / steps);
+        body +=
+          `<path d="M${n(cx)} ${n(cy)}L${n(cx + Math.cos(a0) * r)} ${n(cy + Math.sin(a0) * r)}` +
+          `L${n(cx + Math.cos(a1) * r)} ${n(cy + Math.sin(a1) * r)}Z" ${colorAttrs('fill', color)}/>`;
+      }
+      defs.add(
+        `<pattern id="${id}" patternUnits="userSpaceOnUse" x="0" y="0" width="${n(Math.max(1, w))}" height="${n(Math.max(1, h))}">${body}</pattern>`,
+      );
+      return `${attr}="url(#${id})"`;
+    }
+    case 'pattern': {
+      const asset = defs.asset(paint.assetId);
+      if (!asset) return `${attr}="none"`;
+      const id = defs.id('pat');
+      const tw = Math.max(1, asset.width * paint.scale),
+        th = Math.max(1, asset.height * paint.scale);
+      defs.add(
+        `<pattern id="${id}" patternUnits="userSpaceOnUse" width="${n(tw)}" height="${n(th)}"` +
+          (paint.angle ? ` patternTransform="rotate(${n(paint.angle)})"` : '') +
+          `><image width="${n(tw)}" height="${n(th)}" preserveAspectRatio="none" href="${asset.data}"/></pattern>`,
+      );
+      return `${attr}="url(#${id})"`;
+    }
   }
 }
 
@@ -94,6 +137,13 @@ function strokeAttrs(stroke: Stroke, w: number, h: number, defs: Defs): string {
     (join === 'miter' ? ' stroke-miterlimit="10"' : '') +
     (dash.length ? ` stroke-dasharray="${dash.map(n).join(' ')}"` : '')
   );
+}
+
+/** Décalage (en pixels) de la lumière d'un biseau, d'après son angle et sa profondeur. */
+export function bevelOffset(e: BevelEffect): [number, number] {
+  const a = (e.angle * Math.PI) / 180;
+  const d = e.style === 'emboss' ? e.depth * 0.6 : e.depth;
+  return [Math.cos(a) * d, -Math.sin(a) * d];
 }
 
 /** Filtre SVG des effets d'un objet ; la zone du filtre est donnée dans le repère du monde. */
@@ -124,7 +174,17 @@ function effectsFilter(node: SceneNode, defs: Defs): string | null {
   merge.push(content);
   for (const e of effects) {
     const r = `e${++k}`;
-    if (e.type === 'innerShadow' || e.type === 'innerGlow') {
+    if (e.type === 'bevel') {
+      // Biseau : une lumière et une ombre intérieures, décalées de part et d'autre de l'arête.
+      const [dx, dy] = bevelOffset(e);
+      const inner = (color: string, ox: number, oy: number, out: string) =>
+        `<feComponentTransfer in="SourceAlpha" result="${out}m"><feFuncA type="table" tableValues="1 0"/></feComponentTransfer>` +
+        `<feGaussianBlur in="${out}m" stdDeviation="${sd(e.softness)}"/><feOffset dx="${n(ox)}" dy="${n(oy)}" result="${out}o"/>` +
+        `${flood(withAlpha(color, (alphaOf(color) * e.intensity) / 100))}<feComposite in2="${out}o" operator="in"/>` +
+        `<feComposite in2="SourceAlpha" operator="in" result="${out}"/>`;
+      body += inner(e.light, dx, dy, `${r}l`) + inner(e.shadow, -dx, -dy, `${r}s`);
+      merge.push(`${r}l`, `${r}s`);
+    } else if (e.type === 'innerShadow' || e.type === 'innerGlow') {
       const dx = e.type === 'innerShadow' ? e.x : 0,
         dy = e.type === 'innerShadow' ? e.y : 0;
       body += `<feComponentTransfer in="SourceAlpha" result="${r}i"><feFuncA type="table" tableValues="1 0"/></feComponentTransfer><feGaussianBlur in="${r}i" stdDeviation="${sd(e.blur)}"/><feOffset dx="${n(dx)}" dy="${n(dy)}" result="${r}o"/>${flood(e.color)}<feComposite in2="${r}o" operator="in"/><feComposite in2="SourceAlpha" operator="in" result="${r}"/>`;
@@ -208,6 +268,11 @@ function nodeContentToSvg(node: SceneNode, ctx: Ctx): string {
   }
   // Les réglages ne s'expriment pas en SVG : l'export les met en image (voir `override`).
   if (node.type === 'adjustment') return '';
+  // Une instance de symbole exporte le contenu du symbole, ramené dans sa boîte.
+  if (node.type === 'symbol')
+    return `<g${label}${commonAttrs(node)}>${symbolContent(doc, node)
+      .map((c) => nodeToSvg(c, ctx))
+      .join('')}</g>`;
   const w = node.width,
     h = node.height;
   const open = `<g${label} transform="${transformAttr(node)}"${commonAttrs(node)}>`;
@@ -242,8 +307,14 @@ function nodeContentToSvg(node: SceneNode, ctx: Ctx): string {
       if (c.color) a += ` ${colorAttrs('fill', c.color)}`;
       return a;
     };
+    const features = st.features?.length
+      ? ` font-feature-settings="${esc(featureSettings(st.features))}"`
+      : '';
     const attrs =
-      fontAttrs(st) + ` ${paintAttr('fill', node.fill, w, h, defs)}` + strokeAttrs(node.stroke, w, h, defs);
+      fontAttrs(st) +
+      features +
+      ` ${paintAttr('fill', node.fill, w, h, defs)}` +
+      strokeAttrs(node.stroke, w, h, defs);
     if (node.path) {
       // Texte sur tracé : chaque caractère est posé et tourné à sa place.
       const glyphs = layoutTextOnPath(node, measure)
@@ -272,17 +343,27 @@ function nodeContentToSvg(node: SceneNode, ctx: Ctx): string {
   const cmds = shapePath(node);
   const d = pathToSvg(cmds);
   const rule = node.type === 'path' && node.fillRule === 'evenodd' ? ' fill-rule="evenodd"' : '';
-  const arrows = arrowPaths(cmds, node.stroke);
-  const heads = arrows.length
-    ? `<path d="${pathToSvg(arrows)}" ${paintAttr('fill', node.stroke.paint, w, h, defs)}/>`
-    : '';
-  return `${open}<path d="${d}"${rule} ${paintAttr('fill', node.type === 'line' ? { type: 'none' } : node.fill, w, h, defs)}${strokeAttrs(node.stroke, w, h, defs)}/>${heads}</g>`;
+  const strokes = visibleStrokes(node);
+  // Un contour par élément, du plus bas au plus haut ; le remplissage est porté par le premier.
+  const strokeBody = strokes
+    .map((st) => {
+      if (hasWidthProfile(st))
+        return `<path d="${pathToSvg(widthProfileOutline(cmds, st))}" ${paintAttr('fill', st.paint, w, h, defs)}/>`;
+      const arrows = arrowPaths(cmds, st);
+      const heads = arrows.length
+        ? `<path d="${pathToSvg(arrows)}" ${paintAttr('fill', st.paint, w, h, defs)}/>`
+        : '';
+      return `<path d="${d}" fill="none"${strokeAttrs(st, w, h, defs)}/>${heads}`;
+    })
+    .join('');
+  const fillBody = `<path d="${d}"${rule} ${paintAttr('fill', node.type === 'line' ? { type: 'none' } : node.fill, w, h, defs)}/>`;
+  return `${open}${fillBody}${strokeBody}</g>`;
 }
 
 /** Exporte un plan de travail en SVG autonome (images incluses). */
 export function artboardToSvg(doc: PoulpeDocument, artboard: Artboard, opts: SvgExportOptions = {}): string {
   const measure = opts.measureText ?? approximateMeasure;
-  const defs = new Defs();
+  const defs = new Defs(doc);
   const b = Math.max(0, opts.bleed ?? 0);
   const W = artboard.width + 2 * b,
     H = artboard.height + 2 * b;

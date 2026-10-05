@@ -141,6 +141,15 @@ const PATHS = {
   lut: 'M2.5 2.5h11v11h-11z M2.5 6.2h11 M2.5 9.8h11 M6.2 2.5v11 M9.8 2.5v11',
   imageSize: 'M2.5 2.5h8v8h-8z M10.5 6.5h3v7h-7v-3 M12 12l1.5 1.5',
   canvasSize: 'M4.5 4.5h7v7h-7z M2 2l2.5 2.5 M14 2l-2.5 2.5 M2 14l2.5-2.5 M14 14l-2.5-2.5',
+  scissors:
+    'M4 3l7 7.5 M12 3l-7 7.5 M3.6 11.2a1.6 1.6 0 1 1 0 3.2 1.6 1.6 0 0 1 0-3.2z M12.4 11.2a1.6 1.6 0 1 1 0 3.2 1.6 1.6 0 0 1 0-3.2z',
+  knife: 'M2.5 9.5l5-7h3l-4 7z M2.5 9.5h6 M5 9.5v4 M13.5 2.5l-3 11',
+  corner: 'M3 13.5V8a5 5 0 0 1 5-5h5.5 M3 13.5h10.5 M13.5 3v10.5',
+  shapeBuilder: 'M2.5 2.5h7v7h-7z M6.5 6.5h7v7h-7z M1.5 11.5c3.5 0 9-5.5 13-9',
+  symbol: 'M8 1.8l5.5 3.1v6.2L8 14.2 2.5 11.1V4.9z M8 5.3l2.8 1.6v3.2L8 11.7l-2.8-1.6V6.9z',
+  styleSave: 'M3 2.5h8l2.5 2.5v8.5H3z M5.5 2.5v4h5v-4 M5.5 9.5h5v4h-5z',
+  columns: 'M2.5 2.5h11v11h-11z M8 2.5v11 M4 5h2.5 M4 7.5h2.5 M4 10h2.5 M9.5 5H12 M9.5 7.5H12 M9.5 10H12',
+  opentype: 'M2 12.5l3-9 3 9 M3 9.5h4 M10 3.5v9 M8.5 3.5h3 M13 6.5v6 M12 9.5h2',
 } as const;
 
 export type IconName = keyof typeof PATHS;
