@@ -1511,7 +1511,10 @@ export function setLang(next: Lang): void {
 }
 
 export function t(key: MessageKey | string, vars?: Record<string, string | number>): string {
-  let s = (dictionaries[lang] as Record<string, string>)[key] ?? (dictionaries.fr as Record<string, string>)[key] ?? key;
+  let s =
+    (dictionaries[lang] as Record<string, string>)[key] ??
+    (dictionaries.fr as Record<string, string>)[key] ??
+    key;
   if (vars) for (const [k, v] of Object.entries(vars)) s = s.replace(`{${k}}`, String(v));
   return s;
 }

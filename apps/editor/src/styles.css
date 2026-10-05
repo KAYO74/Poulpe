@@ -1736,3 +1736,130 @@ fieldset.tone legend {
 .trace-sliders .pslider input[type='range'] {
   width: 100%;
 }
+
+/* ——— v1.0 : macros, raccourcis, extensions ——— */
+.macro-bar {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 8px;
+}
+.macro-bar .btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+.rec-dot {
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  background: #e5484d;
+  flex: none;
+}
+.macro-rec {
+  flex: 1;
+  font-size: 12px;
+}
+.macro-list,
+.macro-steps,
+.ext-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+.macro-row {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 0;
+}
+.macro-name {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+input.macro-name {
+  background: var(--input);
+  color: inherit;
+  border: 1px solid var(--accent);
+  border-radius: 4px;
+  padding: 1px 4px;
+}
+.macro-steps {
+  margin: 0 0 6px 24px;
+  font-size: 12px;
+  color: var(--muted);
+}
+.macro-steps li {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 4px;
+}
+.shortcut-edit td:last-child {
+  white-space: nowrap;
+}
+.kbd-btn {
+  min-width: 90px;
+  background: var(--input);
+  color: inherit;
+  border: 1px solid var(--line);
+  border-radius: 5px;
+  padding: 2px 8px;
+  font: inherit;
+  font-size: 12px;
+  cursor: pointer;
+}
+.kbd-btn.capturing {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+button.link {
+  background: none;
+  border: none;
+  color: var(--accent);
+  cursor: pointer;
+  font-size: 12px;
+  margin-left: 6px;
+}
+input.search {
+  flex: 1;
+  background: var(--input);
+  color: inherit;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  padding: 5px 8px;
+}
+.ext-list li {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 6px 0;
+  border-bottom: 1px solid var(--line);
+}
+.ext-desc {
+  display: block;
+  font-size: 12px;
+  color: var(--muted);
+}
+.ext-review h3,
+.modal section h3 {
+  margin: 4px 0 6px;
+  font-size: 13px;
+}
+.muted {
+  color: var(--muted);
+}
+.error {
+  color: #e5484d;
+}
+.ext-params {
+  display: grid;
+  gap: 10px;
+}
+.shortcuts:has(.shortcut-edit) {
+  grid-template-columns: 1fr 1.6fr;
+}
