@@ -98,6 +98,9 @@ const MIGRATIONS: Record<number, (doc: Record<string, unknown>) => Record<string
   // Version 4 : retouche photo (calques de réglage et filtres dynamiques, masques de calque).
   // Tout est nouveau ou facultatif : rien à convertir.
   3: (doc) => doc,
+  // Version 5 : mise en page (pages maîtres, cadres de texte liés, numéros de page, fond perdu,
+  // marges, résolution). Tous facultatifs : rien à convertir.
+  4: (doc) => doc,
 };
 
 export function migrate(raw: Record<string, unknown>): PoulpeDocument {

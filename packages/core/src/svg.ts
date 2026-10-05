@@ -1,8 +1,17 @@
 import { opaque, alphaOf } from './color';
 import { activeEffects, effectMargin } from './effects';
 import { linearGradientPoints, nodeBounds, pathToSvg, radialGradientRadius, shapePath } from './geometry';
-import { approximateMeasure, charX, layoutText, type CharStyle, type MeasureText } from './text';
-import type { Artboard, Paint, PoulpeDocument, SceneNode, Stroke } from './types';
+import { flowText, needsFlow, type PageFields } from './flow';
+import { masterOf, pageFields } from './pages';
+import {
+  approximateMeasure,
+  charX,
+  layoutText,
+  type CharStyle,
+  type MeasureText,
+  type TextLayout,
+} from './text';
+import type { Artboard, Paint, PoulpeDocument, SceneNode, Stroke, TextNode } from './types';
 import { arrowPaths, dashPattern, layoutTextOnPath, strokeCap, strokeJoin } from './vector';
 
 export interface SvgExportOptions {
@@ -14,6 +23,8 @@ export interface SvgExportOptions {
   override?: (node: SceneNode) => string | null;
   /** Inclure le fond du plan de travail (sinon fond transparent). */
   background?: boolean;
+  /** Fond perdu : marge ajoutée tout autour du plan de travail, en pixels du document. */
+  bleed?: number;
 }
 
 const esc = (s: string) =>
@@ -144,6 +155,17 @@ interface Ctx {
   defs: Defs;
   measure: MeasureText;
   override?: (node: SceneNode) => string | null;
+  /** Numéro de page et nombre de pages, pour les champs des textes. */
+  fields: PageFields;
+}
+
+/** Mise en page d'un texte : seul, ou sa part d'une chaîne de cadres liés (null : rien à afficher). */
+function textLayout(node: TextNode, ctx: Ctx): TextLayout | null {
+  if (!needsFlow(ctx.doc, node)) return layoutText(node, ctx.measure);
+  return (
+    flowText(ctx.doc, node.id, ctx.measure, ctx.fields).parts.find((p) => p.node.id === node.id)?.layout ??
+    null
+  );
 }
 
 function nodeToSvg(node: SceneNode, ctx: Ctx): string {
@@ -203,7 +225,8 @@ function nodeContentToSvg(node: SceneNode, ctx: Ctx): string {
     return `${open}<g clip-path="url(#${id})"><image x="${n(-c.x * fw)}" y="${n(-c.y * fh)}" width="${n(fw)}" height="${n(fh)}" preserveAspectRatio="none" href="${asset.data}"/></g></g>`;
   }
   if (node.type === 'text') {
-    const layout = layoutText(node, measure);
+    const layout = node.path ? null : textLayout(node, ctx);
+    if (!node.path && !layout) return '';
     const st = node.style;
     const deco = (c: { underline: boolean; strike: boolean }) =>
       [c.underline && 'underline', c.strike && 'line-through'].filter(Boolean).join(' ');
@@ -232,7 +255,7 @@ function nodeContentToSvg(node: SceneNode, ctx: Ctx): string {
       return `${open}<g xml:space="preserve"${attrs}>${glyphs}</g></g>`;
     }
     let spans = '';
-    for (const line of layout.lines) {
+    for (const line of layout!.lines) {
       for (const seg of line.segments) {
         // Texte justifié : chaque mot est placé ; sinon un morceau par style.
         const re = line.gap ? /\s+|\S+/g : /[\s\S]+/g;
@@ -260,14 +283,23 @@ function nodeContentToSvg(node: SceneNode, ctx: Ctx): string {
 export function artboardToSvg(doc: PoulpeDocument, artboard: Artboard, opts: SvgExportOptions = {}): string {
   const measure = opts.measureText ?? approximateMeasure;
   const defs = new Defs();
+  const b = Math.max(0, opts.bleed ?? 0);
+  const W = artboard.width + 2 * b,
+    H = artboard.height + 2 * b;
+  // Le fond déborde dans le fond perdu ; ses dégradés restent calés sur la page.
   const bg =
     opts.background !== false && artboard.background.type !== 'none'
-      ? `<rect width="${n(artboard.width)}" height="${n(artboard.height)}" ${paintAttr('fill', artboard.background, artboard.width, artboard.height, defs)}/>`
+      ? `<rect x="${n(-b)}" y="${n(-b)}" width="${n(W)}" height="${n(H)}" ${paintAttr('fill', artboard.background, artboard.width, artboard.height, defs)}/>`
       : '';
-  const ctx: Ctx = { doc, defs, measure, override: opts.override };
+  const ctx: Ctx = { doc, defs, measure, override: opts.override, fields: pageFields(doc, artboard) };
+  const master = masterOf(doc, artboard);
+  // Les objets de la page maître passent sous ceux de la page, au même endroit relatif.
+  const under = master
+    ? `<g transform="translate(${n(artboard.x - master.x)} ${n(artboard.y - master.y)})">${master.children.map((c) => nodeToSvg(c, ctx)).join('')}</g>`
+    : '';
   const body = artboard.children.map((c) => nodeToSvg(c, ctx)).join('');
   return (
-    `<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" width="${n(artboard.width)}" height="${n(artboard.height)}" viewBox="0 0 ${n(artboard.width)} ${n(artboard.height)}">` +
-    `<title>${esc(artboard.name)}</title>${defs}${bg}<g transform="translate(${n(-artboard.x)} ${n(-artboard.y)})">${body}</g></svg>`
+    `<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" width="${n(W)}" height="${n(H)}" viewBox="${n(-b)} ${n(-b)} ${n(W)} ${n(H)}">` +
+    `<title>${esc(artboard.name)}</title>${defs}${bg}<g transform="translate(${n(-artboard.x)} ${n(-artboard.y)})">${under}${body}</g></svg>`
   );
 }

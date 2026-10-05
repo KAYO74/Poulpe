@@ -91,6 +91,8 @@ Livrée le 5 octobre 2026, voir [retouche-photo-v0.4.md](retouche-photo-v0.4.md)
 
 ### v0.5 Mise en page et export pro (Affinity Publisher, impression)
 
+Première partie en cours (octobre 2026), voir [mise-en-page-v0.5.md](mise-en-page-v0.5.md) : Persona Mise en page et panneau Pages, documents multipages en colonne ou en vis-à-vis, pages maîtres, numéros de page, cadres de texte liés, marges, fond perdu, résolution du document, et PDF d'impression à la taille réelle avec traits de coupe. La gestion couleur (CMJN, ICC, épreuvage), le PDF/X, l'ouverture PSD / PDF / AI, l'export PSD et l'export par lots suivront dans une deuxième partie.
+
 - Documents multipages, pages maîtres, cadres de texte liés, numérotation.
 - Gestion couleur RVB, CMJN et niveaux de gris avec profils ICC, épreuvage à l'écran.
 - Export PDF/X avec fonds perdus et traits de coupe, export par tranches et par lots.

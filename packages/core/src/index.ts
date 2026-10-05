@@ -17,6 +17,8 @@ export * from './vector';
 export * from './effects';
 export * from './boolean';
 export * from './svgImport';
+export * from './flow';
+export * from './pages';
 export * from './adjust';
 export * from './pixelMask';
 export * from './inpaint';

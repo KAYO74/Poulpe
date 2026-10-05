@@ -8,6 +8,7 @@ import { getLang } from './i18n';
 import { isDesktop, openPath, openPhotoBytes } from './io';
 import * as library from './libraryActions';
 import * as vector from './vectorActions';
+import * as layout from './layoutActions';
 import * as photo from './photo/photoActions';
 import * as pixelSelection from './photo/selection';
 import { normalizeTexts } from './normalize';
@@ -47,6 +48,7 @@ if (isDesktop()) {
   ui,
   library,
   vector,
+  layout,
   controller: getController,
   photo: { ...photo, ...pixelSelection, openPhotoBytes },
 };

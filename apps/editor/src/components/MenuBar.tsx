@@ -55,6 +55,7 @@ function Sub({ label, children }: { label: string; children: React.ReactNode }) 
 export function MenuBar() {
   const t = useT();
   const settings = useUi((s) => s.settings);
+  const persona = useUi((s) => s.persona);
   const { activeArtboardId } = useEditor();
   const quickExport = (kind: 'png' | 'jpeg' | 'svg' | 'pdf') =>
     void exportDocument({
@@ -177,6 +178,12 @@ export function MenuBar() {
         <Item id="text.offPath" />
         <Sep />
         <Item id="text.toCurves" />
+        <Sep />
+        <Item id="text.frame" />
+        <Item id="text.link" />
+        <Item id="text.unlink" />
+        <Sep />
+        <Item id="text.pageNumber" />
       </Top>
       <Top label={t('menu.arrange')}>
         <Item id="arrange.front" />
@@ -214,9 +221,20 @@ export function MenuBar() {
         </Sub>
         <Item id="document.deleteArtboard" />
         <Sep />
+        <Item id="pages.add" />
+        <Item id="pages.duplicate" />
+        <Item id="pages.delete" />
+        <Item id="pages.addMaster" />
+        <Item id="pages.arrange" />
+        <Sep />
         <Item id="document.resize" />
+        <Item id="document.setup" />
       </Top>
       <Top label={t('menu.view')}>
+        <Item id="persona.draw" checked={persona === 'draw'} />
+        <Item id="persona.photo" checked={persona === 'photo'} />
+        <Item id="persona.layout" checked={persona === 'layout'} />
+        <Sep />
         <Item id="view.zoomIn" />
         <Item id="view.zoomOut" />
         <Item id="view.zoomFit" />

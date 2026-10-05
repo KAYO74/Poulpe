@@ -2,6 +2,7 @@ import {
   RUN_KEYS,
   adjustRuns,
   applyRunStyle,
+  chainHead,
   findArtboard,
   findNode,
   removeNodes,
@@ -42,6 +43,9 @@ if (typeof document !== 'undefined')
   document.addEventListener('pointerdown', (e) => (lastPointerTarget = e.target), true);
 
 export function beginTextEdit(id: string, isNew: boolean, node?: TextNode, artboardId?: string): void {
+  // Dans une chaîne de cadres liés, on édite le texte du premier cadre, qui porte tout le texte.
+  if (!isNew) id = chainHead(editor.doc, id)?.id ?? id;
+  if (session?.id === id) return;
   if (session) endTextEdit();
   const existing = findNode(editor.doc, id)?.node;
   const src = existing?.type === 'text' ? existing : node;
@@ -192,7 +196,8 @@ export function endTextEdit(): void {
   session = null;
   ui.set({ editingTextId: null });
   const n = findNode(editor.doc, s.id)?.node;
-  const empty = !n || (n.type === 'text' && !n.text.trim());
+  // Un cadre de texte vidé reste en place (on le remplira plus tard), comme dans Affinity Publisher.
+  const empty = !n || (n.type === 'text' && !n.text.trim() && !n.frame && !n.next);
   if (empty) {
     if (s.isNew) editor.cancel();
     else {
@@ -205,6 +210,23 @@ export function endTextEdit(): void {
     return;
   }
   editor.commit(s.isNew ? 'history.add' : 'history.text');
+}
+
+/** Insère du texte à la place de la sélection du texte édité. Renvoie faux hors édition. */
+export function insertEditedText(str: string): boolean {
+  const s = session;
+  const sel = textSelection();
+  if (!s || !sel || !input) return false;
+  const text = s.text.slice(0, sel.start) + str + s.text.slice(sel.end);
+  input.value = text;
+  setEditedText(text);
+  setTextSelection(sel.start + str.length);
+  return true;
+}
+
+/** Texte (premier cadre de la chaîne) en cours d'édition. */
+export function editedTextId(): string | null {
+  return session?.id ?? null;
 }
 
 export function isEditingText(): boolean {

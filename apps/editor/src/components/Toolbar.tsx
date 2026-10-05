@@ -51,7 +51,7 @@ export function Toolbar() {
       <div className="personas" role="group" aria-label="Personas">
         <button
           className="persona"
-          aria-pressed={!photo}
+          aria-pressed={persona === 'draw'}
           title={t('persona.draw')}
           aria-label={t('persona.draw')}
           data-testid="persona-draw"
@@ -69,16 +69,36 @@ export function Toolbar() {
         >
           <Icon name="photo" />
         </button>
-        <button className="persona" disabled title={t('persona.layout')} aria-label={t('persona.layout')}>
+        <button
+          className="persona"
+          aria-pressed={persona === 'layout'}
+          title={t('persona.layout')}
+          aria-label={t('persona.layout')}
+          data-testid="persona-layout"
+          onClick={() => setPersona('layout')}
+        >
           <Icon name="layout" />
         </button>
       </div>
-      <Toggle
-        on={settings.library}
-        icon="library"
-        label={t('view.library')}
-        onClick={() => setSettings({ library: !settings.library })}
-      />
+      {persona === 'layout' ? (
+        <>
+          <CmdButton id="pages.add" icon="pages" />
+          <CmdButton id="pages.addMaster" icon="master" />
+          <CmdButton id="document.setup" icon="settings" />
+          <span className="tsep" />
+          <CmdButton id="text.frame" icon="textFrame" />
+          <CmdButton id="text.link" icon="link" />
+          <CmdButton id="text.unlink" icon="unlink" />
+          <CmdButton id="text.pageNumber" icon="pageNumber" />
+        </>
+      ) : (
+        <Toggle
+          on={settings.library}
+          icon="library"
+          label={t('view.library')}
+          onClick={() => setSettings({ library: !settings.library })}
+        />
+      )}
       <span className="tsep" />
       <Toggle
         on={settings.snapping}
@@ -117,7 +137,7 @@ export function Toolbar() {
           <CmdButton id="select.deselect" icon="deselect" />
           <CmdButton id="select.invert" icon="invertSel" />
         </>
-      ) : (
+      ) : persona === 'draw' ? (
         <>
           <CmdButton id="geometry.unite" icon="unite" />
           <CmdButton id="geometry.subtract" icon="subtract" />
@@ -125,7 +145,7 @@ export function Toolbar() {
           <CmdButton id="geometry.exclude" icon="exclude" />
           <CmdButton id="geometry.divide" icon="divide" />
         </>
-      )}
+      ) : null}
       <span className="tsep" />
       <CmdButton id="arrange.alignLeft" icon="alignLeft" />
       <CmdButton id="arrange.alignHCenter" icon="alignHCenter" />
