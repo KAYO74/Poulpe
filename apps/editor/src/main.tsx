@@ -59,7 +59,6 @@ if (isDesktop()) {
   core: { artboardToSvg },
   controller: getController,
   perf: { setPerformanceSettings, getPerformanceSettings, renderStats },
-  loadBenchDocument: (count: number) =>
-    import('./bench').then((b) => editor.load(b.benchDocument(count))),
+  loadBenchDocument: (count: number) => import('./bench').then((b) => editor.load(b.benchDocument(count))),
   photo: { ...photo, ...pixelSelection, ...retouch, openPhotoBytes },
 };
