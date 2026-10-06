@@ -31,3 +31,10 @@ Comme dans Affinity, on peut créer son propre espace à côté des Personas Des
 - Revenir à une Persona intégrée rend la disposition qu'elle avait avant. **Modifier « nom »…** change le nom, le type, les outils ou les panneaux, ou supprime l'espace.
 
 Code : `apps/editor/src/workspaces.ts` (clé `poulpe.workspaces`), `components/WorkspaceMenu.tsx`, boîte `WorkspaceDialog` dans `components/Dialogs.tsx`. Les raccourcis des outils masqués restent actifs.
+
+## Colonne d'outils à la carte
+
+- **Affichage › Colonne d'outils** (ou Préférences › Affichage) : côté gauche ou droit, disposition **Automatique** (comme avant : deux colonnes quand il y a beaucoup d'outils), **Une seule colonne** le long du bord, ou **Deux colonnes**. **Verrouiller la colonne d'outils** la garde ancrée : elle ne se détache plus en palette flottante.
+- Dans un espace de travail personnalisé, on choisit ses outils parmi **tous** ceux de Poulpe, rangés par famille (sélection, vectoriel, pixel, texte et navigation), et on peut mélanger vectoriel et pixel. Choisir un outil pixel passe le document en mode Photo, choisir un outil vectoriel le ramène en Dessin, sans quitter l'espace. L'espace retient aussi la disposition et le verrouillage de la colonne.
+
+Code : `apps/editor/src/toolCatalog.ts` (outils par Persona, catalogue, `toolPersona`), `pickTool` dans `components/ToolColumn.tsx`, réglages `toolsColumns` et `toolsLocked`.
