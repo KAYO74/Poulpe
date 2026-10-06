@@ -69,6 +69,8 @@ export interface BrushSettings {
 
 export type Side = 'left' | 'right';
 export type ToolsColumns = 'auto' | 'one' | 'two';
+/** Outils tous alignés, ou rangés en groupes (un bouton par famille, ses variantes dans un menu). */
+export type ToolsLayout = 'all' | 'groups';
 export type Theme = 'dark' | 'light';
 export type Dialog =
   | null
@@ -105,6 +107,8 @@ export interface Settings {
   toolsSide: Side;
   /** Disposition de la colonne d'outils : automatique (deux colonnes s'il y a beaucoup d'outils), une ou deux colonnes. */
   toolsColumns: ToolsColumns;
+  /** Outils tous visibles l'un sous l'autre, ou rangés en groupes comme dans Photoshop et Affinity. */
+  toolsLayout: ToolsLayout;
   /** Colonne d'outils verrouillée : elle ne se détache plus en palette flottante. */
   toolsLocked: boolean;
   studioSide: Side;
@@ -199,6 +203,7 @@ function loadSettings(): Settings {
     theme: 'dark',
     toolsSide: 'right',
     toolsColumns: 'auto',
+    toolsLayout: 'all',
     toolsLocked: false,
     studioSide: 'right',
     rulers: true,

@@ -35,6 +35,7 @@ Code : `apps/editor/src/workspaces.ts` (clé `poulpe.workspaces`), `components/W
 ## Colonne d'outils à la carte
 
 - **Affichage › Colonne d'outils** (ou Préférences › Affichage) : côté gauche ou droit, disposition **Automatique** (comme avant : deux colonnes quand il y a beaucoup d'outils), **Une seule colonne** le long du bord, ou **Deux colonnes**. **Verrouiller la colonne d'outils** la garde ancrée : elle ne se détache plus en palette flottante.
+- **Tous alignés à la verticale** (par défaut) ou **Rangés en groupes**, comme dans Photoshop et Affinity : un bouton par famille d'outils, qui affiche le dernier outil choisi. Le petit triangle du bouton, un clic droit ou un appui long ouvre les autres outils du groupe. Aussi dans Préférences › Affichage ; le choix est retenu par chaque espace de travail.
 - Dans un espace de travail personnalisé, on choisit ses outils parmi **tous** ceux de Poulpe, rangés par famille (sélection, vectoriel, pixel, texte et navigation), et on peut mélanger vectoriel et pixel. Choisir un outil pixel passe le document en mode Photo, choisir un outil vectoriel le ramène en Dessin, sans quitter l'espace. L'espace retient aussi la disposition et le verrouillage de la colonne.
 
-Code : `apps/editor/src/toolCatalog.ts` (outils par Persona, catalogue, `toolPersona`), `pickTool` dans `components/ToolColumn.tsx`, réglages `toolsColumns` et `toolsLocked`.
+Code : `apps/editor/src/toolCatalog.ts` (outils par Persona, catalogue, `toolPersona`), `pickTool` dans `components/ToolColumn.tsx`, réglages `toolsColumns`, `toolsLayout` et `toolsLocked` (`smallGroups` range une colonne personnalisée en groupes).

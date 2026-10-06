@@ -346,6 +346,18 @@ export function MenuBar() {
             </Menu.Item>
           ))}
           <Sep />
+          {(['all', 'groups'] as const).map((l) => (
+            <Menu.Item
+              key={l}
+              className="menu-item"
+              data-testid={`menu-tools-layout-${l}`}
+              onSelect={() => setSettings({ toolsLayout: l })}
+            >
+              <span className="menu-check">{settings.toolsLayout === l ? '✓' : ''}</span>
+              <span className="menu-label">{t(`view.toolsLayout.${l}`)}</span>
+            </Menu.Item>
+          ))}
+          <Sep />
           <Menu.Item
             className="menu-item"
             data-testid="menu-tools-lock"
