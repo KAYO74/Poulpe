@@ -1,0 +1,300 @@
+/*
+ * Textes des Préférences, du diagnostic et de l'aide intégrée, dans un fichier à part pour garder
+ * i18n.ts lisible.
+ */
+
+export const frPrefs = {
+  'prefs.menu': 'Préférences…',
+  'prefs.title': 'Préférences',
+  'prefs.tab.general': 'Général',
+  'prefs.tab.performance': 'Performances',
+  'prefs.tab.display': 'Affichage',
+  'prefs.tab.layers': 'Calques',
+  'prefs.tab.shortcuts': 'Raccourcis',
+  'prefs.tab.advanced': 'Avancé',
+  'prefs.tab.diagnostic': 'Diagnostic',
+
+  'prefs.language': 'Langue',
+  'prefs.welcome': 'Afficher l’écran d’accueil au lancement',
+  'prefs.autoUpdate': 'Chercher les mises à jour au lancement',
+  'prefs.autoUpdateWeb': 'La version en ligne est toujours à jour.',
+
+  'prefs.memory': 'Mémoire',
+  'prefs.memoryUsed': 'Utilisée par Poulpe',
+  'prefs.memoryComputer': 'Mémoire de l’ordinateur',
+  'prefs.memoryFree': '{free} libres',
+  'prefs.memoryUnknown': 'non mesurable ici',
+  'prefs.memoryBudget': 'Budget mémoire',
+  'prefs.auto': 'Automatique',
+  'prefs.autoValue': 'Automatique ({value})',
+  'prefs.memoryBudgetNote':
+    'Au-delà, Poulpe libère les plus vieilles annulations et ses caches. La mesure est réelle sous Windows et dans Chrome ou Edge ; sous macOS et Linux, seuls la limite d’historique et le cache s’appliquent.',
+  'prefs.memoryFreed': 'Mémoire presque pleine : les plus vieilles annulations ont été libérées.',
+  'prefs.cache': 'Cache de rendu',
+  'prefs.history': 'Annulations gardées',
+  'prefs.historyNote': '0 : illimité. Moins d’étapes, c’est moins de mémoire utilisée.',
+  'prefs.preview': 'Qualité d’aperçu',
+  'prefs.preview.low': 'Rapide',
+  'prefs.preview.medium': 'Équilibrée',
+  'prefs.preview.high': 'Haute',
+  'prefs.gpu': 'Carte graphique',
+  'prefs.hardwareAcceleration': 'Accélération matérielle',
+  'prefs.gpuPreference': 'Carte graphique préférée',
+  'prefs.gpu.default': 'Automatique',
+  'prefs.gpu.high-performance': 'Haute performance (carte dédiée)',
+  'prefs.gpu.low-power': 'Économie d’énergie (carte intégrée)',
+  'prefs.gpuNoteDesktop':
+    'Appliqué au prochain lancement. Sous Windows et Linux, Poulpe le demande au moteur d’affichage ; sous macOS, le système choisit seul.',
+  'prefs.gpuNoteWeb':
+    'Dans un navigateur, c’est lui qui choisit la carte graphique : réglage disponible dans l’appli de bureau.',
+  'prefs.restartNeeded': 'Redémarrez Poulpe pour appliquer ce changement.',
+  'prefs.restart': 'Redémarrer maintenant',
+  'prefs.cpu': 'Processeur',
+  'prefs.threads': 'Threads de calcul',
+  'prefs.threadsNote': 'Utilisés par le détourage automatique ({cores} cœurs sur cet ordinateur).',
+  'prefs.threadsUnavailable':
+    'Le calcul sur plusieurs cœurs n’est pas disponible ici : un seul thread est utilisé.',
+  'prefs.autosave': 'Sauvegarde automatique des brouillons',
+  'prefs.autosaveDelay': 'Délai après une modification',
+  'prefs.autosaveNote': 'Un document non enregistré est proposé à la réouverture si Poulpe se ferme.',
+  'prefs.profile': 'Profil',
+  'prefs.profile.saver': 'Économie',
+  'prefs.profile.balanced': 'Équilibré',
+  'prefs.profile.power': 'Puissance',
+  'prefs.resetPerf': 'Réinitialiser les performances',
+
+  'prefs.theme': 'Thème',
+  'prefs.perfMeter': 'Images par seconde et mémoire dans la barre d’état',
+  'prefs.interface': 'Interface',
+  'prefs.canvas': 'Plan de travail',
+
+  'prefs.layersOrder': 'Ordre des calques',
+  'prefs.layersOrderNote':
+    'Glissez les calques dans le panneau Calques pour les réordonner, ou utilisez ces commandes (menu Disposition et clic droit). Cliquez sur un raccourci pour le changer.',
+
+  'prefs.backup': 'Sauvegarde des préférences',
+  'prefs.export': 'Exporter les préférences…',
+  'prefs.import': 'Importer des préférences…',
+  'prefs.imported': 'Préférences importées.',
+  'prefs.importError': 'Ce fichier ne contient pas de préférences Poulpe.',
+  'prefs.backupNote':
+    'Réglages, raccourcis, langue, panneaux et espaces de travail, pour les retrouver sur un autre ordinateur.',
+  'prefs.resetAll': 'Réinitialiser toutes les préférences…',
+  'prefs.resetAllConfirm':
+    'Remettre tous les réglages, raccourcis, panneaux et espaces de travail comme à l’installation ? Vos documents ne sont pas touchés.',
+
+  'diag.intro': 'Vérifie la carte graphique, le processeur et la mémoire vus par Poulpe.',
+  'diag.run': 'Lancer le diagnostic',
+  'diag.running': 'Analyse…',
+  'diag.copy': 'Copier le rapport',
+  'diag.copied': 'Rapport copié.',
+  'diag.gpu': 'Carte graphique',
+  'diag.gpuPower': 'Pour la performance',
+  'diag.gpuSaver': 'Pour l’économie',
+  'diag.driver': 'Pilote et version',
+  'diag.software':
+    'Rendu logiciel : aucune carte graphique utilisée. Mettez à jour le pilote, ou vérifiez l’accélération matérielle.',
+  'diag.gpus': '{n} cartes graphiques détectées.',
+  'diag.webgl': 'WebGL',
+  'diag.webgpu': 'WebGPU',
+  'diag.none': 'non disponible',
+  'diag.cpu': 'Processeur',
+  'diag.cores': '{n} cœurs',
+  'diag.memory': 'Mémoire',
+  'diag.screen': 'Écran',
+  'diag.system': 'Système',
+  'diag.bench': 'Test de vitesse',
+  'diag.benchNote': 'Dessine 1 000 objets plusieurs fois puis remet votre document tel quel.',
+  'diag.benchRunning': 'Mesure en cours…',
+  'diag.benchResult': '{fps} images par seconde en moyenne',
+
+  'help.docs': 'Documentation',
+  'help.faq': 'Questions fréquentes',
+  'help.diagnostic': 'Diagnostic…',
+  'help.title': 'Aide de Poulpe',
+  'help.tab.start': 'Bien démarrer',
+  'help.tab.faq': 'Questions fréquentes',
+  'help.tab.performance': 'Performances',
+  'help.online': 'Documentation complète sur GitHub',
+  'help.start.1':
+    'Poulpe a trois Personas, comme Affinity : Dessin (vectoriel), Photo (pixels et retouche) et Mise en page (pages et textes). Changez-en avec les boutons en haut à gauche ou le menu Affichage.',
+  'help.start.2':
+    'Les outils sont dans la colonne à droite (ou à gauche : Affichage > Outils). Les panneaux (Calques, Couleur, Effets…) se déplacent, se détachent et se redimensionnent.',
+  'help.start.3':
+    'Enregistrez au format .poulpe pour tout garder modifiable. Fichier > Exporter crée un PNG, JPEG, SVG, PDF ou PSD.',
+  'help.start.4':
+    'Tous les réglages de l’appli (mémoire, carte graphique, raccourcis, thème) sont dans Édition > Préférences.',
+  'help.faq.q1': 'Comment changer l’ordre des calques ?',
+  'help.faq.a1':
+    'Glissez-les dans le panneau Calques, ou utilisez Disposition > Premier plan, Avancer, Reculer, Arrière-plan (aussi au clic droit).',
+  'help.faq.q2': 'L’appli est lente, que faire ?',
+  'help.faq.a2':
+    'Ouvrez Édition > Préférences > Diagnostic pour vérifier que la carte graphique est utilisée. Dans Performances, choisissez le profil Puissance, ou baissez la qualité d’aperçu et le nombre d’annulations sur un ordinateur modeste.',
+  'help.faq.q3': 'J’ai fermé sans enregistrer, mon travail est-il perdu ?',
+  'help.faq.a3':
+    'Non, si la sauvegarde automatique des brouillons est active (Préférences > Performances) : Poulpe propose de rouvrir le document au lancement suivant.',
+  'help.faq.q4': 'Comment changer un raccourci clavier ?',
+  'help.faq.a4':
+    'Aide > Raccourcis clavier, ou Préférences > Raccourcis : cliquez sur le raccourci puis appuyez sur les nouvelles touches.',
+  'help.faq.q5': 'Comment retrouver mes réglages sur un autre ordinateur ?',
+  'help.faq.a5': 'Préférences > Avancé > Exporter les préférences, puis Importer sur l’autre ordinateur.',
+  'help.faq.q6': 'Poulpe envoie-t-il mes fichiers sur Internet ?',
+  'help.faq.a6':
+    'Non. Tout se passe sur votre ordinateur, même la gomme magique et le détourage. Seule la recherche de mises à jour se connecte à GitHub.',
+  'help.perf.1':
+    'Mémoire : Poulpe ne peut pas réserver de mémoire comme Photoshop, mais il respecte un budget. Au-delà, il oublie les plus vieilles annulations et vide ses caches.',
+  'help.perf.2':
+    'Carte graphique : l’affichage passe par le moteur web de votre système. Sous Windows et Linux, l’appli de bureau peut lui demander la carte dédiée ou l’économie d’énergie, ou désactiver l’accélération si un pilote pose problème. Sous macOS, le système choisit seul.',
+  'help.perf.3':
+    'Processeur : les calculs lourds (détourage) tournent hors de l’interface et peuvent utiliser plusieurs cœurs.',
+  'help.perf.4':
+    'Le diagnostic (Aide > Diagnostic) montre ce que Poulpe voit de votre ordinateur, et se copie pour signaler un problème.',
+};
+
+export type MessageKeyPrefs = keyof typeof frPrefs;
+
+export const enPrefs: Record<MessageKeyPrefs, string> = {
+  'prefs.menu': 'Preferences…',
+  'prefs.title': 'Preferences',
+  'prefs.tab.general': 'General',
+  'prefs.tab.performance': 'Performance',
+  'prefs.tab.display': 'Display',
+  'prefs.tab.layers': 'Layers',
+  'prefs.tab.shortcuts': 'Shortcuts',
+  'prefs.tab.advanced': 'Advanced',
+  'prefs.tab.diagnostic': 'Diagnostics',
+
+  'prefs.language': 'Language',
+  'prefs.welcome': 'Show the welcome screen at startup',
+  'prefs.autoUpdate': 'Check for updates at startup',
+  'prefs.autoUpdateWeb': 'The online version is always up to date.',
+
+  'prefs.memory': 'Memory',
+  'prefs.memoryUsed': 'Used by Poulpe',
+  'prefs.memoryComputer': 'Computer memory',
+  'prefs.memoryFree': '{free} free',
+  'prefs.memoryUnknown': 'not measurable here',
+  'prefs.memoryBudget': 'Memory budget',
+  'prefs.auto': 'Automatic',
+  'prefs.autoValue': 'Automatic ({value})',
+  'prefs.memoryBudgetNote':
+    'Above it, Poulpe frees the oldest undo steps and its caches. Measurement is real on Windows and in Chrome or Edge; on macOS and Linux, only the history limit and the cache apply.',
+  'prefs.memoryFreed': 'Memory almost full: the oldest undo steps were freed.',
+  'prefs.cache': 'Render cache',
+  'prefs.history': 'Undo steps kept',
+  'prefs.historyNote': '0: unlimited. Fewer steps use less memory.',
+  'prefs.preview': 'Preview quality',
+  'prefs.preview.low': 'Fast',
+  'prefs.preview.medium': 'Balanced',
+  'prefs.preview.high': 'High',
+  'prefs.gpu': 'Graphics card',
+  'prefs.hardwareAcceleration': 'Hardware acceleration',
+  'prefs.gpuPreference': 'Preferred graphics card',
+  'prefs.gpu.default': 'Automatic',
+  'prefs.gpu.high-performance': 'High performance (dedicated card)',
+  'prefs.gpu.low-power': 'Power saving (integrated card)',
+  'prefs.gpuNoteDesktop':
+    'Applied at next launch. On Windows and Linux, Poulpe asks the display engine for it; on macOS, the system decides.',
+  'prefs.gpuNoteWeb':
+    'In a browser, the browser picks the graphics card: this setting is available in the desktop app.',
+  'prefs.restartNeeded': 'Restart Poulpe to apply this change.',
+  'prefs.restart': 'Restart now',
+  'prefs.cpu': 'Processor',
+  'prefs.threads': 'Computing threads',
+  'prefs.threadsNote': 'Used by automatic background removal ({cores} cores on this computer).',
+  'prefs.threadsUnavailable': 'Multi-core computing is not available here: a single thread is used.',
+  'prefs.autosave': 'Automatic draft saving',
+  'prefs.autosaveDelay': 'Delay after a change',
+  'prefs.autosaveNote': 'An unsaved document is offered again at next launch if Poulpe closes.',
+  'prefs.profile': 'Profile',
+  'prefs.profile.saver': 'Saver',
+  'prefs.profile.balanced': 'Balanced',
+  'prefs.profile.power': 'Power',
+  'prefs.resetPerf': 'Reset performance settings',
+
+  'prefs.theme': 'Theme',
+  'prefs.perfMeter': 'Frames per second and memory in the status bar',
+  'prefs.interface': 'Interface',
+  'prefs.canvas': 'Canvas',
+
+  'prefs.layersOrder': 'Layer order',
+  'prefs.layersOrderNote':
+    'Drag layers in the Layers panel to reorder them, or use these commands (Arrange menu and right-click). Click a shortcut to change it.',
+
+  'prefs.backup': 'Back up preferences',
+  'prefs.export': 'Export Preferences…',
+  'prefs.import': 'Import Preferences…',
+  'prefs.imported': 'Preferences imported.',
+  'prefs.importError': 'This file does not contain Poulpe preferences.',
+  'prefs.backupNote':
+    'Settings, shortcuts, language, panels and workspaces, to use them on another computer.',
+  'prefs.resetAll': 'Reset All Preferences…',
+  'prefs.resetAllConfirm':
+    'Restore all settings, shortcuts, panels and workspaces to their installation state? Your documents are not affected.',
+
+  'diag.intro': 'Checks the graphics card, processor and memory as seen by Poulpe.',
+  'diag.run': 'Run Diagnostics',
+  'diag.running': 'Checking…',
+  'diag.copy': 'Copy Report',
+  'diag.copied': 'Report copied.',
+  'diag.gpu': 'Graphics card',
+  'diag.gpuPower': 'For performance',
+  'diag.gpuSaver': 'For power saving',
+  'diag.driver': 'Driver and version',
+  'diag.software':
+    'Software rendering: no graphics card is used. Update the driver, or check hardware acceleration.',
+  'diag.gpus': '{n} graphics cards detected.',
+  'diag.webgl': 'WebGL',
+  'diag.webgpu': 'WebGPU',
+  'diag.none': 'not available',
+  'diag.cpu': 'Processor',
+  'diag.cores': '{n} cores',
+  'diag.memory': 'Memory',
+  'diag.screen': 'Screen',
+  'diag.system': 'System',
+  'diag.bench': 'Speed Test',
+  'diag.benchNote': 'Draws 1,000 objects several times, then puts your document back as it was.',
+  'diag.benchRunning': 'Measuring…',
+  'diag.benchResult': '{fps} frames per second on average',
+
+  'help.docs': 'Documentation',
+  'help.faq': 'Frequently Asked Questions',
+  'help.diagnostic': 'Diagnostics…',
+  'help.title': 'Poulpe Help',
+  'help.tab.start': 'Getting started',
+  'help.tab.faq': 'FAQ',
+  'help.tab.performance': 'Performance',
+  'help.online': 'Full documentation on GitHub',
+  'help.start.1':
+    'Poulpe has three Personas, like Affinity: Draw (vector), Photo (pixels and retouching) and Layout (pages and text). Switch with the buttons at the top left or the View menu.',
+  'help.start.2':
+    'Tools are in the right-hand column (or left: View > Tools). Panels (Layers, Color, Effects…) can be moved, detached and resized.',
+  'help.start.3':
+    'Save as .poulpe to keep everything editable. File > Export creates a PNG, JPEG, SVG, PDF or PSD.',
+  'help.start.4': 'All app settings (memory, graphics card, shortcuts, theme) are in Edit > Preferences.',
+  'help.faq.q1': 'How do I change the layer order?',
+  'help.faq.a1':
+    'Drag layers in the Layers panel, or use Arrange > Bring to Front, Bring Forward, Send Backward, Send to Back (also on right-click).',
+  'help.faq.q2': 'The app is slow, what can I do?',
+  'help.faq.a2':
+    'Open Edit > Preferences > Diagnostics to check that the graphics card is used. In Performance, pick the Power profile, or lower preview quality and undo steps on a modest computer.',
+  'help.faq.q3': 'I closed without saving, is my work lost?',
+  'help.faq.a3':
+    'No, if automatic draft saving is on (Preferences > Performance): Poulpe offers to reopen the document at next launch.',
+  'help.faq.q4': 'How do I change a keyboard shortcut?',
+  'help.faq.a4':
+    'Help > Keyboard Shortcuts, or Preferences > Shortcuts: click the shortcut, then press the new keys.',
+  'help.faq.q5': 'How do I get my settings on another computer?',
+  'help.faq.a5': 'Preferences > Advanced > Export Preferences, then Import on the other computer.',
+  'help.faq.q6': 'Does Poulpe send my files over the Internet?',
+  'help.faq.a6':
+    'No. Everything happens on your computer, even the magic eraser and background removal. Only the update check connects to GitHub.',
+  'help.perf.1':
+    'Memory: Poulpe cannot reserve memory like Photoshop, but it keeps to a budget. Above it, it forgets the oldest undo steps and empties its caches.',
+  'help.perf.2':
+    'Graphics card: display goes through your system’s web engine. On Windows and Linux, the desktop app can ask it for the dedicated card or power saving, or turn acceleration off if a driver misbehaves. On macOS, the system decides.',
+  'help.perf.3':
+    'Processor: heavy computations (background removal) run outside the interface and can use several cores.',
+  'help.perf.4':
+    'Diagnostics (Help > Diagnostics) shows what Poulpe sees of your computer, and can be copied to report a problem.',
+};

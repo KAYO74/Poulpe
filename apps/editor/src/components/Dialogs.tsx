@@ -40,6 +40,8 @@ import { createWorkspace, deleteWorkspace, editWorkspace, workspaces } from '../
 import type { Persona, ToolId } from '../store';
 import { ShortcutsDialog } from './ShortcutsDialog';
 import { UpdateDialog } from './UpdateDialog';
+import { PreferencesDialog } from './PreferencesDialog';
+import { HelpDialog } from './HelpDialog';
 import { ExtensionParamsDialog, ExtensionsDialog } from '../extensions/ExtensionsDialog';
 import { VectorizeDialog } from '../smart/VectorizeDialog';
 
@@ -1248,5 +1250,7 @@ export function Dialogs() {
   if (dialog === 'imageSize') return <ImageSizeDialog />;
   if (dialog === 'canvasSize') return <CanvasSizeDialog />;
   if (dialog === 'workspace') return <WorkspaceDialog />;
+  if (dialog === 'preferences') return <PreferencesDialog />;
+  if (dialog === 'help') return <HelpDialog />;
   return null;
 }

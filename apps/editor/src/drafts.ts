@@ -1,5 +1,6 @@
 import { migrate, type PoulpeDocument } from '@poulpe/core';
 import { materialize } from '@poulpe/render';
+import { getPerf, subscribePerf } from './preferences';
 import { editor, ui } from './store';
 
 /*
@@ -17,7 +18,6 @@ export interface Draft {
 const DB = 'poulpe';
 const STORE = 'drafts';
 const KEY = 'current';
-const DELAY = 1500;
 
 function openDb(): Promise<IDBDatabase> {
   return new Promise((resolve, reject) => {
@@ -72,7 +72,7 @@ let lastDoc: PoulpeDocument | null = null;
 let paused = true;
 
 function schedule(): void {
-  if (paused) return;
+  if (paused || !getPerf().autosave) return;
   const { doc, dirty } = editor.getState();
   if (doc === lastDoc) return;
   lastDoc = doc;
@@ -88,7 +88,7 @@ function schedule(): void {
     void materialize(state.doc).then((doc) =>
       writeDraft({ doc, filePath: ui.get().filePath, savedAt: Date.now() }),
     );
-  }, DELAY);
+  }, getPerf().autosaveDelaySec * 1000);
 }
 
 /**
@@ -97,6 +97,13 @@ function schedule(): void {
  */
 export async function startDrafts(): Promise<void> {
   editor.subscribe(schedule);
+  // Sauvegarde automatique désactivée dans les Préférences : plus de brouillon à proposer.
+  subscribePerf(() => {
+    if (getPerf().autosave) return;
+    clearTimeout(timer);
+    lastDoc = null;
+    if (!paused) void clearDraft();
+  });
   const draft = await readDraft();
   if (draft?.doc?.artboards) {
     pendingDraft = draft;
