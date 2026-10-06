@@ -405,6 +405,16 @@ function DisplayPane() {
             onChange={(v) => setSettings({ toolsSide: v })}
           />
           <Select
+            label={t('view.toolsColumns')}
+            value={s.toolsColumns}
+            options={[
+              { value: 'auto', label: t('view.toolsColumns.auto') },
+              { value: 'one', label: t('view.toolsColumns.one') },
+              { value: 'two', label: t('view.toolsColumns.two') },
+            ]}
+            onChange={(v) => setSettings({ toolsColumns: v })}
+          />
+          <Select
             label={t('view.studioSide')}
             value={s.studioSide}
             options={[
@@ -414,6 +424,12 @@ function DisplayPane() {
             onChange={(v) => setSettings({ studioSide: v })}
           />
         </div>
+        <Check
+          label={t('view.toolsLocked')}
+          checked={s.toolsLocked}
+          testId="prefs-tools-locked"
+          onChange={(v) => setSettings({ toolsLocked: v })}
+        />
         <Check
           label={t('prefs.perfMeter')}
           checked={s.perfMeter}

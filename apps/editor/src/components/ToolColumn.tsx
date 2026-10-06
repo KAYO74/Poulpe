@@ -3,7 +3,9 @@ import { PHOTO_TOOL_KEYS, TOOL_KEYS } from '../commands';
 import { useT } from '../i18n';
 import { importImage } from '../io';
 import { setTool, ui, useEditor, useUi, type Persona, type ToolId } from '../store';
-import { useActiveWorkspace } from '../workspaces';
+import { activeWorkspace, useActiveWorkspace } from '../workspaces';
+import { TOOL_CATALOG, toolGroupsFor, toolPersona } from '../toolCatalog';
+import { setPersona } from '../photo/persona';
 import { findNode, isStyled } from '@poulpe/core';
 import { paintPreview } from './fields';
 import { Icon, type IconName } from './Icon';
@@ -11,28 +13,23 @@ import { useRef } from 'react';
 import { FloatingFrame } from '../panels/FloatingFrame';
 import { dockPanel, floatPanel, startPanelDrag, usePanels } from '../panels/panelLayout';
 
-const DRAW_GROUPS: ToolId[][] = [
-  ['select', 'direct', 'artboard'],
-  ['pen', 'pencil'],
-  ['rect', 'ellipse', 'polygon', 'star', 'line'],
-  ['scissors', 'knife', 'corner', 'shapeBuilder'],
-  ['text', 'image'],
-  ['eyedropper', 'hand', 'zoom'],
-];
+/** Outils d'une colonne personnalisée, rangés par famille dans l'ordre du catalogue. */
+function customGroups(tools: ToolId[]): ToolId[][] {
+  return TOOL_CATALOG.map((c) => c.tools.filter((id) => tools.includes(id))).filter((g) => g.length > 0);
+}
 
-const PHOTO_GROUPS: ToolId[][] = [
-  ['select', 'straighten', 'perspective'],
-  ['marqueeRect', 'marqueeEllipse', 'lasso', 'polyLasso', 'magicWand', 'quickSelect'],
-  ['brush', 'eraser', 'fill'],
-  ['magicEraser', 'heal', 'clone'],
-  ['dodge', 'burn', 'blurBrush', 'sharpenBrush', 'smudge', 'liquify'],
-  ['text'],
-  ['eyedropper', 'hand', 'zoom'],
-];
-
-/** Outils d'une Persona, par groupe (pour la colonne et la boîte « Espace de travail »). */
-export function toolGroupsFor(persona: Persona): ToolId[][] {
-  return persona === 'photo' ? PHOTO_GROUPS : DRAW_GROUPS;
+/**
+ * Choisit un outil ; dans un espace mixte, un outil pixel passe l'éditeur en mode Photo et un outil
+ * vectoriel le ramène en Dessin (ou Mise en page), sans quitter l'espace de travail.
+ */
+export function pickTool(id: ToolId): void {
+  const ws = activeWorkspace();
+  const need = toolPersona(id);
+  const persona = ui.get().persona;
+  if (ws && need === 'photo' && persona !== 'photo') setPersona('photo');
+  if (ws && need === 'draw' && persona === 'photo') setPersona(ws.base === 'photo' ? 'draw' : ws.base);
+  if (id === 'image') void importImage();
+  else setTool(id);
 }
 
 /** Au-delà de ce nombre d'outils, la colonne passe sur deux rangées (comme dans Affinity). */
@@ -53,20 +50,25 @@ export function ToolColumn() {
   const brushColor2 = useUi((s) => s.brushColor2);
   const { doc, selection } = useEditor();
   const photo = persona === 'photo';
-  const allowed = useActiveWorkspace()?.tools ?? null;
-  const groups = toolGroupsFor(persona)
-    .map((g) => (allowed ? g.filter((id) => allowed.includes(id)) : g))
-    .filter((g) => g.length > 0);
-  const keys = photo ? PHOTO_KEY_OF : KEY_OF;
+  const custom = useActiveWorkspace()?.tools ?? null;
+  const groups = custom ? customGroups(custom) : toolGroupsFor(persona);
+  const keyOf = (id: ToolId) => {
+    const need = toolPersona(id);
+    return (need === 'photo' || (!need && photo) ? PHOTO_KEY_OF : KEY_OF)[id];
+  };
+  const columns = useUi((s) => s.settings.toolsColumns);
+  const locked = useUi((s) => s.settings.toolsLocked);
+  const floatingState = usePanels((s) => !!s.floating.tools);
+  // Verrouillée, la colonne reste ancrée même si une palette flottante avait été enregistrée.
+  const floating = floatingState && !locked;
   const node = selection.length ? findNode(doc, selection[0])?.node : null;
   const styled = node && isStyled(node) ? node : null;
   const fill = styled ? styled.fill : defaults.fill;
   const stroke = styled ? styled.stroke.paint : defaults.stroke.paint;
-  const floating = usePanels((s) => !!s.floating.tools);
   const side = useUi((s) => s.settings.toolsSide);
   const dropping = useUi((s) => s.panelDock === 'tools');
   const ref = useRef<HTMLDivElement>(null);
-  const two = groups.flat().length > TWO_COLUMNS;
+  const two = columns === 'two' || (columns === 'auto' && groups.flat().length > TWO_COLUMNS);
   const column = (
     <div
       ref={floating ? undefined : ref}
@@ -76,7 +78,7 @@ export function ToolColumn() {
       aria-label={t('panel.tools')}
       data-testid="toolcol"
     >
-      {!floating && (
+      {!floating && !locked && (
         <div
           className="toolcol-grip panel-handle"
           title={t('panel.floatHint')}
@@ -93,7 +95,8 @@ export function ToolColumn() {
       {groups.map((group, gi) => (
         <div className="toolgroup" key={gi}>
           {group.map((id) => {
-            const label = `${t(`tool.${id}`)}${keys[id] ? ` (${keys[id]})` : ''}`;
+            const key = keyOf(id);
+            const label = `${t(`tool.${id}`)}${key ? ` (${key})` : ''}`;
             return (
               <button
                 key={id}
@@ -102,7 +105,7 @@ export function ToolColumn() {
                 title={label}
                 aria-label={label}
                 data-testid={`tool-${id}`}
-                onClick={() => (id === 'image' ? void importImage() : setTool(id))}
+                onClick={() => pickTool(id)}
               >
                 <Icon name={id as IconName} />
               </button>

@@ -179,6 +179,13 @@ export function studioTabsFor(persona: Persona): { id: string; label: MessageKey
   );
 }
 
+/** Tous les onglets du Studio, toutes Personas confondues (espaces de travail mixtes). */
+export function studioTabsAll(): { id: string; label: MessageKey }[] {
+  return [...TOP_DRAW, ...TOP_PHOTO, ...BOTTOM_DRAW]
+    .filter((id, i, all) => all.indexOf(id) === i)
+    .map((id) => TABS[id]);
+}
+
 function useGroups(): GroupDef[] {
   const editingText = useUi((s) => s.tool === 'text');
   const persona = useUi((s) => s.persona);
