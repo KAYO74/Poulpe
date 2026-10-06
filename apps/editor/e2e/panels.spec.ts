@@ -194,3 +194,42 @@ test('mélange outils vectoriels et pixel dans un espace, une colonne ou deux, v
   await expect(page.getByTestId('toolcol')).toHaveClass(/\btwo\b/);
   await expect(page.getByTestId('toolcol-grip')).toHaveCount(0);
 });
+
+test('outils alignés ou rangés en groupes, au choix', async ({ page }) => {
+  const col = page.getByTestId('toolcol');
+  await expect(col.getByTestId('tool-ellipse')).toBeVisible();
+
+  await page.getByRole('button', { name: 'Affichage' }).click();
+  await page.getByRole('menuitem', { name: 'Colonne d’outils' }).hover();
+  await page.getByTestId('menu-tools-layout-groups').click();
+
+  // Un bouton par groupe : le rectangle représente les formes.
+  await expect(col.getByTestId('tool-rect')).toBeVisible();
+  await expect(col.getByTestId('tool-ellipse')).toHaveCount(0);
+
+  // Le petit triangle ouvre les autres outils du groupe.
+  await page.getByTestId('toolgroup-more-rect').click();
+  await expect(page.getByTestId('tool-menu')).toBeVisible();
+  await page.getByTestId('toolmenu-ellipse').click();
+  await expect(page.getByTestId('tool-menu')).toHaveCount(0);
+  await expect(col.getByTestId('tool-ellipse')).toHaveAttribute('aria-pressed', 'true');
+  await expect(col.getByTestId('tool-rect')).toHaveCount(0);
+
+  // Le clic droit ouvre aussi le menu, Échap le referme.
+  await col.getByTestId('tool-ellipse').click({ button: 'right' });
+  await expect(page.getByTestId('toolmenu-star')).toBeVisible();
+  await page.keyboard.press('Escape');
+  await expect(page.getByTestId('tool-menu')).toHaveCount(0);
+
+  // Le choix et le dernier outil du groupe sont retenus.
+  await page.reload();
+  await expect(page.getByTestId('toolcol').getByTestId('tool-ellipse')).toBeVisible();
+  await expect(page.getByTestId('toolcol').getByTestId('tool-star')).toHaveCount(0);
+
+  // Retour à tous les outils alignés.
+  await page.getByRole('button', { name: 'Affichage' }).click();
+  await page.getByRole('menuitem', { name: 'Colonne d’outils' }).hover();
+  await page.getByTestId('menu-tools-layout-all').click();
+  await expect(page.getByTestId('toolcol').getByTestId('tool-star')).toBeVisible();
+  await expect(page.getByTestId('toolcol').getByTestId('tool-rect')).toBeVisible();
+});

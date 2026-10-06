@@ -86,6 +86,23 @@ export const TOOL_CATALOG: { id: 'select' | 'vector' | 'pixel' | 'other'; tools:
   { id: 'other', tools: ['text', 'image', 'eyedropper', 'hand', 'zoom'] },
 ];
 
+/**
+ * Petits groupes d'outils voisins (ceux des Personas, sans doublon), pour ranger une colonne
+ * personnalisée en groupes comme dans Photoshop et Affinity.
+ */
+export function smallGroups(tools: ToolId[]): ToolId[][] {
+  const seen = new Set<ToolId>();
+  const groups: ToolId[][] = [];
+  for (const g of [...DRAW_GROUPS, ...PHOTO_GROUPS]) {
+    const kept = g.filter((id) => tools.includes(id) && !seen.has(id));
+    kept.forEach((id) => seen.add(id));
+    if (kept.length) groups.push(kept);
+  }
+  const rest = tools.filter((id) => !seen.has(id));
+  if (rest.length) groups.push(rest);
+  return groups;
+}
+
 /** Persona dont un outil a besoin pour fonctionner (null : utilisable partout). */
 export function toolPersona(id: ToolId): 'draw' | 'photo' | null {
   if (PHOTO_TOOLS.has(id) && !DRAW_TOOLS.has(id)) return 'photo';
