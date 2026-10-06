@@ -55,8 +55,7 @@ export class Editor {
    */
   private normalizer: ((draft: PoulpeDocument) => void) | null = null;
   private extra: ExtraState | null = null;
-  /** Nombre maximal d'étapes d'annulation gardées (0 : illimité). */
-  private historyLimit = 0;
+  private historyLimit = Infinity;
   /** Libellés de l'historique déjà calculés, réutilisés tant que l'historique ne change pas. */
   private labels: { key: unknown[]; list: string[] } | null = null;
 
@@ -121,19 +120,6 @@ export class Editor {
     return list;
   }
 
-  /** Limite le nombre d'étapes d'annulation (0 : illimité). Les plus anciennes sont oubliées. */
-  setHistoryLimit(limit: number): void {
-    this.historyLimit = Math.max(0, Math.floor(limit));
-    if (this.trimHistory()) this.set(this.state.doc, this.state.selection);
-  }
-
-  private trimHistory(): boolean {
-    const extra = this.historyLimit > 0 ? this.past.length - this.historyLimit : 0;
-    if (extra <= 0) return false;
-    this.past.splice(0, extra);
-    return true;
-  }
-
   private set(doc: PoulpeDocument, selection: string[], activeArtboardId = this.state.activeArtboardId) {
     const valid = new Set(allNodeIds(doc));
     this.state = this.makeState(
@@ -176,7 +162,7 @@ export class Editor {
     });
     this.future = [];
     this.currentLabel = label;
-    this.trimHistory();
+    this.trim();
   }
 
   /** Début d'un geste (glisser, redimensionner…) : les aperçus partent tous de cet état. */
@@ -209,7 +195,7 @@ export class Editor {
     });
     this.future = [];
     this.currentLabel = label;
-    this.trimHistory();
+    this.trim();
     this.set(this.state.doc, this.state.selection);
   }
 
@@ -277,8 +263,24 @@ export class Editor {
     });
     this.future = [];
     this.currentLabel = label;
-    this.trimHistory();
+    this.trim();
     this.set(this.state.doc, this.state.selection);
+  }
+
+  /**
+   * Nombre maximal d'étapes d'annulation gardées (0 ou moins : illimité). Les plus anciennes sont
+   * oubliées, ce qui libère la mémoire des images qu'elles étaient seules à retenir.
+   */
+  setHistoryLimit(limit: number): void {
+    this.historyLimit = limit > 0 ? Math.floor(limit) : Infinity;
+    if (this.trim()) this.set(this.state.doc, this.state.selection);
+  }
+
+  private trim(): boolean {
+    const drop = this.past.length - this.historyLimit;
+    if (drop <= 0) return false;
+    this.past.splice(0, drop);
+    return true;
   }
 
   select(ids: string[]): void {
