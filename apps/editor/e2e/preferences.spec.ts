@@ -57,10 +57,10 @@ test('les profils changent les réglages de performance', async ({ page }) => {
   await page.keyboard.press('Control+,');
   await page.getByTestId('prefs-tab-performance').click();
   await page.getByTestId('prefs-profile-saver').click();
-  await expect(page.getByTestId('prefs-preview')).toHaveValue('low');
+  await expect(page.getByTestId('prefs-preview')).toHaveValue('fast');
   await expect(page.getByTestId('prefs-history')).toHaveValue('50');
   await page.getByTestId('prefs-reset-perf').click();
-  await expect(page.getByTestId('prefs-preview')).toHaveValue('high');
+  await expect(page.getByTestId('prefs-preview')).toHaveValue('balanced');
   await expect(page.getByTestId('prefs-memory')).toBeVisible();
 });
 
