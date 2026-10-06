@@ -60,6 +60,7 @@ export type Ctx = CanvasRenderingContext2D | OffscreenCanvasRenderingContext2D;
 import { bitmapSource, isBitmapRef, resolveData } from './bitmaps';
 
 export * from './bitmaps';
+export * from './cache';
 
 /** Image prête à dessiner : décodée depuis le fichier, ou toile modifiée dans l'appli. */
 export type Drawable = HTMLImageElement | HTMLCanvasElement;
@@ -76,8 +77,33 @@ export function drawableSize(img: Drawable): { width: number; height: number } {
  * servent pour savoir si leur résultat mémorisé est encore bon.
  */
 let renderRevision = 0;
+/** Comme `renderRevision`, sans les retouches en cours, suivies image par image (`assetRevision`). */
+let sharedRevision = 0;
+const assetRevisions = new Map<string, number>();
 export function bumpRenderRevision(): void {
   renderRevision++;
+  sharedRevision++;
+}
+
+/** Révision de tout ce qui n'est pas une image en cours de retouche. */
+export function getSharedRevision(): number {
+  return sharedRevision;
+}
+
+/** Révision d'une image en cours de retouche (pinceau, aperçu d'un filtre). */
+export function getAssetRevision(assetId: string): number {
+  return assetRevisions.get(assetId) ?? 0;
+}
+
+/** Révision courante du rendu (voir `bumpRenderRevision`). */
+export function getRenderRevision(): number {
+  return renderRevision;
+}
+
+/** Révision des mesures de texte : augmente quand une police se charge. */
+let layoutRevision = 0;
+export function getLayoutRevision(): number {
+  return layoutRevision;
 }
 
 /** Toiles affichées à la place d'une image pendant qu'on la modifie (pinceau, aperçu d'un filtre). */
@@ -87,6 +113,7 @@ export function setLiveBitmap(assetId: string, canvas: HTMLCanvasElement | null)
   if (canvas) liveOverrides.set(assetId, canvas);
   else liveOverrides.delete(assetId);
   renderRevision++;
+  assetRevisions.set(assetId, getAssetRevision(assetId) + 1);
 }
 
 /** Cache des images du document, décodées à partir de leurs données. */
@@ -96,6 +123,7 @@ export class ImageCache {
 
   private loaded = () => {
     renderRevision++;
+    sharedRevision++;
     this.onLoad();
   };
 
@@ -213,6 +241,8 @@ export function clearLayoutCache(): void {
   layoutCache = new WeakMap();
   flowCache = new WeakMap();
   renderRevision++;
+  sharedRevision++;
+  layoutRevision++;
 }
 
 /** Tracé d'un objet dans son repère local, mémorisé tant que l'objet ne change pas. */
@@ -334,6 +364,52 @@ export interface RenderOptions {
   fields?: PageFields | null;
   /** Texte en cours d'édition : ses champs restent affichés tels quels. */
   editingId?: string | null;
+  /**
+   * Zone visible, dans le repère du monde : les objets qui n'y touchent pas ne sont pas dessinés.
+   * Absente pour les exports, qui dessinent tout.
+   */
+  cull?: Box;
+}
+
+const reachCache = new WeakMap<SceneNode, Box>();
+
+/**
+ * Boîte de tout ce qu'un objet peut peindre : sa boîte, élargie de ses contours (angles vifs et
+ * flèches compris), de ses effets et, pour un texte, de ce qui peut dépasser de son cadre.
+ */
+export function paintBounds(node: SceneNode): Box {
+  const frozen = Object.isFrozen(node);
+  const hit = frozen ? reachCache.get(node) : undefined;
+  if (hit) return hit;
+  let b = nodeBounds(node);
+  let pad = 2;
+  if (node.type === 'group') {
+    // Les contours des enfants peuvent dépasser de la boîte du groupe.
+    const kids = node.children.map(paintBounds);
+    const x0 = Math.min(b.x, ...kids.map((k) => k.x)),
+      y0 = Math.min(b.y, ...kids.map((k) => k.y));
+    const x1 = Math.max(b.x + b.width, ...kids.map((k) => k.x + k.width)),
+      y1 = Math.max(b.y + b.height, ...kids.map((k) => k.y + k.height));
+    b = { x: x0, y: y0, width: x1 - x0, height: y1 - y0 };
+  } else if (node.type === 'symbol') {
+    // Contenu d'un symbole : ses contours sont inconnus ici, on garde une large marge.
+    pad += Math.max(node.width, node.height) / 2;
+  } else if ('stroke' in node) {
+    for (const st of visibleStrokes(node)) pad = Math.max(pad, 2 + st.width * 6);
+  }
+  if (node.type === 'text') {
+    let size = node.style.fontSize;
+    for (const r of node.runs ?? []) size = Math.max(size, r.style.fontSize ?? 0);
+    pad += size * 2;
+  }
+  if (node.effects?.length) pad += effectMargin(activeEffects(node));
+  const box = { x: b.x - pad, y: b.y - pad, width: b.width + 2 * pad, height: b.height + 2 * pad };
+  if (frozen) reachCache.set(node, box);
+  return box;
+}
+
+function touches(a: Box, b: Box): boolean {
+  return a.x <= b.x + b.width && b.x <= a.x + a.width && a.y <= b.y + b.height && b.y <= a.y + a.height;
 }
 
 function applyNodeTransform(ctx: Ctx, node: SceneNode) {
@@ -801,7 +877,8 @@ export function drawChildren(
     }
   }
   if (last < 0) {
-    for (const n of nodes) drawNode(ctx, doc, n, opts);
+    const cull = opts.cull;
+    for (const n of nodes) if (!cull || touches(paintBounds(n), cull)) drawNode(ctx, doc, n, opts);
     return;
   }
   const m = ctx.getTransform();

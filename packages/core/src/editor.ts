@@ -68,6 +68,8 @@ export class Editor {
   private normalizer: ((draft: PoulpeDocument) => void) | null = null;
   private extra: ExtraState | null = null;
   private historyLimit = Infinity;
+  /** Libellés de l'historique déjà calculés, réutilisés tant que l'historique ne change pas. */
+  private labels: { key: unknown[]; list: string[] } | null = null;
 
   constructor(doc: PoulpeDocument = createDocument()) {
     const frozen = freeze(doc, true);
@@ -101,13 +103,33 @@ export class Editor {
       dirty: doc !== this.savedDoc,
       canUndo: this.past.length > 0,
       canRedo: this.future.length > 0,
-      history: [
-        ...this.past.map((e) => e.label),
-        this.currentLabel,
-        ...[...this.future].reverse().map((e) => e.label),
-      ],
+      history: this.historyLabels(),
       historyIndex: this.past.length,
     };
+  }
+
+  /**
+   * Libellés de l'historique. Pendant un geste, l'état change à chaque image sans que
+   * l'historique change : la liste est alors réutilisée au lieu d'être recopiée.
+   */
+  private historyLabels(): string[] {
+    const key = [
+      this.past.length,
+      this.past.at(-1),
+      this.past[0],
+      this.future.length,
+      this.future.at(-1),
+      this.currentLabel,
+    ];
+    const hit = this.labels;
+    if (hit && hit.key.every((v, i) => v === key[i])) return hit.list;
+    const list = [
+      ...this.past.map((e) => e.label),
+      this.currentLabel,
+      ...[...this.future].reverse().map((e) => e.label),
+    ];
+    this.labels = { key, list };
+    return list;
   }
 
   private set(doc: PoulpeDocument, selection: string[], activeArtboardId = this.state.activeArtboardId) {

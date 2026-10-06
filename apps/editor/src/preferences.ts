@@ -1,6 +1,7 @@
 import { useSyncExternalStore } from 'react';
 import { clearLayoutCache } from '@poulpe/render';
 import { isDesktop } from './io';
+import { setPerformanceSettings } from './perf';
 import { t } from './i18n';
 import { editor, toast } from './store';
 
@@ -219,8 +220,15 @@ export function needsRestart(p: PerfPrefs = perf): boolean {
   );
 }
 
+/** Transmet les réglages au moteur (perf.ts : cache, aperçu, historique, threads). */
 function applyPerf(): void {
-  editor.setHistoryLimit(perf.historyLimit);
+  setPerformanceSettings({
+    cacheMb: perf.cacheMb,
+    historyLimit: perf.historyLimit,
+    previewQuality: perf.previewQuality,
+    hardwareAcceleration: perf.hardwareAcceleration,
+    workerThreads: threadCount(perf),
+  });
   void sendLaunchPrefs();
 }
 
