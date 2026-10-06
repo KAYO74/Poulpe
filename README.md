@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="docs/images/banniere.png" alt="Poulpe, création graphique libre et gratuite" width="100%">
+  <img src="docs/images/banniere.png" alt="Poulpe Design, création graphique libre et gratuite" width="100%">
 </p>
 
 <p align="center">
@@ -11,12 +11,12 @@
 </p>
 
 <p align="center">
-  <b>Poulpe</b> est une application libre et gratuite de création graphique.<br>
+  <b>Poulpe Design</b> est une application libre et gratuite de création graphique.<br>
   La puissance d'Affinity, Illustrator et Photoshop, la simplicité de Canva.
 </p>
 
 <p align="center">
-  <a href="#installer-poulpe"><b>Installer</b></a> ·
+  <a href="#installer-poulpe-design"><b>Installer</b></a> ·
   <a href="#fonctionnalités">Fonctionnalités</a> ·
   <a href="#feuille-de-route">Feuille de route</a> ·
   <a href="#contribuer">Contribuer</a> ·
@@ -24,16 +24,16 @@
 </p>
 
 <p align="center">
-  <img src="docs/images/dessin-modele.png" alt="L'éditeur Poulpe en thème sombre : un modèle « Soldes d'été » ouvert, avec la bibliothèque de modèles à gauche" width="100%">
+  <img src="docs/images/dessin-modele.png" alt="L'éditeur Poulpe Design en thème sombre : un modèle « Soldes d'été » ouvert, avec la bibliothèque de modèles à gauche" width="100%">
 </p>
 
 > [!NOTE]
 > Voici la version 1.0 : dessin vectoriel, retouche photo, mise en page, vectorisation d'images, détourage automatique, macros et extensions, dans une appli qui se met à jour toute seule. Le nom est provisoire.
 
 > [!TIP]
-> **Fait avec l'IA.** Poulpe est un projet de Fred, construit avec l'intelligence artificielle : le code, la documentation et les images de cette page ont été écrits par Claude (Anthropic) à partir de ses demandes, pour offrir à tous une vraie application de design, libre et gratuite. Rien n'est repris de logiciels propriétaires ; voir [Licences et origine du contenu](docs/licences.md).
+> **Fait avec l'IA.** Poulpe Design est un projet de Fred, construit avec l'intelligence artificielle : le code, la documentation et les images de cette page ont été écrits par Claude (Anthropic) à partir de ses demandes, pour offrir à tous une vraie application de design, libre et gratuite. Rien n'est repris de logiciels propriétaires ; voir [Licences et origine du contenu](docs/licences.md).
 
-## Installer Poulpe
+## Installer Poulpe Design
 
 Choisissez votre système, le téléchargement démarre directement.
 
@@ -144,7 +144,7 @@ Le détail est dans la [feuille de route des fonctionnalités](docs/feuille-de-r
 
 ## Contribuer
 
-Poulpe est écrit en TypeScript (React, Vite) et embarqué dans une appli de bureau [Tauri](https://v2.tauri.app/). Il faut Node 20 ou plus et pnpm 10 (`corepack enable`).
+Poulpe Design est écrit en TypeScript (React, Vite) et embarqué dans une appli de bureau [Tauri](https://v2.tauri.app/). Il faut Node 20 ou plus et pnpm 10 (`corepack enable`).
 
 ```sh
 pnpm install
@@ -177,6 +177,6 @@ Pour publier une nouvelle version, on change le numéro de version (dans `apps/d
 
 ## Licence
 
-Poulpe est un logiciel libre distribué sous [Mozilla Public License 2.0](LICENSE). Les bibliothèques, polices et icônes qu'il utilise sont sous licences libres compatibles : le détail est dans [Licences et origine du contenu](docs/licences.md).
+Poulpe Design est un logiciel libre distribué sous [Mozilla Public License 2.0](LICENSE). Les bibliothèques, polices et icônes qu'il utilise sont sous licences libres compatibles : le détail est dans [Licences et origine du contenu](docs/licences.md).
 
-Poulpe n'est affilié ni à Adobe ni à Serif. Photoshop, Illustrator et Affinity sont des marques de leurs propriétaires, citées uniquement pour comparer les fonctionnalités.
+Poulpe Design n'est affilié ni à Adobe ni à Serif. Photoshop, Illustrator et Affinity sont des marques de leurs propriétaires, citées uniquement pour comparer les fonctionnalités.

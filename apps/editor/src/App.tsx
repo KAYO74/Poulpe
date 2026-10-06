@@ -29,7 +29,7 @@ export function App() {
 
   useEffect(() => {
     const name = filePath ? baseName(filePath) : doc.name;
-    document.title = `${dirty ? '• ' : ''}${name} — Poulpe`;
+    document.title = `${dirty ? '• ' : ''}${name} — Poulpe Design`;
     if (isDesktop()) {
       import('@tauri-apps/api/window')
         .then(({ getCurrentWindow }) => getCurrentWindow().setTitle(document.title))

@@ -189,7 +189,8 @@ export function inpaint(px: Pixels, hole: Uint8Array, opts: InpaintOptions = {})
         }
     const targets: number[] = [];
     for (let y = 0; y < h; y++)
-      for (let x = 0; x < w; x++) if (holesIn(x - R, y - R, x + R + 1, y + R + 1) > 0) targets.push(y * w + x);
+      for (let x = 0; x < w; x++)
+        if (holesIn(x - R, y - R, x + R + 1, y + R + 1) > 0) targets.push(y * w + x);
     if (!srcList.length || !targets.length) {
       prevNnf = null;
       continue;

@@ -1,8 +1,8 @@
 [package]
 name = "poulpe"
 version = "1.0.0"
-description = "Poulpe, application libre de création graphique"
-authors = ["Contributeurs de Poulpe"]
+description = "Poulpe Design, application libre de création graphique"
+authors = ["Contributeurs de Poulpe Design"]
 license = "MPL-2.0"
 repository = "https://github.com/KAYO74/Poulpe"
 edition = "2021"

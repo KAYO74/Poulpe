@@ -53,10 +53,10 @@ export function floodMask(
       const i = stack[--sp];
       const cx = i % w,
         cy = (i / w) | 0;
-      if (cx > 0 && !mask[i - 1] && inside(i - 1)) (mask[i - 1] = 255), (stack[sp++] = i - 1);
-      if (cx < w - 1 && !mask[i + 1] && inside(i + 1)) (mask[i + 1] = 255), (stack[sp++] = i + 1);
-      if (cy > 0 && !mask[i - w] && inside(i - w)) (mask[i - w] = 255), (stack[sp++] = i - w);
-      if (cy < h - 1 && !mask[i + w] && inside(i + w)) (mask[i + w] = 255), (stack[sp++] = i + w);
+      if (cx > 0 && !mask[i - 1] && inside(i - 1)) ((mask[i - 1] = 255), (stack[sp++] = i - 1));
+      if (cx < w - 1 && !mask[i + 1] && inside(i + 1)) ((mask[i + 1] = 255), (stack[sp++] = i + 1));
+      if (cy > 0 && !mask[i - w] && inside(i - w)) ((mask[i - w] = 255), (stack[sp++] = i - w));
+      if (cy < h - 1 && !mask[i + w] && inside(i + w)) ((mask[i + w] = 255), (stack[sp++] = i + w));
     }
   }
   // Adoucissement : les voisins extérieurs proches de la tolérance entrent en partie.
@@ -84,7 +84,8 @@ export function floodMask(
  * ce sont les « fourmis » qui entourent une sélection. Carrés marchants, puis segments chaînés.
  */
 export function maskOutline(mask: Uint8Array, w: number, h: number, threshold = 128): number[][] {
-  const at = (x: number, y: number) => (x >= 0 && y >= 0 && x < w && y < h && mask[y * w + x] >= threshold ? 1 : 0);
+  const at = (x: number, y: number) =>
+    x >= 0 && y >= 0 && x < w && y < h && mask[y * w + x] >= threshold ? 1 : 0;
   // Segments sur la grille des coins de pixels : arêtes entre un pixel dedans et un pixel dehors.
   const next = new Map<number, number[]>();
   const key = (x: number, y: number) => y * (w + 1) + x;

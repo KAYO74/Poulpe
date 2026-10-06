@@ -5,7 +5,7 @@ import { enLayers, frLayers, type MessageKeyLayers } from './i18n-layers';
 export type Lang = 'fr' | 'en';
 
 const fr = {
-  'app.name': 'Poulpe',
+  'app.name': 'Poulpe Design',
   'app.untitled': 'Sans titre',
 
   'menu.file': 'Fichier',
@@ -27,9 +27,9 @@ const fr = {
   'file.exportSvg': 'Exporter en SVG…',
   'file.exportPdf': 'Exporter en PDF…',
   'file.unsaved': 'Le document a des modifications non enregistrées. Continuer quand même ?',
-  'file.invalid': "Ce fichier n'est pas un document Poulpe valide.",
+  'file.invalid': "Ce fichier n'est pas un document Poulpe Design valide.",
   'file.tooNew':
-    'Ce document a été créé avec une version plus récente de Poulpe. Mettez l’appli à jour pour l’ouvrir.',
+    'Ce document a été créé avec une version plus récente de Poulpe Design. Mettez l’appli à jour pour l’ouvrir.',
   'file.saved': 'Document enregistré',
   'file.exported': 'Export terminé',
   'file.imageError': "Cette image n'a pas pu être lue.",
@@ -123,8 +123,8 @@ const fr = {
   'view.language': 'Langue',
 
   'help.shortcuts': 'Raccourcis clavier',
-  'help.about': 'À propos de Poulpe',
-  'help.aboutText': 'Poulpe {version}, application libre de création graphique sous licence MPL-2.0.',
+  'help.about': 'À propos de Poulpe Design',
+  'help.aboutText': 'Poulpe Design {version}, application libre de création graphique sous licence MPL-2.0.',
 
   'persona.draw': 'Dessin',
   'persona.photo': 'Photo',
@@ -329,7 +329,7 @@ const fr = {
   'cmd.clearGuides': 'Effacer les repères',
   'draft.title': 'Brouillon retrouvé',
   'draft.body':
-    'Poulpe a gardé une copie de « {name} » ({date}) qui n’a pas été enregistrée, sans doute parce que la fenêtre s’est fermée. Voulez-vous la rouvrir ?',
+    'Poulpe Design a gardé une copie de « {name} » ({date}) qui n’a pas été enregistrée, sans doute parce que la fenêtre s’est fermée. Voulez-vous la rouvrir ?',
   'draft.restore': 'Rouvrir le brouillon',
   'draft.discard': 'Ignorer',
   'export.pdfFontsMissing': 'PDF créé. Police non intégrée, remplacée par une police standard : {fonts}.',
@@ -373,7 +373,7 @@ const fr = {
   'history.element': 'Ajout d’un élément',
   'history.template': 'Modèle',
   'history.palette': 'Palette',
-  'new.welcome': 'Bienvenue dans Poulpe',
+  'new.welcome': 'Bienvenue dans Poulpe Design',
   'new.templates': 'Modèles',
   'new.formats': 'Formats',
   'new.custom2': 'Taille personnalisée',
@@ -661,7 +661,7 @@ const fr = {
   'hint.eraser': 'efface les pixels du calque (dans un masque : cache).',
   'hint.fill': 'clic pour remplir la zone de couleur proche.',
   'hint.magicEraser':
-    'peignez sur ce qui doit disparaître, puis relâchez : Poulpe le remplace par ce qui l’entoure.',
+    'peignez sur ce qui doit disparaître, puis relâchez : Poulpe Design le remplace par ce qui l’entoure.',
   'hint.clone': 'Alt + clic pour choisir la source, puis peindre pour la recopier.',
   'hint.dodge': 'peindre pour éclaircir.',
   'hint.burn': 'peindre pour assombrir.',
@@ -920,7 +920,7 @@ const fr = {
 export type MessageKey = keyof typeof fr | MessageKeyV1 | MessageKeyLayers;
 
 const en: Record<Exclude<MessageKey, MessageKeyV1 | MessageKeyLayers>, string> = {
-  'app.name': 'Poulpe',
+  'app.name': 'Poulpe Design',
   'app.untitled': 'Untitled',
 
   'menu.file': 'File',
@@ -942,8 +942,8 @@ const en: Record<Exclude<MessageKey, MessageKeyV1 | MessageKeyLayers>, string> =
   'file.exportSvg': 'Export as SVG…',
   'file.exportPdf': 'Export as PDF…',
   'file.unsaved': 'The document has unsaved changes. Continue anyway?',
-  'file.invalid': 'This file is not a valid Poulpe document.',
-  'file.tooNew': 'This document was made with a newer version of Poulpe. Update the app to open it.',
+  'file.invalid': 'This file is not a valid Poulpe Design document.',
+  'file.tooNew': 'This document was made with a newer version of Poulpe Design. Update the app to open it.',
   'file.saved': 'Document saved',
   'file.exported': 'Export finished',
   'file.imageError': 'This image could not be read.',
@@ -1037,8 +1037,8 @@ const en: Record<Exclude<MessageKey, MessageKeyV1 | MessageKeyLayers>, string> =
   'view.language': 'Language',
 
   'help.shortcuts': 'Keyboard Shortcuts',
-  'help.about': 'About Poulpe',
-  'help.aboutText': 'Poulpe {version}, a free graphic design app under the MPL-2.0 license.',
+  'help.about': 'About Poulpe Design',
+  'help.aboutText': 'Poulpe Design {version}, a free graphic design app under the MPL-2.0 license.',
 
   'persona.draw': 'Draw',
   'persona.photo': 'Photo',
@@ -1240,7 +1240,7 @@ const en: Record<Exclude<MessageKey, MessageKeyV1 | MessageKeyLayers>, string> =
   'cmd.clearGuides': 'Clear guides',
   'draft.title': 'Draft recovered',
   'draft.body':
-    'Poulpe kept an unsaved copy of “{name}” ({date}), probably because the window was closed. Do you want to reopen it?',
+    'Poulpe Design kept an unsaved copy of “{name}” ({date}), probably because the window was closed. Do you want to reopen it?',
   'draft.restore': 'Reopen draft',
   'draft.discard': 'Discard',
   'export.pdfFontsMissing': 'PDF created. Font not embedded, replaced by a standard font: {fonts}.',
@@ -1284,7 +1284,7 @@ const en: Record<Exclude<MessageKey, MessageKeyV1 | MessageKeyLayers>, string> =
   'history.element': 'Add element',
   'history.template': 'Template',
   'history.palette': 'Palette',
-  'new.welcome': 'Welcome to Poulpe',
+  'new.welcome': 'Welcome to Poulpe Design',
   'new.templates': 'Templates',
   'new.formats': 'Formats',
   'new.custom2': 'Custom size',
@@ -1570,7 +1570,7 @@ const en: Record<Exclude<MessageKey, MessageKeyV1 | MessageKeyLayers>, string> =
   'hint.eraser': 'erases the layer’s pixels (in a mask: hides).',
   'hint.fill': 'click to fill the area of similar color.',
   'hint.magicEraser':
-    'paint over what should disappear, then release: Poulpe replaces it with its surroundings.',
+    'paint over what should disappear, then release: Poulpe Design replaces it with its surroundings.',
   'hint.clone': 'Alt + click to pick the source, then paint to copy it.',
   'hint.dodge': 'paint to lighten.',
   'hint.burn': 'paint to darken.',

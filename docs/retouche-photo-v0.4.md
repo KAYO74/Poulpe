@@ -2,7 +2,7 @@
 
 5 octobre 2026
 
-La v0.4 ajoute à Poulpe une **Persona Photo**, comme dans Affinity Photo : on retouche une photo avec des pinceaux, des sélections, une gomme magique, des calques de réglage, des filtres et des masques. Tout fonctionne sur l'ordinateur, sans connexion et sans service payant.
+La v0.4 ajoute à Poulpe Design une **Persona Photo**, comme dans Affinity Photo : on retouche une photo avec des pinceaux, des sélections, une gomme magique, des calques de réglage, des filtres et des masques. Tout fonctionne sur l'ordinateur, sans connexion et sans service payant.
 
 ## Ce que voit l'utilisateur
 
@@ -10,7 +10,7 @@ La v0.4 ajoute à Poulpe une **Persona Photo**, comme dans Affinity Photo : on r
 - **Outils de la Persona Photo** (colonne de droite) :
   - Sélection rectangle (M), ellipse, lasso (L) et baguette magique (W). Maj ajoute à la sélection, Alt retire, Maj+Alt garde l'intersection ; la barre contextuelle propose les mêmes modes, le contour progressif, la tolérance et « Pixels contigus ». La sélection s'affiche en pointillés animés.
   - Pinceau (B), gomme (E) et pot de peinture (G). Le pinceau suit la pression du stylet. Taille, dureté, opacité et flux se règlent dans la barre contextuelle et dans l'onglet Pinceau ; [ et ] changent la taille, X échange les deux couleurs, D remet noir et blanc. Peindre sans calque de pixels sélectionné en crée un.
-  - **Gomme magique** (J) : on peint sur ce qui doit disparaître (en rouge), on relâche, et Poulpe le remplace par ce qui l'entoure. Édition > Remplir d'après le contenu fait la même chose sur la sélection.
+  - **Gomme magique** (J) : on peint sur ce qui doit disparaître (en rouge), on relâche, et Poulpe Design le remplace par ce qui l'entoure. Édition > Remplir d'après le contenu fait la même chose sur la sélection.
   - Tampon de duplication (S, Alt+clic pour choisir la source), densité + et − (O), flou et netteté au pinceau (R).
   - Texte, pipette (qui prend la couleur du pinceau), main et zoom, comme en Persona Dessin.
 - **Menu Sélection** : tout sélectionner (Ctrl+A), désélectionner (Ctrl+D), inverser (Ctrl+Maj+I), contour progressif, dilater, contracter, sélectionner d'après un calque.
