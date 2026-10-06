@@ -116,6 +116,7 @@ export const frPrefs = {
   'help.docs': 'Documentation',
   'help.faq': 'Questions fréquentes',
   'help.diagnostic': 'Diagnostic…',
+  'help.settings': 'Paramètres…',
   'help.title': 'Aide de Poulpe Design',
   'help.tab.start': 'Bien démarrer',
   'help.tab.faq': 'Questions fréquentes',
@@ -153,7 +154,7 @@ export const frPrefs = {
   'help.perf.3':
     'Processeur : les calculs lourds (détourage) tournent hors de l’interface et peuvent utiliser plusieurs cœurs.',
   'help.perf.4':
-    'Le diagnostic (Aide > Diagnostic) montre ce que Poulpe Design voit de votre ordinateur, et se copie pour signaler un problème.',
+    'Le diagnostic (Aide > Paramètres, onglet Diagnostic) montre ce que Poulpe Design voit de votre ordinateur, et se copie pour signaler un problème.',
 };
 
 export type MessageKeyPrefs = keyof typeof frPrefs;
@@ -270,6 +271,7 @@ export const enPrefs: Record<MessageKeyPrefs, string> = {
   'help.docs': 'Documentation',
   'help.faq': 'Frequently Asked Questions',
   'help.diagnostic': 'Diagnostics…',
+  'help.settings': 'Settings…',
   'help.title': 'Poulpe Design Help',
   'help.tab.start': 'Getting started',
   'help.tab.faq': 'FAQ',
@@ -306,5 +308,5 @@ export const enPrefs: Record<MessageKeyPrefs, string> = {
   'help.perf.3':
     'Processor: heavy computations (background removal) run outside the interface and can use several cores.',
   'help.perf.4':
-    'Diagnostics (Help > Diagnostics) shows what Poulpe Design sees of your computer, and can be copied to report a problem.',
+    'Diagnostics (Help > Settings, Diagnostics tab) shows what Poulpe Design sees of your computer, and can be copied to report a problem.',
 };
