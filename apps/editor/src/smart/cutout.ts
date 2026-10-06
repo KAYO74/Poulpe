@@ -5,6 +5,7 @@ import { selectFromMatte } from '../photo/selection';
 import { editor, toast, ui, type SelectionMode } from '../store';
 import { traceSource } from './vectorize';
 import { WorkerClient } from './workers';
+import { getPerf, subscribePerf, threadCount } from '../preferences';
 
 /*
  * Détourage automatique par IA, sur l'ordinateur : « Sélectionner le sujet » (menu Sélection) et
@@ -12,11 +13,25 @@ import { WorkerClient } from './workers';
  * Photoshop). Le modèle U²-Net tourne dans un Web Worker, sans connexion ni service payant.
  */
 
-type MatteRequest = { modelUrl: string; data: Uint8ClampedArray; width: number; height: number };
+type MatteRequest = {
+  modelUrl: string;
+  data: Uint8ClampedArray;
+  width: number;
+  height: number;
+  threads: number;
+};
 
 const client = new WorkerClient<MatteRequest, { alpha: Uint8ClampedArray }>(
   () => new Worker(new URL('./cutout.worker.ts', import.meta.url), { type: 'module' }),
 );
+
+// Le nombre de threads n'est lu qu'au chargement du modèle : un changement relance le worker.
+let threads = getPerf().threads;
+subscribePerf(() => {
+  if (getPerf().threads === threads) return;
+  threads = getPerf().threads;
+  client.reset();
+});
 
 /** Résolution de travail : le masque est affiné à cette taille, puis agrandi en douceur. */
 const WORK_SIDE = 1024;
@@ -36,7 +51,7 @@ export async function subjectMatte(node: ImageNode): Promise<HTMLCanvasElement |
   try {
     const data = new Uint8ClampedArray(px.data);
     const { alpha } = await client.run(
-      { modelUrl: modelUrl(), data, width: px.width, height: px.height },
+      { modelUrl: modelUrl(), data, width: px.width, height: px.height, threads: threadCount() },
       (r) => !!r.alpha,
       [data.buffer],
       (progress) => ui.set({ busy: { label, progress } }),

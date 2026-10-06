@@ -1,6 +1,9 @@
 import { findArtboard } from '@poulpe/core';
 import { boundsOf } from '../actions';
 import { useT } from '../i18n';
+import { useEffect, useState } from 'react';
+import { formatMb } from '../diagnostics';
+import { usedMemoryMb } from '../preferences';
 import { useEditor, useUi } from '../store';
 
 const HINTS: Record<string, string> = {
@@ -21,6 +24,35 @@ const HINTS: Record<string, string> = {
   pencil: 'hint.pencil',
 };
 
+/**
+ * Images par seconde et mémoire (Préférences > Affichage) : compte les images dessinées par le
+ * navigateur pendant une seconde. Ne tourne que si l'option est cochée.
+ */
+function PerfMeter() {
+  const [stats, setStats] = useState<{ fps: number; mem: number | null }>({ fps: 0, mem: null });
+  useEffect(() => {
+    let frames = 0;
+    let start = performance.now();
+    let raf = 0;
+    const tick = (now: number) => {
+      frames++;
+      if (now - start >= 1000) {
+        setStats({ fps: Math.round((frames * 1000) / (now - start)), mem: usedMemoryMb() });
+        frames = 0;
+        start = now;
+      }
+      raf = requestAnimationFrame(tick);
+    };
+    raf = requestAnimationFrame(tick);
+    return () => cancelAnimationFrame(raf);
+  }, []);
+  return (
+    <span className="num perf-meter" data-testid="perf-meter">
+      {stats.fps} i/s{stats.mem !== null && ` · ${formatMb(stats.mem)}`}
+    </span>
+  );
+}
+
 export function StatusBar() {
   const t = useT();
   const tool = useUi((s) => s.tool);
@@ -29,6 +61,7 @@ export function StatusBar() {
   const toastMsg = useUi((s) => s.toast);
   const cropping = useUi((s) => s.cropId !== null);
   const busy = useUi((s) => s.busy);
+  const perfMeter = useUi((s) => s.settings.perfMeter);
   const { doc, selection, activeArtboardId } = useEditor();
   const ab = findArtboard(doc, activeArtboardId);
   const b = selection.length ? boundsOf(doc, selection) : null;
@@ -57,6 +90,7 @@ export function StatusBar() {
       </span>
       <span className="num">{cursor ? `x ${cursor.x} · y ${cursor.y}` : 'x – · y –'}</span>
       {ab && <span className="num">{`${ab.width} × ${ab.height} px`}</span>}
+      {perfMeter && <PerfMeter />}
       <span className="num" data-testid="zoom">
         {Math.round(zoom * 100)} %
       </span>

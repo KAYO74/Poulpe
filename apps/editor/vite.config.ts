@@ -4,6 +4,11 @@ import react from '@vitejs/plugin-react';
 
 const pkg = JSON.parse(readFileSync(new URL('../../package.json', import.meta.url), 'utf8'));
 
+const ISOLATION = {
+  'Cross-Origin-Opener-Policy': 'same-origin',
+  'Cross-Origin-Embedder-Policy': 'require-corp',
+};
+
 // Chemins relatifs : la même compilation sert le site web et l'appli de bureau Tauri.
 export default defineConfig({
   base: './',
@@ -25,6 +30,9 @@ export default defineConfig({
   // La gomme magique calcule dans un Web Worker (module ES).
   worker: { format: 'es' },
   clearScreen: false,
-  server: { port: 5173, strictPort: true },
+  // Page isolée (COOP et COEP) : le détourage peut calculer sur plusieurs cœurs (Préférences >
+  // Performances). Mêmes en-têtes dans l'appli de bureau (tauri.conf.json).
+  server: { port: 5173, strictPort: true, headers: ISOLATION },
+  preview: { headers: ISOLATION },
   build: { target: 'es2022', sourcemap: true, chunkSizeWarningLimit: 1500 },
 });

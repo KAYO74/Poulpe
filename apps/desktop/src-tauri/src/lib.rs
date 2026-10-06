@@ -1,8 +1,11 @@
 //! Appli de bureau Poulpe Design : une fenêtre Tauri qui embarque l'éditeur web (`apps/editor`).
 //!
 //! Le côté Rust reste minimal : ouverture des fichiers `.poulpe` par double-clic,
-//! liste et données des polices installées, mesure des performances, et accès aux fichiers via
+//! liste et données des polices installées, mesure des performances, réglages de la carte
+//! graphique et mémoire de l'ordinateur (Préférences), et accès aux fichiers via
 //! les extensions officielles de Tauri.
+
+mod launch;
 
 use std::path::PathBuf;
 use std::sync::Mutex;
@@ -90,8 +93,22 @@ fn bench_report(app: tauri::AppHandle, report: String) {
     }
 }
 
+/// Mémoire de l'ordinateur (Préférences > Performances, Diagnostic).
+#[tauri::command]
+fn system_memory() -> launch::SystemMemory {
+    launch::system_memory()
+}
+
+/// Enregistre l'accélération matérielle et la carte graphique préférée, appliquées au prochain lancement.
+#[tauri::command]
+fn save_launch_prefs(app: tauri::AppHandle, prefs: String) -> Result<(), String> {
+    launch::write(&app.config().identifier, &prefs)
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
+    let context = tauri::generate_context!();
+    launch::apply(&context.config().identifier);
     let app = tauri::Builder::default()
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_fs::init())
@@ -108,9 +125,11 @@ pub fn run() {
             list_fonts,
             font_data,
             bench_mode,
-            bench_report
+            bench_report,
+            system_memory,
+            save_launch_prefs
         ])
-        .build(tauri::generate_context!())
+        .build(context)
         .expect("impossible de démarrer Poulpe Design");
 
     app.run(|_handle, _event| {

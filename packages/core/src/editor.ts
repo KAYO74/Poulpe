@@ -14,6 +14,17 @@ export interface HistoryEntry {
   extra?: unknown;
 }
 
+/** État complet de l'éditeur, opaque pour l'interface (voir `Editor.snapshot`). */
+export interface EditorSnapshot {
+  readonly past: HistoryEntry[];
+  readonly future: HistoryEntry[];
+  readonly label: string;
+  readonly savedDoc: PoulpeDocument | null;
+  readonly doc: PoulpeDocument;
+  readonly selection: string[];
+  readonly activeArtboardId: string;
+}
+
 /** Lecture et restauration d'un état hors document qui suit l'historique (voir `setExtraState`). */
 export interface ExtraState {
   get(): unknown;
@@ -39,7 +50,8 @@ type Recipe = (draft: PoulpeDocument) => void | string[];
 /**
  * Le cœur de l'éditeur : tout changement passe par une commande (`apply`) ou par un geste
  * (`begin` / `preview` / `commit`), ce qui rend l'annulation fiable. Les documents sont immuables
- * (immer) : l'historique, illimité, ne garde que des références, pas des copies.
+ * (immer) : l'historique ne garde que des références, pas des copies. Sa longueur est limitée
+ * par `setHistoryLimit` (Préférences > Performances), illimitée par défaut.
  */
 export class Editor {
   private past: HistoryEntry[] = [];
@@ -276,11 +288,42 @@ export class Editor {
     if (this.trim()) this.set(this.state.doc, this.state.selection);
   }
 
+  /** Oublie les plus anciennes étapes pour n'en garder que `keep` (manque de mémoire). */
+  dropOldHistory(keep: number): void {
+    const drop = this.past.length - Math.max(0, Math.floor(keep));
+    if (drop <= 0) return;
+    this.past.splice(0, drop);
+    this.set(this.state.doc, this.state.selection);
+  }
+
   private trim(): boolean {
     const drop = this.past.length - this.historyLimit;
     if (drop <= 0) return false;
     this.past.splice(0, drop);
     return true;
+  }
+
+  /** Copie de l'état complet (document, historique), pour le remettre tel quel avec `restore`. */
+  snapshot(): EditorSnapshot {
+    if (this.gesture) this.cancel();
+    return {
+      past: [...this.past],
+      future: [...this.future],
+      label: this.currentLabel,
+      savedDoc: this.savedDoc,
+      doc: this.state.doc,
+      selection: this.state.selection,
+      activeArtboardId: this.state.activeArtboardId,
+    };
+  }
+
+  restore(s: EditorSnapshot): void {
+    this.gesture = null;
+    this.past = [...s.past];
+    this.future = [...s.future];
+    this.currentLabel = s.label;
+    this.savedDoc = s.savedDoc;
+    this.set(s.doc, s.selection, s.activeArtboardId);
   }
 
   select(ids: string[]): void {
