@@ -88,7 +88,15 @@ export type Dialog =
   | 'update'
   | 'imageSize'
   | 'canvasSize'
-  | 'workspace';
+  | 'workspace'
+  | 'preferences'
+  | 'help';
+
+/** Catégories de la fenêtre Préférences. */
+export type PrefsTab =
+  'general' | 'performance' | 'display' | 'layers' | 'shortcuts' | 'advanced' | 'diagnostic';
+/** Rubriques de l'aide intégrée. */
+export type HelpTab = 'start' | 'faq' | 'performance';
 
 export interface Settings {
   theme: Theme;
@@ -103,6 +111,8 @@ export interface Settings {
   showWelcome: boolean;
   /** Appli de bureau : chercher les mises à jour au lancement. */
   autoUpdate: boolean;
+  /** Images par seconde et mémoire utilisée dans la barre d'état. */
+  perfMeter: boolean;
 }
 
 export interface View {
@@ -172,6 +182,8 @@ export interface UiState {
   panelDock: PanelId | null;
   /** Espace de travail modifié dans la boîte « Espace de travail » (null : nouvel espace). */
   workspaceEdit: string | null;
+  prefsTab: PrefsTab;
+  helpTab: HelpTab;
 }
 
 const SETTINGS_KEY = 'poulpe.settings';
@@ -187,6 +199,7 @@ function loadSettings(): Settings {
     library: true,
     showWelcome: true,
     autoUpdate: true,
+    perfMeter: false,
   };
   try {
     return { ...fallback, ...JSON.parse(localStorage.getItem(SETTINGS_KEY) ?? '{}') };
@@ -256,6 +269,8 @@ export const ui = new Store<UiState>({
   cursor: null,
   panelDock: null,
   workspaceEdit: null,
+  prefsTab: 'general',
+  helpTab: 'start',
 });
 
 export function setSettings(patch: Partial<Settings>): void {

@@ -426,6 +426,21 @@ export const COMMANDS = {
   },
   'view.resetPanels': { label: 'view.resetPanels', run: () => resetPanels() },
 
+  'app.preferences': {
+    label: 'prefs.menu',
+    shortcut: 'Mod+,',
+    run: () => ui.set({ dialog: 'preferences' }),
+  },
+  'help.docs': {
+    label: 'help.docs',
+    shortcut: 'F1',
+    run: () => ui.set({ dialog: 'help', helpTab: 'start' }),
+  },
+  'help.faq': { label: 'help.faq', run: () => ui.set({ dialog: 'help', helpTab: 'faq' }) },
+  'help.diagnostic': {
+    label: 'help.diagnostic',
+    run: () => ui.set({ dialog: 'preferences', prefsTab: 'diagnostic' }),
+  },
   'help.shortcuts': {
     label: 'help.shortcuts',
     shortcut: 'Mod+/',

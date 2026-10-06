@@ -150,6 +150,8 @@ export function MenuBar() {
         <Sep />
         <Item id="edit.clearPixels" />
         <Item id="edit.contentAwareFill" />
+        <Sep />
+        <Item id="app.preferences" />
       </Top>
       <Top label={t('menu.layer')}>
         <Item id="layer.newPixel" />
@@ -351,8 +353,13 @@ export function MenuBar() {
       </Top>
       <ExtensionsMenu />
       <Top label={t('menu.help')}>
+        <Item id="help.docs" />
+        <Item id="help.faq" />
         <Item id="help.shortcuts" />
+        <Sep />
+        <Item id="help.diagnostic" />
         <Item id="help.checkUpdates" />
+        <Sep />
         <Item id="help.about" />
       </Top>
     </nav>
