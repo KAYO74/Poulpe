@@ -22,8 +22,8 @@ Temps moyen d'une image, en millisecondes (images par seconde entre parenthèses
 | Défilement                       | 24 (42) | 1,4 (713) | 113 (9)              | 6 (166)              |
 | Zoom                             | 69 (15) | 3,6 (279) | 337 (3)              | 15 (66)              |
 | Défilement à fort zoom (× 4)     | 54 (18) | 3,3 (307) | 270 (4)              | 17 (60)              |
-| Déplacement de 50 objets         | 54 (18) | 29 (35)   | 247 (4)              | 146 (7)              |
-| Réglage de la couleur d'un objet | 49 (20) | 25 (41)   | 223 (4)              | 122 (8)              |
+| Déplacement de 50 objets         | 54 (18) | 15 (66)   | 247 (4)              | 68 (15)              |
+| Réglage de la couleur d'un objet | 49 (20) | 11 (90)   | 223 (4)              | 48 (21)              |
 | Premier affichage du document    | 24 (41) | 17 (59)   | 113 (9)              | 117 (9)              |
 
 Pas de fuite de mémoire : la mesure complète rejouée 4 fois de suite dans la même fenêtre, la mémoire JavaScript reste stable (47, 49, 49, 49 Mo après nettoyage). Les images gardées par le cache sont limitées par le réglage « Cache d'images » (256 Mo au plus par défaut) ; pour un écran de cette taille, elles occupent quelques Mo.
