@@ -62,7 +62,7 @@ L'appli n'est pas encore signée : au premier lancement, Windows et macOS affich
   </tr>
   <tr>
     <td width="50%"><img src="docs/images/mise-en-page.png" alt="La Persona Mise en page : panneau Pages avec pages maîtres et miniatures"></td>
-    <td width="50%"><img src="docs/images/editeur-clair-anglais.png" alt="L'éditeur en thème clair et en anglais, avec un dégradé linéaire sur une carte"></td>
+    <td width="50%"><img src="docs/images/editeur-clair-anglais.png" alt="L'éditeur en thème clair et en anglais, avec un dégradé linéaire sur une carte « Summer Sale »"></td>
   </tr>
   <tr>
     <td align="center">Mise en page sur plusieurs pages</td>
@@ -75,6 +75,14 @@ L'appli n'est pas encore signée : au premier lancement, Windows et macOS affich
   <tr>
     <td align="center">Vectoriser une image en un clic</td>
     <td align="center">Panneaux flottants, comme dans Photoshop</td>
+  </tr>
+  <tr>
+    <td width="50%"><img src="docs/images/espace-de-travail.png" alt="La fenêtre « Nouvel espace de travail » : nom, type (vectoriel, pixel, présentation), outils et panneaux affichés"></td>
+    <td width="50%"><img src="docs/images/extensions.png" alt="Trois rosaces dessinées par une extension, le menu Extensions ouvert et l'onglet Macros du Studio"></td>
+  </tr>
+  <tr>
+    <td align="center">Vos propres espaces de travail, comme dans Affinity</td>
+    <td align="center">Extensions et macros</td>
   </tr>
 </table>
 
