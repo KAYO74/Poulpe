@@ -10,9 +10,10 @@ Poulpe Design n'est pas encore signé numériquement. Windows et macOS se méfie
 
 1. Téléchargez `Poulpe_windows_x64-setup.exe`.
 2. Double-cliquez dessus. Si Windows affiche « Windows a protégé votre ordinateur », cliquez sur **Informations complémentaires**, puis sur **Exécuter quand même**.
-3. Suivez l'assistant. Poulpe Design apparaît ensuite dans le menu Démarrer, et les fichiers `.poulpe` s'ouvrent d'un double-clic.
+3. L'assistant demande d'abord la langue : **Français** ou **English**. Poulpe Design s'ouvrira dans cette langue.
+4. Suivez l'assistant. Poulpe Design apparaît ensuite dans le menu Démarrer, et les fichiers `.poulpe` s'ouvrent d'un double-clic.
 
-Les entreprises qui déploient des logiciels préfèrent souvent l'installeur `.msi`, disponible sur la page Versions.
+Les entreprises qui déploient des logiciels préfèrent souvent l'installeur `.msi`, disponible sur la page Versions. Il ne demande pas la langue : Poulpe Design la demande alors au premier lancement.
 
 ## macOS
 
@@ -42,6 +43,10 @@ sudo apt install ./Poulpe_linux_amd64.deb
 chmod +x Poulpe_linux_amd64.AppImage
 ./Poulpe_linux_amd64.AppImage
 ```
+
+## Langue et thème
+
+Sur macOS et Linux, qui n'ont pas d'assistant d'installation, Poulpe Design demande la langue au premier lancement. Ensuite, sur tous les systèmes, la langue et le thème sombre ou clair se changent dans **Édition > Préférences** (ou Ctrl+, sur Windows et Linux, Cmd+, sur Mac).
 
 ## Sans installation
 

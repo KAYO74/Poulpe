@@ -91,7 +91,8 @@ export type Dialog =
   | 'canvasSize'
   | 'workspace'
   | 'preferences'
-  | 'help';
+  | 'help'
+  | 'language';
 
 /** Catégories de la fenêtre Préférences. */
 export type PrefsTab =

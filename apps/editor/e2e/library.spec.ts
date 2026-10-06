@@ -163,7 +163,9 @@ test('masque la bibliothèque et l’affiche en anglais', async ({ page }) => {
   await start(page);
   await page.getByRole('button', { name: 'Bibliothèque' }).first().click();
   await expect(page.getByTestId('library')).toHaveCount(0);
-  await page.getByRole('button', { name: 'Langue' }).click();
+  await page.keyboard.press('Control+,');
+  await page.getByTestId('prefs-language').selectOption('en');
+  await page.keyboard.press('Escape');
   await page.getByRole('button', { name: 'Library' }).first().click();
   await expect(page.getByTestId('library')).toBeVisible();
   await expect(page.getByTestId('lib-tab-templates')).toHaveText('Templates');
