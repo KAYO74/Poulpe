@@ -1,22 +1,22 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<!-- Fiche AppStream de Poulpe : c'est elle qu'affichent Flathub et les logithèques Linux. -->
+<!-- Fiche AppStream de Poulpe Design : c'est elle qu'affichent Flathub et les logithèques Linux. -->
 <component type="desktop-application">
   <id>io.github.kayo74.Poulpe</id>
-  <name>Poulpe</name>
+  <name>Poulpe Design</name>
   <summary>Free graphic design: vector, photo editing and layout</summary>
   <summary xml:lang="fr">Création graphique libre : vectoriel, retouche photo et mise en page</summary>
   <metadata_license>CC0-1.0</metadata_license>
   <project_license>MPL-2.0</project_license>
   <developer id="io.github.kayo74">
-    <name>Poulpe contributors</name>
+    <name>Poulpe Design contributors</name>
   </developer>
   <description>
     <p>
-      Poulpe is a free and open source graphic design application, in the spirit of Affinity, Illustrator and
+      Poulpe Design is a free and open source graphic design application, in the spirit of Affinity, Illustrator and
       Photoshop. One document brings together three workspaces: Draw, Photo and Layout.
     </p>
     <p xml:lang="fr">
-      Poulpe est une application libre de création graphique, dans l’esprit d’Affinity, d’Illustrator et de
+      Poulpe Design est une application libre de création graphique, dans l’esprit d’Affinity, d’Illustrator et de
       Photoshop. Un même document réunit trois espaces de travail : Dessin, Photo et Mise en page.
     </p>
     <ul>

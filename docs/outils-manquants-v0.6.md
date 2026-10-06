@@ -62,9 +62,9 @@ Le format de fichier passe en version 7 (voir [format-poulpe.md](format-poulpe.m
 ## Choix et écarts
 
 - **Le cutter d'une forme pleine passe par les booléens.** Couper une forme en deux revient à l'intersecter avec deux demi-plans très grands, de chaque côté de la ligne : le résultat est juste même sur des formes à trous ou à plusieurs sous-tracés, sans écrire un découpage géométrique de plus.
-- **Dégradé conique.** La toile du navigateur sait le dessiner (`createConicGradient`) ; là où elle ne sait pas, Poulpe le remplace par des secteurs. SVG n'a pas de dégradé conique du tout : l'export l'approche aussi par des secteurs, à l'œil identique.
+- **Dégradé conique.** La toile du navigateur sait le dessiner (`createConicGradient`) ; là où elle ne sait pas, Poulpe Design le remplace par des secteurs. SVG n'a pas de dégradé conique du tout : l'export l'approche aussi par des secteurs, à l'œil identique.
 - **Fonctions OpenType : seules `smcp`, `c2sc` et `kern` changent le texte à l'écran**, car le Canvas 2D ne sait pas activer les autres. Les autres sont gardées dans le document et appliquées à l'export SVG et PDF ainsi qu'à la conversion en courbes ; l'onglet Caractère le dit quand c'est le cas.
-- **Contours à largeur variable.** Le contour devient une forme pleine calculée par Poulpe, pour que la toile et le SVG donnent exactement le même dessin. Les pointillés et les flèches ne s'appliquent pas à un contour de largeur variable.
+- **Contours à largeur variable.** Le contour devient une forme pleine calculée par Poulpe Design, pour que la toile et le SVG donnent exactement le même dessin. Les pointillés et les flèches ne s'appliquent pas à un contour de largeur variable.
 - **Biseau.** Le relief est simulé par deux copies décalées de la forme, l'une en lumière et l'autre en ombre, découpées à l'intérieur de la forme. C'est l'approche d'un effet de calque, pas un calcul d'éclairage : le résultat est net et rapide, sans WebGL.
 - **Remplissage maillage :** pas dans cette version. Un vrai dégradé de maillage demande une grille de points de contrôle et un rendu dédié ; le conique, le radial et les motifs couvrent la plupart des besoins en attendant.
 - **Reporté (v1.0) :** vectorisation d'images, détourage par IA locale, macros et extensions, mise à jour automatique.
