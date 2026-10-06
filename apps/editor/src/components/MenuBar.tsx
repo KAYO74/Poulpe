@@ -371,7 +371,7 @@ export function MenuBar() {
         <Item id="help.faq" />
         <Item id="help.shortcuts" />
         <Sep />
-        <Item id="help.diagnostic" />
+        <Item id="help.settings" />
         <Item id="help.checkUpdates" />
         <Sep />
         <Item id="help.about" />
