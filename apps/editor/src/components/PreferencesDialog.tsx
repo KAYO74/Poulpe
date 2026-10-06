@@ -34,6 +34,7 @@ import { Modal } from './Dialogs';
 import { NumberField, Select } from './fields';
 import { Icon, type IconName } from './Icon';
 import { ShortcutsEditor } from './ShortcutsDialog';
+import { renderStats, type RenderStats } from '../perf';
 
 const close = () => ui.set({ dialog: null });
 
@@ -521,6 +522,11 @@ function DiagnosticPane() {
   const [report, setReport] = useState<DiagnosticReport | null>(null);
   const [running, setRunning] = useState(false);
   const [bench, setBench] = useState<number | null | 'running'>(null);
+  const [render, setRender] = useState<RenderStats>(() => renderStats());
+  useEffect(() => {
+    const id = setInterval(() => setRender(renderStats()), 1000);
+    return () => clearInterval(id);
+  }, []);
   const run = async () => {
     setRunning(true);
     try {
@@ -534,7 +540,10 @@ function DiagnosticPane() {
   }, []);
   const copy = async () => {
     if (!report) return;
-    const text = reportText(report) + (typeof bench === 'number' ? `\nTest de vitesse : ${bench} i/s` : '');
+    const text =
+      reportText(report) +
+      `\nRendu : cache ${render.usedMb} / ${render.budgetMb} Mo (${render.entries} images), image ${render.frameAvgMs} ms en moyenne, ${render.frameMaxMs} ms au pire` +
+      (typeof bench === 'number' ? `\nTest de vitesse : ${bench} i/s` : '');
     try {
       await navigator.clipboard.writeText(text);
       toast(t('diag.copied'));
@@ -589,6 +598,16 @@ function DiagnosticPane() {
               <dd>{report.webgpu ?? t('diag.none')}</dd>
             </dl>
             {gpus > 1 && <p className="note small">{t('diag.gpus', { n: gpus })}</p>}
+          </Section>
+          <Section title={t('diag.render')}>
+            <dl className="prefs-facts" data-testid="diag-render">
+              <dt>{t('prefs.cache')}</dt>
+              <dd>
+                {t('diag.cacheUse', { used: render.usedMb, budget: render.budgetMb, n: render.entries })}
+              </dd>
+              <dt>{t('diag.frame')}</dt>
+              <dd>{t('diag.frameMs', { avg: render.frameAvgMs, max: render.frameMaxMs })}</dd>
+            </dl>
           </Section>
           <Section title={t('diag.system')}>
             <dl className="prefs-facts">

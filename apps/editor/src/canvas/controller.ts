@@ -42,18 +42,12 @@ import {
   pageFields as pageFieldsOf,
   softProofPixels,
 } from '@poulpe/core';
-import {
-  ImageCache,
-  cachedFlow,
-  clearLayoutCache,
-  drawArtboard,
-  measureText,
-  nodePath,
-} from '@poulpe/render';
+import { ImageCache, RenderCache, cachedFlow, clearLayoutCache, measureText, nodePath } from '@poulpe/render';
+import { onPerformanceSettings, recordFrame, setRenderStatsSource } from '../perf';
 import { setPaint } from '../actions';
 import { t } from '../i18n';
 import { importImage } from '../io';
-import { editor, pushRecentColor, ui, type ToolId } from '../store';
+import { editor, pushRecentColor, ui, type ToolId, type UiState } from '../store';
 import {
   collectSnapLines,
   idsWithDescendants,
@@ -127,6 +121,38 @@ type Gesture =
 
 const SHAPE_TOOLS: ToolId[] = ['rect', 'ellipse', 'polygon', 'star', 'line'];
 
+/** État de l'interface sans effet sur le dessin du canevas. */
+const UI_IGNORED = new Set<keyof UiState>([
+  'cursor',
+  'toast',
+  'busy',
+  'dialog',
+  'panelDock',
+  'recentColors',
+  'filePath',
+  'workspaceEdit',
+]);
+
+/** Délai après un zoom ou un défilement avant de redessiner net. */
+const SETTLE_MS = 140;
+
+/** Objets du premier niveau des plans de travail, par id de tout objet qu'ils contiennent. */
+const topLevelCache = new WeakMap<PoulpeDocument, Map<string, string>>();
+function topLevelOf(doc: PoulpeDocument): Map<string, string> {
+  let map = topLevelCache.get(doc);
+  if (map) return map;
+  map = new Map();
+  const visit = (nodes: SceneNode[], top: string) => {
+    for (const n of nodes) {
+      map!.set(n.id, top);
+      if (n.type === 'group') visit(n.children, top);
+    }
+  };
+  for (const ab of doc.artboards) for (const n of ab.children) visit([n], n.id);
+  topLevelCache.set(doc, map);
+  return map;
+}
+
 export class CanvasController {
   readonly images: ImageCache;
   /** Plume, crayon et outil Nœud. */
@@ -145,6 +171,12 @@ export class CanvasController {
   private colors: Record<string, string> = {};
   private unsubscribe: (() => void)[] = [];
   private lastPointer: Vec = { x: 0, y: 0 };
+  /** Contenu des plans de travail gardé en images (voir `RenderCache`). */
+  private readonly cache = new RenderCache();
+  /** Dernier changement de vue (zoom, défilement) : pendant le geste, un aperçu étiré suffit. */
+  private viewChangedAt = 0;
+  private refreshTimer: ReturnType<typeof setTimeout> | undefined;
+  private checker: CanvasPattern | null = null;
 
   constructor(
     readonly canvas: HTMLCanvasElement,
@@ -155,6 +187,18 @@ export class CanvasController {
     this.paths = new PathTools(this);
     this.photo = new PhotoTools(this);
     this.readColors();
+    this.unsubscribe.push(
+      onPerformanceSettings((s) => {
+        this.cache.budget = s.cacheMb * 1024 * 1024;
+        this.cache.quality = s.previewQuality;
+        if (this.cache.accelerated !== s.hardwareAcceleration) {
+          this.cache.accelerated = s.hardwareAcceleration;
+          this.cache.invalidate();
+        }
+        this.requestDraw();
+      }),
+    );
+    setRenderStatsSource(() => this.cache.stats());
     let lastSelection = editor.selection;
     this.unsubscribe.push(
       editor.subscribe(() => {
@@ -172,9 +216,27 @@ export class CanvasController {
         this.requestDraw();
       }),
     );
+    let lastUi = ui.get();
     this.unsubscribe.push(
       ui.subscribe(() => {
-        this.readColors();
+        const s = ui.get();
+        const prev = lastUi;
+        lastUi = s;
+        // La position du pointeur, les messages et les boîtes de dialogue ne changent pas le canevas :
+        // le survol redessinait tout le document à chaque mouvement de souris.
+        let changed = false;
+        for (const k in s) {
+          const key = k as keyof typeof s;
+          if (s[key] !== prev[key] && !UI_IGNORED.has(key)) {
+            changed = true;
+            break;
+          }
+        }
+        if (!changed) return;
+        // Les couleurs du thème sont lues une fois la page mise à jour (thème, espace de travail).
+        if (s.settings !== prev.settings || s.persona !== prev.persona)
+          requestAnimationFrame(() => this.readColors());
+        if (s.view !== prev.view) this.viewChanged();
         this.updateCursor();
         this.requestDraw();
       }),
@@ -194,6 +256,8 @@ export class CanvasController {
   }
 
   dispose(): void {
+    clearTimeout(this.refreshTimer);
+    setRenderStatsSource(null);
     this.paths.dispose();
     this.photo.dispose();
     this.unsubscribe.forEach((u) => u());
@@ -210,6 +274,15 @@ export class CanvasController {
     window.removeEventListener('poulpe:fit', this.zoomToFit);
     window.removeEventListener('poulpe:textselection', this.requestDraw);
     document.fonts?.removeEventListener?.('loadingdone', this.onFontsLoaded);
+  }
+
+  /** Oublie les images gardées : le prochain dessin repart de zéro. */
+  invalidate(): void {
+    this.cache.invalidate();
+  }
+
+  private viewChanged() {
+    this.viewChangedAt = performance.now();
   }
 
   private onFontsLoaded = () => {
@@ -230,6 +303,7 @@ export class CanvasController {
       fg: v('--fg') || '#e7e6ec',
       line: v('--line') || '#3a3a41',
     };
+    this.requestDraw();
   }
 
   resize(width: number, height: number): void {
@@ -1305,15 +1379,43 @@ export class CanvasController {
   // ————— Dessin —————
 
   draw(): void {
+    const t0 = performance.now();
     const ctx = this.ctx;
     const { doc, selection, activeArtboardId } = editor.getState();
-    const { view, settings, editingTextId } = ui.get();
+    const { view, settings, editingTextId, cropId, perspectiveId, maskEditId } = ui.get();
     const dpr = this.dpr;
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
     ctx.fillStyle = this.colors.pasteboard;
     ctx.fillRect(0, 0, this.width, this.height);
     ctx.setTransform(dpr * view.zoom, 0, 0, dpr * view.zoom, dpr * view.panX, dpr * view.panY);
+    // Objets susceptibles de changer à chaque image : ils sont dessinés en direct, le reste vient du cache.
+    const top = topLevelOf(doc);
+    const hot = new Set<string>();
+    for (const id of [...selection, editingTextId, cropId, perspectiveId, maskEditId]) {
+      const t = id && top.get(id);
+      if (t) hot.add(t);
+    }
+    const cacheView = {
+      scale: dpr * view.zoom,
+      ox: dpr * view.panX,
+      oy: dpr * view.panY,
+      width: this.canvas.width,
+      height: this.canvas.height,
+    };
+    const allowStale = t0 - this.viewChangedAt < SETTLE_MS;
+    let stale = false;
+    this.cache.prune(doc);
     for (const ab of doc.artboards) {
+      // Plan de travail hors de l'écran : rien à dessiner.
+      const sx = ab.x * view.zoom + view.panX,
+        sy = ab.y * view.zoom + view.panY;
+      if (
+        sx > this.width + 40 ||
+        sy > this.height + 40 ||
+        sx + ab.width * view.zoom < -40 ||
+        sy + ab.height * view.zoom < -40
+      )
+        continue;
       ctx.save();
       ctx.shadowColor = 'rgba(0,0,0,0.35)';
       ctx.shadowBlur = 18 * dpr;
@@ -1322,9 +1424,21 @@ export class CanvasController {
       ctx.fillRect(ab.x, ab.y, ab.width, ab.height);
       ctx.restore();
       if (ab.background.type === 'none') this.drawChecker(ab);
-      drawArtboard(ctx, doc, ab, { images: this.images, editingId: editingTextId });
+      stale =
+        this.cache.drawArtboard(
+          ctx,
+          doc,
+          ab,
+          { images: this.images, editingId: editingTextId },
+          cacheView,
+          hot,
+          allowStale,
+        ) || stale;
       if (settings.grid) this.drawGrid(ab);
     }
+    // Aperçu étiré pendant un zoom : redessiné net quand le geste s'arrête.
+    clearTimeout(this.refreshTimer);
+    if (stale) this.refreshTimer = setTimeout(() => this.requestDraw(), SETTLE_MS);
     if (ui.get().softProof) this.softProof(doc);
     // Calques d'interface, en pixels d'écran.
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
@@ -1379,6 +1493,7 @@ export class CanvasController {
       }
       ctx.restore();
     }
+    recordFrame(performance.now() - t0);
     window.dispatchEvent(new Event('poulpe:drawn'));
   }
 
@@ -1402,17 +1517,27 @@ export class CanvasController {
     ctx.restore();
   }
 
+  /** Damier de transparence : un motif de 16 px d'écran, au lieu de milliers de petits carrés. */
   private drawChecker(ab: Artboard) {
     const ctx = this.ctx;
-    const s = 8 / this.view.zoom;
+    if (!this.checker) {
+      const tile = document.createElement('canvas');
+      tile.width = tile.height = 16;
+      const t = tile.getContext('2d')!;
+      t.fillStyle = '#ffffff';
+      t.fillRect(0, 0, 16, 16);
+      t.fillStyle = '#e6e6e6';
+      t.fillRect(8, 0, 8, 8);
+      t.fillRect(0, 8, 8, 8);
+      this.checker = ctx.createPattern(tile, 'repeat');
+    }
+    if (!this.checker) return;
+    const s = 1 / this.view.zoom;
+    // Le motif part du coin du plan de travail et garde sa taille à l'écran.
+    this.checker.setTransform(new DOMMatrix().translate(ab.x, ab.y).scale(s, s));
     ctx.save();
-    ctx.beginPath();
-    ctx.rect(ab.x, ab.y, ab.width, ab.height);
-    ctx.clip();
-    ctx.fillStyle = '#e6e6e6';
-    for (let y = 0; y < ab.height / s; y++)
-      for (let x = (y % 2) as number; x < ab.width / s; x += 2)
-        ctx.fillRect(ab.x + x * s, ab.y + y * s, s, s);
+    ctx.fillStyle = this.checker;
+    ctx.fillRect(ab.x, ab.y, ab.width, ab.height);
     ctx.restore();
   }
 

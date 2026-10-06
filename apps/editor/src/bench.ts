@@ -13,9 +13,15 @@ import { getController } from './components/Viewport';
 import { editor, ui } from './store';
 
 /*
- * Mesure des performances de dessin, pour comparer le navigateur et l'appli de bureau
- * (WebKitGTK sous Linux en particulier). Lancement : `?bench` dans l'URL de l'éditeur, ou
- * `POULPE_BENCH=1` pour l'appli de bureau, qui écrit le rapport sur la sortie standard.
+ * Mesure des performances, pour comparer le navigateur et l'appli de bureau (WebKitGTK sous
+ * Linux en particulier) et pour suivre l'effet des optimisations. Lancement : `?bench` dans
+ * l'URL de l'éditeur, ou `POULPE_BENCH=1` pour l'appli de bureau, qui écrit le rapport sur la
+ * sortie standard.
+ *
+ * Chaque scénario rejoue un geste réel (survol, déplacement, zoom…) image par image. Le temps
+ * d'une image compte tout le travail qu'elle provoque : le geste lui-même, la mise à jour des
+ * panneaux (React), les dessins demandés pour l'image suivante (canevas, règles) et la fin du
+ * dessin par le navigateur.
  */
 
 export interface BenchResult {
@@ -31,6 +37,8 @@ export interface BenchReport {
   viewport: { width: number; height: number; dpr: number };
   objects: number;
   results: BenchResult[];
+  /** Mémoire JavaScript occupée à la fin, en Mo (Chromium seulement). */
+  heapMb?: number;
 }
 
 const FRAMES = 60;
@@ -49,7 +57,7 @@ type Mix = 'all' | 'solid' | 'gradient' | 'text';
  * Document d'essai : `count` objets variés (dégradés, contours, rotations) dont un texte sur 25.
  * `mix` ne garde qu'une famille d'objets, pour savoir ce qui coûte.
  */
-function benchDocument(count: number, mix: Mix = 'all') {
+export function benchDocument(count: number, mix: Mix = 'all') {
   const doc = createDocument({ name: 'Mesure', width: 1920, height: 1080 });
   const ab = doc.artboards[0];
   const style = defaultStyle();
@@ -96,26 +104,76 @@ function benchDocument(count: number, mix: Mix = 'all') {
   return doc;
 }
 
-export async function runBenchmark(count = 1000): Promise<BenchReport> {
+/*
+ * Chronométrage des images demandées par `requestAnimationFrame` : on enveloppe la fonction
+ * pour additionner la durée des rappels exécutés pendant la mesure.
+ */
+let rafWork = 0;
+let rafPatched = false;
+function patchRaf() {
+  if (rafPatched) return;
+  rafPatched = true;
+  const raf = window.requestAnimationFrame.bind(window);
+  window.requestAnimationFrame = (cb) =>
+    raf((t) => {
+      const t0 = performance.now();
+      try {
+        cb(t);
+      } finally {
+        rafWork += performance.now() - t0;
+      }
+    });
+}
+
+const microtasks = async () => {
+  for (let i = 0; i < 3; i++) await Promise.resolve();
+};
+
+/** `only` : ne lancer que les scénarios dont le nom contient ce texte. */
+export async function runBenchmark(count = 1000, only?: string): Promise<BenchReport> {
   const c = getController();
   if (!c) throw new Error('canevas absent');
-  editor.load(benchDocument(count));
-  c.zoomToFit();
-  await new Promise((r) => setTimeout(r, 300));
-  const results: BenchResult[] = [];
+  patchRaf();
   const ctx = c.canvas.getContext('2d')!;
-  const measure = (scenario: string, step: (i: number) => void) => {
+  const results: BenchResult[] = [];
+  const invalidate = () => (c as unknown as { invalidate?: () => void }).invalidate?.();
+  // Laisse passer l'image en cours, puis vide les caches de rendu (premier affichage).
+  const settle = async () => {
+    await new Promise((r) => requestAnimationFrame(r));
+    await new Promise((r) => setTimeout(r, 50));
+  };
+
+  const measure = async (scenario: string, step: (i: number) => void) => {
+    if (only && !scenario.includes(only)) return;
+    await settle();
     const times: number[] = [];
     for (let i = 0; i < FRAMES + 5; i++) {
+      rafWork = 0;
       const t0 = performance.now();
       step(i);
-      c.draw();
-      // Lire un pixel force le navigateur à finir le dessin : on mesure le rendu réel.
-      ctx.getImageData(0, 0, 1, 1);
-      const dt = performance.now() - t0;
+      await microtasks();
+      const sync = performance.now() - t0;
+      // Image suivante : les dessins demandés par le geste, puis la fin du dessin.
+      const flush = await new Promise<number>((r) =>
+        requestAnimationFrame(() => {
+          const f0 = performance.now();
+          // Lire un pixel force le navigateur à finir le dessin : on mesure le rendu réel.
+          ctx.getImageData(0, 0, 1, 1);
+          r(performance.now() - f0);
+        }),
+      );
+      // `rafWork` compte aussi notre propre rappel, donc la fin du dessin (`flush`).
+      void flush;
+      const dt = sync + rafWork;
       if (i >= 5) times.push(dt);
     }
     results.push(stats(scenario, times));
+  };
+
+  const load = async (mix: Mix = 'all') => {
+    editor.load(benchDocument(count, mix));
+    c.zoomToFit();
+    await settle();
   };
 
   for (const [mix, label] of [
@@ -123,35 +181,88 @@ export async function runBenchmark(count = 1000): Promise<BenchReport> {
     ['gradient', 'formes en dégradé seules'],
     ['text', 'blocs de texte seuls'],
   ] as const) {
-    editor.load(benchDocument(count, mix));
-    measure(`redessin, ${label} (${editor.doc.artboards[0].children.length})`, () => {});
+    await load(mix);
+    await measure(`premier affichage, ${label} (${editor.doc.artboards[0].children.length})`, () => {
+      invalidate();
+      c.requestDraw();
+    });
   }
-  editor.load(benchDocument(count));
-  measure('redessin complet', () => {});
+  await load();
+  await measure('premier affichage, document complet', () => {
+    invalidate();
+    c.requestDraw();
+  });
 
-  const ids = editor.doc.artboards[0].children.slice(0, 50).map((n) => n.id);
+  // Survol : la souris passe sur les objets, sans rien modifier.
+  const rect = c.canvas.getBoundingClientRect();
+  await measure('survol à la souris', (i) => {
+    const x = rect.left + 40 + ((i * 37) % Math.max(1, rect.width - 80));
+    const y = rect.top + 40 + ((i * 23) % Math.max(1, rect.height - 80));
+    c.canvas.dispatchEvent(
+      new PointerEvent('pointermove', { clientX: x, clientY: y, bubbles: true, pointerId: 1 }),
+    );
+  });
+
+  const kids = editor.doc.artboards[0].children;
+  const ids = kids.slice(0, 50).map((n) => n.id);
   editor.select(ids);
+  await settle();
   editor.begin();
-  measure('déplacement de 50 objets', (i) =>
+  await measure('déplacement de 50 objets', (i) =>
     editor.preview((d) => {
       for (const id of ids) translateNode(findNode(d, id)!.node, i, i / 2);
+    }),
+  );
+  editor.cancel();
+
+  const shape = kids.find((n) => n.type === 'rect')!;
+  editor.select([shape.id]);
+  await settle();
+  editor.begin();
+  await measure("réglage de la couleur d'un objet", (i) =>
+    editor.preview((d) => {
+      const n = findNode(d, shape.id)!.node;
+      if (n.type === 'rect') n.fill = { type: 'solid', color: `#${(0x203040 + i * 0x010203).toString(16)}` };
     }),
   );
   editor.cancel();
   editor.select([]);
 
   const v0 = ui.get().view;
-  measure('zoom et défilement', (i) => {
+  await measure('défilement', (i) => {
+    ui.set({ view: { ...v0, panX: v0.panX + i * 3, panY: v0.panY - i * 2 } });
+  });
+  await measure('zoom', (i) => {
     const z = v0.zoom * (1 + 0.5 * Math.sin(i / 10));
-    ui.set({ view: { zoom: z, panX: v0.panX + i * 3, panY: v0.panY - i * 2 } });
+    ui.set({ view: { zoom: z, panX: v0.panX, panY: v0.panY } });
+  });
+  // Même zoom, redessiné net à chaque image (qualité d'aperçu « complète »).
+  const perf = await import('./perf');
+  const quality = perf.getPerformanceSettings().previewQuality;
+  perf.setPerformanceSettings({ previewQuality: 'full' });
+  await measure('zoom, net à chaque image', (i) => {
+    const z = v0.zoom * (1 + 0.5 * Math.sin(i / 10));
+    ui.set({ view: { zoom: z, panX: v0.panX, panY: v0.panY } });
+  });
+  perf.setPerformanceSettings({ previewQuality: quality });
+  // Zoom × 4 au centre : la plupart des objets sont hors de la fenêtre.
+  const z4 = {
+    zoom: v0.zoom * 4,
+    panX: c.width / 2 - (c.width / 2 - v0.panX) * 4,
+    panY: c.height / 2 - (c.height / 2 - v0.panY) * 4,
+  };
+  await measure('défilement, zoom × 4', (i) => {
+    ui.set({ view: { ...z4, panX: z4.panX - i * 4, panY: z4.panY - i * 2 } });
   });
   ui.set({ view: v0 });
 
+  const memory = (performance as unknown as { memory?: { usedJSHeapSize: number } }).memory;
   return {
     userAgent: navigator.userAgent,
     viewport: { width: c.width, height: c.height, dpr: window.devicePixelRatio || 1 },
     objects: count,
     results,
+    heapMb: memory ? Math.round(memory.usedJSHeapSize / 1048576) : undefined,
   };
 }
 

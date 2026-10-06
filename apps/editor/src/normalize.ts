@@ -1,5 +1,47 @@
-import { layoutText, type PoulpeDocument, type SceneNode } from '@poulpe/core';
-import { measureText } from '@poulpe/render';
+import { layoutText, type PoulpeDocument, type SceneNode, type TextNode } from '@poulpe/core';
+import { getLayoutRevision, measureText } from '@poulpe/render';
+
+/*
+ * Taille des textes déjà calculée, par contenu : la normalisation passe sur tous les textes à
+ * chaque commande et à chaque image d'un geste ; sans ce cache, chaque texte était remis en page
+ * (mesure de chaque mot) même quand il n'avait pas changé.
+ */
+const sizes = new Map<string, { width: number; height: number }>();
+let sizesRevision = -1;
+/** Propriétés sans effet sur la taille du texte. */
+const IGNORED = new Set([
+  'id',
+  'name',
+  'x',
+  'y',
+  'rotation',
+  'opacity',
+  'blendMode',
+  'visible',
+  'locked',
+  'fill',
+  'stroke',
+  'strokes',
+  'effects',
+  'mask',
+]);
+
+function textSize(n: TextNode): { width: number; height: number } {
+  if (sizesRevision !== getLayoutRevision() || sizes.size > 5000) {
+    sizes.clear();
+    sizesRevision = getLayoutRevision();
+  }
+  const key = JSON.stringify(n, function (this: unknown, k: string, v: unknown) {
+    return this === n && IGNORED.has(k) ? undefined : v;
+  });
+  let hit = sizes.get(key);
+  if (!hit) {
+    const layout = layoutText(n, measureText);
+    hit = { width: layout.width, height: layout.height };
+    sizes.set(key, hit);
+  }
+  return hit;
+}
 
 /**
  * Recalcule la taille des textes, qui dépend des polices du navigateur. Un texte artistique garde
@@ -20,7 +62,7 @@ export function normalizeTexts(doc: PoulpeDocument): void {
       if (n.type === 'group') visit(n.children);
       // Un texte sur tracé garde la boîte de sa courbe.
       else if (n.type === 'text' && !n.path && !n.frame && !linked.has(n.id)) {
-        const layout = layoutText(n, measureText);
+        const layout = textSize(n);
         if (n.autoWidth) {
           const w = Math.max(1, layout.width);
           if (n.style.align === 'center') n.x += (n.width - w) / 2;

@@ -123,3 +123,15 @@ test('Aide > Documentation et Questions fréquentes', async ({ page }) => {
 test('la page est isolée : le détourage peut utiliser plusieurs cœurs', async ({ page }) => {
   expect(await page.evaluate(() => self.crossOriginIsolated)).toBe(true);
 });
+
+test('les préférences pilotent le moteur de rendu', async ({ page }) => {
+  await page.keyboard.press('Control+,');
+  await page.getByTestId('prefs-tab-performance').click();
+  await page.getByTestId('prefs-cache').selectOption('1024');
+  await page.getByTestId('prefs-preview').selectOption('fast');
+  const s = await page.evaluate(() => (window as any).poulpe.perf.getPerformanceSettings());
+  expect(s.cacheMb).toBe(1024);
+  expect(s.previewQuality).toBe('fast');
+  await page.getByTestId('prefs-tab-diagnostic').click();
+  await expect(page.getByTestId('diag-render')).toContainText('1024');
+});
