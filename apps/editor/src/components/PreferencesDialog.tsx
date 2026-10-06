@@ -331,7 +331,7 @@ function PerformancePane() {
         <Select
           label={t('prefs.threads')}
           value={perf.threads}
-          width={200}
+          width={260}
           testId="prefs-threads"
           options={[
             { value: 0, label: t('prefs.autoValue', { value: threadCount({ ...perf, threads: 0 }) }) },
