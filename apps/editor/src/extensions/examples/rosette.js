@@ -1,10 +1,10 @@
-// Exemple d'extension Poulpe : dessine une rosace (courbe de spirographe) en un seul tracé.
+// Exemple d'extension Poulpe Design : dessine une rosace (courbe de spirographe) en un seul tracé.
 poulpe.extension({
   id: 'org.poulpe.rosette',
   name: 'Rosace',
   version: '1.0.0',
   description: 'Dessine une rosace de spirographe au centre du plan de travail.',
-  author: 'Poulpe',
+  author: 'Poulpe Design',
 });
 
 poulpe.command({

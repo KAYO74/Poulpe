@@ -1,22 +1,22 @@
-# Projet Poulpe — Feuille de route des fonctionnalités
+# Poulpe Design — Feuille de route des fonctionnalités
 
 4 octobre 2026 · Fred
 
-Poulpe atteint l'essentiel d'Illustrator, Photoshop et Affinity en v1.0, en cinq jalons qui ajoutent chacun un métier : dessin de base, création rapide type Canva, vectoriel pro, retouche photo, mise en page et export pro.
+Poulpe Design atteint l'essentiel d'Illustrator, Photoshop et Affinity en v1.0, en cinq jalons qui ajoutent chacun un métier : dessin de base, création rapide type Canva, vectoriel pro, retouche photo, mise en page et export pro.
 
 ## Objectif et principes
 
 - **Un seul document, trois métiers.** Comme Affinity, on passe du vectoriel (Illustrator / Designer) au pixel (Photoshop / Photo) et à la mise en page (Publisher) sans changer de fichier ni d'appli.
 - **Non destructif partout.** Calques de réglage, filtres dynamiques, masques et effets restent modifiables jusqu'à l'export.
 - **Simple d'abord, puissant ensuite.** Les fonctions avancées vivent dans des panneaux qu'on ouvre au besoin, pour garder l'interface épurée de la maquette.
-- **Application de bureau installable, dès la v0.1.** Poulpe s'installe sur Windows, macOS et Linux via Tauri, qui embarque le même code web. La version navigateur reste disponible sans installation. Tout tourne en local, sans serveur (CanvasKit / WebGL 2, filtres en shaders).
+- **Application de bureau installable, dès la v0.1.** Poulpe Design s'installe sur Windows, macOS et Linux via Tauri, qui embarque le même code web. La version navigateur reste disponible sans installation. Tout tourne en local, sans serveur (CanvasKit / WebGL 2, filtres en shaders).
 - **Cohérent avec le cadrage.** On garde ses jalons v0.1 (moteur), v0.2 (Canva) et v1.0. L'étape « v0.3 Affinity » du cadrage est découpée ici en trois : v0.3 vectoriel pro, v0.4 retouche photo, v0.5 mise en page et export pro.
 
 ## Correspondance des fonctionnalités
 
-Les fonctions phares des trois logiciels, et le jalon où Poulpe les apporte. « AI » = Illustrator, « PS » = Photoshop, « AF » = Affinity (Designer, Photo, Publisher).
+Les fonctions phares des trois logiciels, et le jalon où Poulpe Design les apporte. « AI » = Illustrator, « PS » = Photoshop, « AF » = Affinity (Designer, Photo, Publisher).
 
-| Fonctionnalité                                               | Chez qui     | Poulpe                               |
+| Fonctionnalité                                               | Chez qui     | Poulpe Design                        |
 | ------------------------------------------------------------ | ------------ | ------------------------------------ |
 | Formes, rectangles arrondis, polygones, étoiles              | AI, AF       | v0.1                                 |
 | Calques, groupes, verrouillage, visibilité                   | AI, PS, AF   | v0.1                                 |

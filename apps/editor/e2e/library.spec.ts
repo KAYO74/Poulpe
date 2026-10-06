@@ -36,7 +36,7 @@ async function start(page: Page, settings: Record<string, unknown> = { showWelco
 
 test('l’écran d’accueil propose des modèles et crée un design à partir de l’un d’eux', async ({ page }) => {
   await start(page, {});
-  await expect(page.getByRole('heading', { name: 'Bienvenue dans Poulpe' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Bienvenue dans Poulpe Design' })).toBeVisible();
   // Filtre par format : la carte de visite y est, la story Instagram non.
   await page.getByRole('dialog').getByRole('button', { name: 'Carte de visite', exact: true }).click();
   await expect(page.getByRole('dialog').getByTestId('template-businessCard')).toBeVisible();
