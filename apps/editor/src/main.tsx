@@ -15,6 +15,7 @@ import * as pixelSelection from './photo/selection';
 import * as retouch from './photo/retouchActions';
 import { normalizeTexts } from './normalize';
 import { artboardToSvg } from '@poulpe/core';
+import { getPerformanceSettings, renderStats, setPerformanceSettings } from './perf';
 import { editor, ui } from './store';
 import './styles.css';
 
@@ -57,5 +58,8 @@ if (isDesktop()) {
   layout,
   core: { artboardToSvg },
   controller: getController,
+  perf: { setPerformanceSettings, getPerformanceSettings, renderStats },
+  loadBenchDocument: (count: number) =>
+    import('./bench').then((b) => editor.load(b.benchDocument(count))),
   photo: { ...photo, ...pixelSelection, ...retouch, openPhotoBytes },
 };

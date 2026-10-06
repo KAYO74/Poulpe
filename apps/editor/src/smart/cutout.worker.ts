@@ -9,7 +9,6 @@ import { MATTE_INPUT, matteInput, refineMatte } from '@poulpe/core/src/matte';
  */
 
 ort.env.wasm.wasmPaths = { wasm: new URL(wasmUrl, self.location.href).href };
-ort.env.wasm.numThreads = self.crossOriginIsolated ? Math.min(4, navigator.hardwareConcurrency || 1) : 1;
 ort.env.wasm.proxy = false;
 
 let session: Promise<ort.InferenceSession> | null = null;
@@ -22,10 +21,22 @@ async function load(modelUrl: string): Promise<ort.InferenceSession> {
 }
 
 self.onmessage = async (
-  e: MessageEvent<{ id: number; modelUrl: string; data: Uint8ClampedArray; width: number; height: number }>,
+  e: MessageEvent<{
+    id: number;
+    modelUrl: string;
+    data: Uint8ClampedArray;
+    width: number;
+    height: number;
+    threads?: number;
+  }>,
 ) => {
-  const { id, modelUrl, data, width, height } = e.data;
+  const { id, modelUrl, data, width, height, threads } = e.data;
   try {
+    // Nombre de fils réglé dans les préférences ; pris en compte au chargement du modèle.
+    if (!session)
+      ort.env.wasm.numThreads = self.crossOriginIsolated
+        ? Math.max(1, Math.min(threads ?? 4, navigator.hardwareConcurrency || 1))
+        : 1;
     self.postMessage({ id, progress: 0.1 });
     session ??= load(modelUrl).catch((err) => {
       session = null;
