@@ -2,11 +2,11 @@
 
 5 octobre 2026
 
-La v0.2 ajoute à Poulpe ce qui permet de faire un joli visuel en quelques clics, sans partir d'une page blanche : des modèles, une bibliothèque d'éléments libres, des styles prêts à l'emploi et le redimensionnement d'un design vers un autre format.
+La v0.2 ajoute à Poulpe Design ce qui permet de faire un joli visuel en quelques clics, sans partir d'une page blanche : des modèles, une bibliothèque d'éléments libres, des styles prêts à l'emploi et le redimensionnement d'un design vers un autre format.
 
 ## Ce que voit l'utilisateur
 
-- **Écran d'accueil.** Au lancement, la fenêtre « Bienvenue dans Poulpe » propose les modèles (filtrables par format), les formats vides par usage (réseaux sociaux, impression, écran), une taille personnalisée et l'ouverture d'un fichier. La case « Afficher au lancement » le désactive. Il s'ouvre aussi par Fichier > Nouveau.
+- **Écran d'accueil.** Au lancement, la fenêtre « Bienvenue dans Poulpe Design » propose les modèles (filtrables par format), les formats vides par usage (réseaux sociaux, impression, écran), une taille personnalisée et l'ouverture d'un fichier. La case « Afficher au lancement » le désactive. Il s'ouvre aussi par Fichier > Nouveau.
 - **Panneau Bibliothèque** (bouton de la barre d'outils, Affichage > Bibliothèque, ou Ctrl+Maj+L). Il s'ancre du côté opposé au Studio et suit donc la disposition choisie. Trois onglets :
   - **Modèles** : 19 modèles, avec recherche et filtre par catégorie. Un modèle remplit le plan de travail actif s'il est vide, sinon il arrive dans un nouveau plan de travail à droite.
   - **Éléments** : 3 styles de texte (titre, sous-titre, corps), 33 formes, 7 cadres photo, 12 illustrations et 172 icônes rangées en 10 catégories, avec une recherche en français et en anglais (sans tenir compte des accents). Un clic ajoute l'élément au centre de la vue, un glisser-déposer le pose où on le lâche. Les formes et icônes prennent la couleur de remplissage courante.
@@ -48,9 +48,9 @@ Les couleurs du design sont rangées de la plus sombre à la plus claire, et cha
 
 ## Licences du contenu
 
-- Modèles, formes, cadres, illustrations, palettes et combinaisons : faits pour Poulpe, sous MPL-2.0 comme le reste du code.
+- Modèles, formes, cadres, illustrations, palettes et combinaisons : faits pour Poulpe Design, sous MPL-2.0 comme le reste du code.
 - Icônes : [Phosphor Icons](https://phosphoricons.com), licence MIT, voir [`packages/library/LICENSE-icons.md`](../packages/library/LICENSE-icons.md). Les tracés sont extraits de `@phosphor-icons/core` par `pnpm --filter @poulpe/library icons` (liste et mots-clés français dans `scripts/icons-list.json`).
-- Polices : uniquement celles déjà fournies avec Poulpe (licence OFL).
+- Polices : uniquement celles déjà fournies avec Poulpe Design (licence OFL).
 
 ## Limites connues
 
