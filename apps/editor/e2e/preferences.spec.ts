@@ -66,7 +66,9 @@ test('les profils changent les réglages de performance', async ({ page }) => {
 
 test('le diagnostic montre la carte graphique et le rapport se copie', async ({ page, context }) => {
   await context.grantPermissions(['clipboard-read', 'clipboard-write']);
-  await menu(page, 'Aide', /Diagnostic/);
+  await menu(page, 'Aide', /Paramètres/);
+  await expect(page.getByRole('dialog', { name: 'Préférences' })).toBeVisible();
+  await page.getByTestId('prefs-tab-diagnostic').click();
   await expect(page.getByTestId('prefs-diagnostic')).toBeVisible();
   await expect(page.getByTestId('diag-gpu')).toBeVisible();
   await page.getByTestId('diag-copy').click();

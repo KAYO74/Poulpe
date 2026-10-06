@@ -443,6 +443,10 @@ export const COMMANDS = {
     run: () => ui.set({ dialog: 'help', helpTab: 'start' }),
   },
   'help.faq': { label: 'help.faq', run: () => ui.set({ dialog: 'help', helpTab: 'faq' }) },
+  'help.settings': {
+    label: 'help.settings',
+    run: () => ui.set({ dialog: 'preferences' }),
+  },
   'help.diagnostic': {
     label: 'help.diagnostic',
     run: () => ui.set({ dialog: 'preferences', prefsTab: 'diagnostic' }),
