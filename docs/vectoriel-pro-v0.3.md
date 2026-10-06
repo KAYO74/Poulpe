@@ -2,7 +2,7 @@
 
 5 octobre 2026
 
-La v0.3 donne à Poulpe les outils de dessin vectoriel d'Illustrator et d'Affinity Designer : dessiner et modifier des courbes, combiner des formes, régler finement les contours, ajouter des effets, écrire le long d'une courbe et ouvrir des fichiers SVG.
+La v0.3 donne à Poulpe Design les outils de dessin vectoriel d'Illustrator et d'Affinity Designer : dessiner et modifier des courbes, combiner des formes, régler finement les contours, ajouter des effets, écrire le long d'une courbe et ouvrir des fichiers SVG.
 
 ## Ce que voit l'utilisateur
 
@@ -25,7 +25,7 @@ La v0.3 donne à Poulpe les outils de dessin vectoriel d'Illustrator et d'Affini
 | `packages/core/src/vector.ts`             | Contours (extrémités, pointillés, flèches), conversion en tracé, mise en page du texte sur tracé.                                |
 | `packages/core/src/boolean.ts`            | Opérations booléennes, décalage, contour en tracé et lissage, avec [Paper.js](http://paperjs.org) (MIT) et paperjs-offset (MIT). |
 | `packages/core/src/effects.ts`            | Réglages par défaut des effets et marge qu'ils ajoutent autour d'un objet.                                                       |
-| `packages/core/src/svgImport.ts`          | Lecture d'un fichier SVG en objets Poulpe.                                                                                       |
+| `packages/core/src/svgImport.ts`          | Lecture d'un fichier SVG en objets Poulpe Design.                                                                                |
 | `packages/core/src/svg.ts`                | Export SVG : contours avancés, flèches, filtres d'effets, texte sur tracé.                                                       |
 | `packages/render/src/index.ts`            | Rendu des contours avancés, du texte sur tracé et des effets (calques hors écran).                                               |
 | `apps/editor/src/canvas/pathTools.ts`     | Plume, crayon et outil Nœud.                                                                                                     |

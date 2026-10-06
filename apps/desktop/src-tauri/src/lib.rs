@@ -1,4 +1,4 @@
-//! Appli de bureau Poulpe : une fenêtre Tauri qui embarque l'éditeur web (`apps/editor`).
+//! Appli de bureau Poulpe Design : une fenêtre Tauri qui embarque l'éditeur web (`apps/editor`).
 //!
 //! Le côté Rust reste minimal : ouverture des fichiers `.poulpe` par double-clic,
 //! liste et données des polices installées, mesure des performances, réglages de la carte
@@ -130,7 +130,7 @@ pub fn run() {
             save_launch_prefs
         ])
         .build(context)
-        .expect("impossible de démarrer Poulpe");
+        .expect("impossible de démarrer Poulpe Design");
 
     app.run(|_handle, _event| {
         // macOS transmet les fichiers ouverts depuis le Finder par un événement, pas par les arguments.

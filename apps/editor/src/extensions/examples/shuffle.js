@@ -1,10 +1,10 @@
-// Exemple d'extension Poulpe : donne des couleurs au hasard aux objets sélectionnés.
+// Exemple d'extension Poulpe Design : donne des couleurs au hasard aux objets sélectionnés.
 poulpe.extension({
   id: 'org.poulpe.shuffle',
   name: 'Couleurs au hasard',
   version: '1.0.0',
   description: 'Recolore les objets sélectionnés avec une palette harmonieuse tirée au hasard.',
-  author: 'Poulpe',
+  author: 'Poulpe Design',
 });
 
 poulpe.command({
