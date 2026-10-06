@@ -21,6 +21,10 @@ jobs:
           node-version: 22
           cache: pnpm
       - run: pnpm install --frozen-lockfile
+      - name: Formatage du code
+        run: pnpm format:check
+      - name: Sécurité des dépendances
+        run: pnpm audit --prod --audit-level high
       - name: Vérification des types
         run: pnpm typecheck
       - name: Tests du moteur

@@ -1,10 +1,10 @@
-// Exemple d'extension Poulpe : remplit le plan de travail d'une grille de formes.
+// Exemple d'extension Poulpe Design : remplit le plan de travail d'une grille de formes.
 poulpe.extension({
   id: 'org.poulpe.grid',
   name: 'Grille de formes',
   version: '1.0.0',
   description: 'Remplit le plan de travail d’une grille de cercles, de carrés ou d’étoiles.',
-  author: 'Poulpe',
+  author: 'Poulpe Design',
 });
 
 poulpe.command({

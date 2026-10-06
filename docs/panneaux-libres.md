@@ -1,6 +1,6 @@
 # Panneaux libres
 
-Comme dans Photoshop, les fenêtres d'outils de Poulpe peuvent se détacher, se déplacer et se redimensionner.
+Comme dans Photoshop, les fenêtres d'outils de Poulpe Design peuvent se détacher, se déplacer et se redimensionner.
 
 ## Pour l'utilisateur
 
