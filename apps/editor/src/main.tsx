@@ -14,6 +14,7 @@ import * as photo from './photo/photoActions';
 import * as pixelSelection from './photo/selection';
 import * as retouch from './photo/retouchActions';
 import { normalizeTexts } from './normalize';
+import * as prefs from './preferences';
 import { artboardToSvg } from '@poulpe/core';
 import { getPerformanceSettings, renderStats, setPerformanceSettings } from './perf';
 import { editor, ui } from './store';
@@ -30,6 +31,7 @@ createRoot(document.getElementById('root')!).render(
   </StrictMode>,
 );
 
+prefs.startPreferences();
 void loadSystemFonts();
 void startDrafts();
 void import('./updater').then((u) => u.startUpdateChecks());
@@ -61,4 +63,5 @@ if (isDesktop()) {
   perf: { setPerformanceSettings, getPerformanceSettings, renderStats },
   loadBenchDocument: (count: number) => import('./bench').then((b) => editor.load(b.benchDocument(count))),
   photo: { ...photo, ...pixelSelection, ...retouch, openPhotoBytes },
+  prefs,
 };

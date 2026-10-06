@@ -1,5 +1,6 @@
 import { useSyncExternalStore } from 'react';
 import { enV1, frV1, type MessageKeyV1 } from './i18n-v1';
+import { enPrefs, frPrefs, type MessageKeyPrefs } from './i18n-prefs';
 import { enLayers, frLayers, type MessageKeyLayers } from './i18n-layers';
 
 export type Lang = 'fr' | 'en';
@@ -917,9 +918,9 @@ const fr = {
   'char.columnsFixed': 'Les colonnes demandent un cadre de largeur fixe.',
 } as const;
 
-export type MessageKey = keyof typeof fr | MessageKeyV1 | MessageKeyLayers;
+export type MessageKey = keyof typeof fr | MessageKeyV1 | MessageKeyLayers | MessageKeyPrefs;
 
-const en: Record<Exclude<MessageKey, MessageKeyV1 | MessageKeyLayers>, string> = {
+const en: Record<Exclude<MessageKey, MessageKeyV1 | MessageKeyLayers | MessageKeyPrefs>, string> = {
   'app.name': 'Poulpe Design',
   'app.untitled': 'Untitled',
 
@@ -1820,8 +1821,8 @@ const en: Record<Exclude<MessageKey, MessageKeyV1 | MessageKeyLayers>, string> =
 };
 
 const dictionaries: Record<Lang, Record<MessageKey, string>> = {
-  fr: { ...fr, ...frV1, ...frLayers },
-  en: { ...en, ...enV1, ...enLayers },
+  fr: { ...fr, ...frV1, ...frLayers, ...frPrefs },
+  en: { ...en, ...enV1, ...enLayers, ...enPrefs },
 };
 
 function initialLang(): Lang {

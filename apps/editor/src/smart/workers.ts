@@ -11,6 +11,21 @@ export class WorkerClient<Req extends object, Res extends object> {
 
   constructor(private readonly create: () => Worker) {}
 
+  private busy = 0;
+  private stale = false;
+
+  /** Ferme le worker dès qu'il ne calcule plus rien : la prochaine demande en crée un neuf. */
+  reset(): void {
+    this.stale = true;
+    if (this.busy === 0) this.close();
+  }
+
+  private close(): void {
+    this.stale = false;
+    this.worker?.terminate();
+    this.worker = null;
+  }
+
   private get(): Worker {
     this.worker ??= this.create();
     return this.worker;
@@ -25,10 +40,13 @@ export class WorkerClient<Req extends object, Res extends object> {
   ): Promise<Res> {
     const w = this.get();
     const id = this.nextId++;
+    this.busy++;
     return new Promise<Res>((resolve, reject) => {
       const cleanup = () => {
         w.removeEventListener('message', onMessage);
         w.removeEventListener('error', onError);
+        this.busy--;
+        if (this.stale && this.busy === 0 && this.worker === w) this.close();
       };
       const onMessage = (e: MessageEvent<Reply<Res>>) => {
         if (e.data.id !== id) return;

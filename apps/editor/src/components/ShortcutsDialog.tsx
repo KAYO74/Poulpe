@@ -22,6 +22,19 @@ const close = () => ui.set({ dialog: null });
  */
 export function ShortcutsDialog() {
   const t = useT();
+  return (
+    <Modal title={t('shortcuts.title')} onClose={close} wide>
+      <ShortcutsEditor />
+    </Modal>
+  );
+}
+
+/**
+ * La liste des raccourcis, à modifier. `only` : ne montrer que ces commandes (sans les outils),
+ * par exemple celles de l'ordre des calques dans Préférences > Calques.
+ */
+export function ShortcutsEditor({ only }: { only?: string[] }) {
+  const t = useT();
   useShortcuts();
   const [query, setQuery] = useState('');
   const [capturing, setCapturing] = useState<string | null>(null);
@@ -45,11 +58,12 @@ export function ShortcutsDialog() {
     [t, version, getLang()],
   );
   const q = query.trim().toLowerCase();
+  const listed = only ? only.flatMap((id) => rows.filter((r) => r.id === id)) : rows;
   const shown = q
-    ? rows.filter(
+    ? listed.filter(
         (r) => r.title.toLowerCase().includes(q) || (commandShortcut(r.id) ?? '').toLowerCase().includes(q),
       )
-    : rows;
+    : listed;
 
   const capture = (id: string, e: React.KeyboardEvent) => {
     e.preventDefault();
@@ -81,41 +95,45 @@ export function ShortcutsDialog() {
   };
 
   return (
-    <Modal title={t('shortcuts.title')} onClose={close} wide>
+    <>
       <p className="note">{t('shortcuts.hint')}</p>
-      <div className="picker-row">
-        <input
-          className="search"
-          type="search"
-          placeholder={t('shortcuts.search')}
-          aria-label={t('shortcuts.search')}
-          value={query}
-          onChange={(e) => setQuery(e.target.value)}
-        />
-        <span className="spacer" />
-        <button className="btn" onClick={() => resetShortcut()}>
-          {t('shortcuts.resetAll')}
-        </button>
-      </div>
-      <div className="shortcuts">
-        <table>
-          <tbody>
-            {Object.entries(tools).map(([k, tool]) => (
-              <tr key={k}>
-                <td>{t(`tool.${tool}`)}</td>
+      {!only && (
+        <div className="picker-row">
+          <input
+            className="search"
+            type="search"
+            placeholder={t('shortcuts.search')}
+            aria-label={t('shortcuts.search')}
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+          />
+          <span className="spacer" />
+          <button className="btn" onClick={() => resetShortcut()}>
+            {t('shortcuts.resetAll')}
+          </button>
+        </div>
+      )}
+      <div className={`shortcuts${only ? ' only' : ''}`}>
+        {!only && (
+          <table>
+            <tbody>
+              {Object.entries(tools).map(([k, tool]) => (
+                <tr key={k}>
+                  <td>{t(`tool.${tool}`)}</td>
+                  <td>
+                    <kbd>{k.toUpperCase()}</kbd>
+                  </td>
+                </tr>
+              ))}
+              <tr>
+                <td>{t('tool.hand')}</td>
                 <td>
-                  <kbd>{k.toUpperCase()}</kbd>
+                  <kbd>{t('shortcuts.space')}</kbd>
                 </td>
               </tr>
-            ))}
-            <tr>
-              <td>{t('tool.hand')}</td>
-              <td>
-                <kbd>{t('shortcuts.space')}</kbd>
-              </td>
-            </tr>
-          </tbody>
-        </table>
+            </tbody>
+          </table>
+        )}
         <table className="shortcut-edit">
           <tbody>
             {shown.map(({ id, title }) => {
@@ -145,6 +163,6 @@ export function ShortcutsDialog() {
           </tbody>
         </table>
       </div>
-    </Modal>
+    </>
   );
 }
