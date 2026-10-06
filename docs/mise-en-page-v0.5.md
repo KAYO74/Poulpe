@@ -2,7 +2,7 @@
 
 5 octobre 2026
 
-Cette première partie de la v0.5 donne à Poulpe ce qui fait d'Affinity Publisher un logiciel de mise en page : des documents de plusieurs pages, des pages maîtres, des numéros de page, du texte qui coule d'un cadre à l'autre, et un PDF prêt pour l'imprimeur.
+Cette première partie de la v0.5 donne à Poulpe Design ce qui fait d'Affinity Publisher un logiciel de mise en page : des documents de plusieurs pages, des pages maîtres, des numéros de page, du texte qui coule d'un cadre à l'autre, et un PDF prêt pour l'imprimeur.
 
 ## Ce que voit l'utilisateur
 

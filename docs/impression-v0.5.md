@@ -8,7 +8,7 @@ Suite de [mise-en-page-v0.5.md](mise-en-page-v0.5.md). Cette deuxième partie te
 - **Épreuvage à l'écran** (Affichage › Épreuvage CMJN, Ctrl+Y, ou le bouton de la Persona Mise en page) : l'écran montre les couleurs telles qu'elles sortiront à l'impression, plus ternes pour les couleurs vives.
 - **PDF pour l'imprimerie.** Dans Exporter › PDF : couleurs « CMJN » et case « PDF/X-4 ». Le PDF contient alors seulement des couleurs CMJN, le profil de l'imprimerie (FOGRA39, papier couché), les zones de coupe et de fond perdu. Si une police ou une photo JPEG empêchent la conformité stricte, un message le dit.
 - **Ouvrir un fichier Photoshop (.psd)** : les calques, groupes, masques, opacités, modes de fusion et les principaux calques de réglage (luminosité et contraste, niveaux, courbes, exposition, vibrance, teinte et saturation, négatif, postérisation, seuil) restent modifiables. Le document s'ouvre dans la Persona Photo.
-- **Ouvrir un PDF ou un fichier Illustrator (.ai)** : chaque page devient une page Poulpe, avec ses formes, ses traits, ses dégradés, ses textes et ses images en objets modifiables. Un fichier Illustrator s'ouvre par sa partie PDF (option « Créer un fichier compatible PDF », cochée par défaut dans Illustrator) ; sinon un message explique quoi faire.
+- **Ouvrir un PDF ou un fichier Illustrator (.ai)** : chaque page devient une page Poulpe Design, avec ses formes, ses traits, ses dégradés, ses textes et ses images en objets modifiables. Un fichier Illustrator s'ouvre par sa partie PDF (option « Créer un fichier compatible PDF », cochée par défaut dans Illustrator) ; sinon un message explique quoi faire.
 - **Exporter en PSD** : un calque Photoshop par objet, groupes et masques d'écrêtage compris.
 - **Exporter par lots** (Fichier › Exporter par lots…) : plusieurs pages, plusieurs formats (PNG, JPEG, SVG, PDF, PSD) et plusieurs tailles (1x, 2x, 3x…) d'un coup, dans un fichier ZIP.
 
@@ -30,7 +30,7 @@ Le format de fichier passe en version 6 (voir [format-poulpe.md](format-poulpe.m
 
 ## Choix et écarts
 
-- **Profil CMJN approché.** Le profil officiel FOGRA39 ne peut pas être redistribué librement ; Poulpe calcule le sien avec un modèle d'impression offset sur papier couché, proche de FOGRA39. Le PDF/X annonce la condition FOGRA39, que les imprimeurs connaissent tous. Pour une couleur critique (logo, charte), il vaut mieux taper la valeur CMJN exacte : elle est gardée telle quelle.
+- **Profil CMJN approché.** Le profil officiel FOGRA39 ne peut pas être redistribué librement ; Poulpe Design calcule le sien avec un modèle d'impression offset sur papier couché, proche de FOGRA39. Le PDF/X annonce la condition FOGRA39, que les imprimeurs connaissent tous. Pour une couleur critique (logo, charte), il vaut mieux taper la valeur CMJN exacte : elle est gardée telle quelle.
 - **Pas encore de niveaux de gris ni de tons directs (Pantone).** Ils viendront avec les nuanciers.
 - **Photos JPEG.** Converties en CMJN dans un PDF/X ; un JPEG gardé en RVB dans un PDF simple est signalé.
 - **PDF et AI ouverts.** Les zones de détourage (clipping) ne sont pas encore reprises, les textes sont refaits avec des polices proches, et une page trop chargée (plus de 20 000 objets) ou illisible est ouverte comme une image à 300 dpi.

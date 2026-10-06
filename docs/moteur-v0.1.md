@@ -4,7 +4,7 @@
 
 Cette page dit ce que contient le code de la v0.1, comment le code est découpé, ce que donne la mesure des performances sous Linux et les limites connues.
 
-## Lancer Poulpe
+## Lancer Poulpe Design
 
 Il faut Node 20 ou plus et pnpm 10 (`corepack enable` suffit).
 
@@ -26,12 +26,12 @@ Les installeurs des trois systèmes sont produits par GitHub Actions (`.github/w
 
 ## Organisation
 
-| Dossier | Rôle |
-| --- | --- |
-| `packages/core` | Modèle de document, géométrie, couleurs, mise en page du texte, commandes et historique, export SVG, fichier `.poulpe`. Aucune dépendance au navigateur : testé avec Vitest. |
-| `packages/render` | Rendu du document sur un canevas, export PNG et JPEG. |
-| `apps/editor` | L'interface (React + Vite) : fenêtre façon Affinity, outils, panneaux, menus, raccourcis, entrées et sorties de fichiers. |
-| `apps/desktop` | L'appli de bureau Tauri 2 qui embarque `apps/editor` : fenêtre, association des fichiers `.poulpe`, polices installées. |
+| Dossier           | Rôle                                                                                                                                                                         |
+| ----------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `packages/core`   | Modèle de document, géométrie, couleurs, mise en page du texte, commandes et historique, export SVG, fichier `.poulpe`. Aucune dépendance au navigateur : testé avec Vitest. |
+| `packages/render` | Rendu du document sur un canevas, export PNG et JPEG.                                                                                                                        |
+| `apps/editor`     | L'interface (React + Vite) : fenêtre façon Affinity, outils, panneaux, menus, raccourcis, entrées et sorties de fichiers.                                                    |
+| `apps/desktop`    | L'appli de bureau Tauri 2 qui embarque `apps/editor` : fenêtre, association des fichiers `.poulpe`, polices installées.                                                      |
 
 Un geste devient une commande, la commande modifie le document, et le canevas se redessine. Les documents sont immuables (immer) : chaque commande produit un nouveau document qui partage tout ce qui n'a pas changé avec le précédent, ce qui rend l'annulation illimitée et peu coûteuse. Un geste (glisser, redimensionner, régler une couleur au curseur) ne laisse qu'une seule entrée dans l'historique.
 
@@ -47,8 +47,8 @@ Un geste devient une commande, la commande modifie le document, et le canevas se
 - **Images** : import, recadrage (double-clic sur l'image ou bouton Recadrer : les poignées changent le cadre, glisser déplace l'image dans le cadre, la partie cachée reste visible en transparence), retour à l'image entière.
 - **Document** : plusieurs plans de travail, formats prédéfinis, annuler et rétablir illimités avec panneau Historique, copier, couper, coller, dupliquer.
 - **Fichiers** : enregistrement et ouverture du format `.poulpe` ([spécification](format-poulpe.md)), import d'images (menu ou glisser-déposer), export PNG et JPEG (échelle, qualité, fond transparent), SVG vectoriel et PDF vectoriel multipage avec les polices intégrées.
-- **Brouillons** : le document non enregistré est copié dans le navigateur (IndexedDB) peu après chaque modification. Si la fenêtre se ferme sans enregistrer, Poulpe propose de le rouvrir au lancement suivant. Le brouillon est effacé à l'enregistrement.
-- **Polices du PDF** : les polices fournies avec Poulpe sont intégrées au PDF (lues dans leurs fichiers WOFF et converties en TrueType). Les polices installées le sont aussi dans l'appli de bureau, et dans le navigateur quand il donne accès aux polices locales (Chrome, Edge). Une police PostScript (OpenType CFF) ou introuvable est remplacée par une police standard, et Poulpe le signale à l'export.
+- **Brouillons** : le document non enregistré est copié dans le navigateur (IndexedDB) peu après chaque modification. Si la fenêtre se ferme sans enregistrer, Poulpe Design propose de le rouvrir au lancement suivant. Le brouillon est effacé à l'enregistrement.
+- **Polices du PDF** : les polices fournies avec Poulpe Design sont intégrées au PDF (lues dans leurs fichiers WOFF et converties en TrueType). Les polices installées le sont aussi dans l'appli de bureau, et dans le navigateur quand il donne accès aux polices locales (Chrome, Edge). Une police PostScript (OpenType CFF) ou introuvable est remplacée par une police standard, et Poulpe Design le signale à l'export.
 - **Bureau** : appli Tauri, installeurs Windows, macOS et Linux, double-clic sur un `.poulpe` pour l'ouvrir, liste des polices installées.
 
 ## Écarts avec le cadrage, assumés pour cette première version
@@ -59,18 +59,18 @@ Un geste devient une commande, la commande modifie le document, et le canevas se
 
 ## Performances de l'appli de bureau sous Linux
 
-Le cadrage demandait de mesurer l'appli de bureau sous Linux, où Tauri s'appuie sur WebKitGTK, avant de garder Tauri plutôt qu'Electron. La mesure est intégrée à Poulpe : `?bench` dans l'adresse de l'éditeur, ou `POULPE_BENCH=1 poulpe` pour l'appli de bureau, qui écrit son rapport sur la sortie standard. Elle dessine 1 000 objets (formes, dégradés, contours, rotations, 40 blocs de texte) sur un plan de travail 1920 × 1080 et chronomètre 60 images par scénario, en forçant la fin du dessin à chaque image.
+Le cadrage demandait de mesurer l'appli de bureau sous Linux, où Tauri s'appuie sur WebKitGTK, avant de garder Tauri plutôt qu'Electron. La mesure est intégrée à Poulpe Design : `?bench` dans l'adresse de l'éditeur, ou `POULPE_BENCH=1 poulpe` pour l'appli de bureau, qui écrit son rapport sur la sortie standard. Elle dessine 1 000 objets (formes, dégradés, contours, rotations, 40 blocs de texte) sur un plan de travail 1920 × 1080 et chronomètre 60 images par scénario, en forçant la fin du dessin à chaque image.
 
 Première mesure, le 5 octobre 2026, sur une machine virtuelle Linux sans carte graphique (Ubuntu 24.04, 4 cœurs Xeon à 2,8 GHz, écran virtuel Xvfb, fenêtre de 1056 × 718 px de canevas). Temps moyen pour dessiner une image, et nombre d'images par seconde correspondant :
 
-| Scénario | Chromium 141 | Appli de bureau (WebKitGTK 2.52) | Écart |
-| --- | --- | --- | --- |
-| Redessin, 720 formes unies | 16 ms (61 i/s) | 74 ms (13 i/s) | × 4,5 |
-| Redessin, 240 formes en dégradé | 8,9 ms (113 i/s) | 39 ms (26 i/s) | × 4,4 |
-| Redessin, 40 blocs de texte | 2,6 ms (381 i/s) | 25 ms (40 i/s) | × 9,5 |
-| Redessin complet (1 000 objets) | 26 ms (38 i/s) | 103 ms (10 i/s) | × 3,9 |
-| Déplacement de 50 objets | 32 ms (31 i/s) | 121 ms (8 i/s) | × 3,8 |
-| Zoom et défilement | 58 ms (17 i/s) | 186 ms (5 i/s) | × 3,2 |
+| Scénario                        | Chromium 141     | Appli de bureau (WebKitGTK 2.52) | Écart |
+| ------------------------------- | ---------------- | -------------------------------- | ----- |
+| Redessin, 720 formes unies      | 16 ms (61 i/s)   | 74 ms (13 i/s)                   | × 4,5 |
+| Redessin, 240 formes en dégradé | 8,9 ms (113 i/s) | 39 ms (26 i/s)                   | × 4,4 |
+| Redessin, 40 blocs de texte     | 2,6 ms (381 i/s) | 25 ms (40 i/s)                   | × 9,5 |
+| Redessin complet (1 000 objets) | 26 ms (38 i/s)   | 103 ms (10 i/s)                  | × 3,9 |
+| Déplacement de 50 objets        | 32 ms (31 i/s)   | 121 ms (8 i/s)                   | × 3,8 |
+| Zoom et défilement              | 58 ms (17 i/s)   | 186 ms (5 i/s)                   | × 3,2 |
 
 Ce qu'on en retient :
 
@@ -85,4 +85,4 @@ La v0.1 est complète. Les limites connues, à reprendre dans les versions suiva
 
 - L'export PDF n'intègre que les polices TrueType ; les polices PostScript (OpenType CFF) sont remplacées par une police standard.
 - Les polices fournies ne couvrent que l'alphabet latin.
-- Les flèches haut et bas, Début et Fin suivent la mise en page de Poulpe ; les raccourcis de mot (Ctrl + flèches) suivent ceux de la zone de saisie du système, qui peuvent différer légèrement sur un texte à plusieurs tailles.
+- Les flèches haut et bas, Début et Fin suivent la mise en page de Poulpe Design ; les raccourcis de mot (Ctrl + flèches) suivent ceux de la zone de saisie du système, qui peuvent différer légèrement sur un texte à plusieurs tailles.
