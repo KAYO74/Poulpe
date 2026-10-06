@@ -2,7 +2,7 @@ import { COLOR_ADJUSTMENTS, LIVE_FILTERS, findNode, type AdjustmentKind } from '
 import * as A from './actions';
 import { beginTextEdit, endTextEdit, isEditingText } from './canvas/textEdit';
 import { getController } from './components/Viewport';
-import { setLang, getLang, t, type MessageKey } from './i18n';
+import { t, type MessageKey } from './i18n';
 import { isRecording, recordStep } from './macros/recorder';
 import { beginRecording, endRecording } from './macros/macros';
 import { shortcutOf } from './shortcuts';
@@ -422,11 +422,6 @@ export const COMMANDS = {
     label: 'view.snapping',
     run: () => setSettings({ snapping: !ui.get().settings.snapping }),
   },
-  'view.theme': {
-    label: 'view.theme',
-    run: () => setSettings({ theme: ui.get().settings.theme === 'dark' ? 'light' : 'dark' }),
-  },
-  'view.language': { label: 'view.language', run: () => setLang(getLang() === 'fr' ? 'en' : 'fr') },
   'view.toolsSide': {
     label: 'view.toolsSide',
     run: () => setSettings({ toolsSide: ui.get().settings.toolsSide === 'right' ? 'left' : 'right' }),

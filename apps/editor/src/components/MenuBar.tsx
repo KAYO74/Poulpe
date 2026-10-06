@@ -15,7 +15,7 @@ import {
 } from '../commands';
 import { useShortcuts } from '../shortcuts';
 import { exportDocument } from '../io';
-import { getLang, setLang, useT } from '../i18n';
+import { useT } from '../i18n';
 import { setSettings, useEditor, useUi } from '../store';
 import { Icon } from './Icon';
 import { WorkspaceItems } from './WorkspaceMenu';
@@ -326,14 +326,6 @@ export function MenuBar() {
         <Item id="view.softProof" checked={softProof} />
         <Item id="view.snapping" checked={settings.snapping} />
         <Sep />
-        <Sub label={t('view.theme')}>
-          {(['dark', 'light'] as const).map((th) => (
-            <Menu.Item key={th} className="menu-item" onSelect={() => setSettings({ theme: th })}>
-              <span className="menu-check">{settings.theme === th ? '✓' : ''}</span>
-              <span className="menu-label">{t(th === 'dark' ? 'view.themeDark' : 'view.themeLight')}</span>
-            </Menu.Item>
-          ))}
-        </Sub>
         <Sub label={t('view.toolsSide')}>
           {(['left', 'right'] as const).map((side) => (
             <Menu.Item key={side} className="menu-item" onSelect={() => setSettings({ toolsSide: side })}>
@@ -372,14 +364,6 @@ export function MenuBar() {
           ))}
         </Sub>
         <Item id="view.resetPanels" />
-        <Sub label={t('view.language')}>
-          {(['fr', 'en'] as const).map((l) => (
-            <Menu.Item key={l} className="menu-item" onSelect={() => setLang(l)}>
-              <span className="menu-check">{getLang() === l ? '✓' : ''}</span>
-              <span className="menu-label">{l === 'fr' ? 'Français' : 'English'}</span>
-            </Menu.Item>
-          ))}
-        </Sub>
       </Top>
       <ExtensionsMenu />
       <Top label={t('menu.help')}>

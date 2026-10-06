@@ -1,3 +1,4 @@
+import { pickStartLanguage } from '../startLanguage';
 import { useEffect, useRef, useState } from 'react';
 import {
   FORMAT_PRESETS,
@@ -1066,6 +1067,41 @@ function AboutDialog() {
   );
 }
 
+/** Premier lancement de l'appli de bureau sans langue choisie à l'installation. */
+function LanguageDialog() {
+  const lang = getLang();
+  return (
+    <Modal title="Langue · Language" onClose={() => pickStartLanguage(lang)}>
+      <p>
+        Choisissez la langue de Poulpe Design.
+        <br />
+        Choose the language of Poulpe Design.
+      </p>
+      <p className="note">
+        Vous pourrez la changer dans Édition &gt; Préférences.
+        <br />
+        You can change it later in Edit &gt; Preferences.
+      </p>
+      <footer>
+        <button
+          className={`btn${lang === 'fr' ? ' primary' : ''}`}
+          data-testid="start-lang-fr"
+          onClick={() => pickStartLanguage('fr')}
+        >
+          Français
+        </button>
+        <button
+          className={`btn${lang === 'en' ? ' primary' : ''}`}
+          data-testid="start-lang-en"
+          onClick={() => pickStartLanguage('en')}
+        >
+          English
+        </button>
+      </footer>
+    </Modal>
+  );
+}
+
 function DraftDialog() {
   const t = useT();
   const draft = getPendingDraft();
@@ -1264,6 +1300,7 @@ export function Dialogs() {
   if (dialog === 'shortcuts') return <ShortcutsDialog />;
   if (dialog === 'about') return <AboutDialog />;
   if (dialog === 'draft') return <DraftDialog />;
+  if (dialog === 'language') return <LanguageDialog />;
   if (dialog === 'resize') return <ResizeDialog />;
   if (dialog === 'offset') return <OffsetDialog />;
   if (dialog === 'document') return <DocumentDialog />;

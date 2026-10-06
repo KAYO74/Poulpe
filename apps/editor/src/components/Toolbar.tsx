@@ -1,5 +1,5 @@
 import { COMMANDS, commandShortcut, formatShortcut, runCommand, type CommandId } from '../commands';
-import { getLang, setLang, useT } from '../i18n';
+import { useT } from '../i18n';
 import { setSettings, ui, useEditor, useUi } from '../store';
 import { openPersona, useActiveWorkspace } from '../workspaces';
 import { WorkspaceMenu } from './WorkspaceMenu';
@@ -176,22 +176,6 @@ export function Toolbar() {
       <CmdButton id="edit.undo" icon="undo" />
       <CmdButton id="edit.redo" icon="redo" />
       <span className="tsep" />
-      <button
-        className="ib lang"
-        title={t('view.language')}
-        aria-label={t('view.language')}
-        onClick={() => setLang(getLang() === 'fr' ? 'en' : 'fr')}
-      >
-        {getLang() === 'fr' ? 'FR' : 'EN'}
-      </button>
-      <button
-        className="ib"
-        title={t('view.theme')}
-        aria-label={t('view.theme')}
-        onClick={() => setSettings({ theme: settings.theme === 'dark' ? 'light' : 'dark' })}
-      >
-        <Icon name={settings.theme === 'dark' ? 'moon' : 'sun'} />
-      </button>
       <button
         className="ib"
         title={t('view.toolsSide')}

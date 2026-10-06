@@ -2,8 +2,8 @@
 //!
 //! Le côté Rust reste minimal : ouverture des fichiers `.poulpe` par double-clic,
 //! liste et données des polices installées, mesure des performances, réglages de la carte
-//! graphique et mémoire de l'ordinateur (Préférences), et accès aux fichiers via
-//! les extensions officielles de Tauri.
+//! graphique et mémoire de l'ordinateur (Préférences), langue choisie dans l'installeur Windows,
+//! et accès aux fichiers via les extensions officielles de Tauri.
 
 mod launch;
 
@@ -105,6 +105,20 @@ fn save_launch_prefs(app: tauri::AppHandle, prefs: String) -> Result<(), String>
     launch::write(&app.config().identifier, &prefs)
 }
 
+/// Langue choisie dans l'installeur Windows : `langue.txt`, écrit à côté de l'appli par l'installeur
+/// (windows/langue.nsh). Rien sous macOS et Linux, ni avec l'installeur MSI : l'appli la demande
+/// alors au premier lancement.
+#[tauri::command]
+fn installer_language() -> Option<String> {
+    let exe = std::env::current_exe().ok()?;
+    parse_language(&std::fs::read_to_string(exe.parent()?.join("langue.txt")).ok()?)
+}
+
+fn parse_language(text: &str) -> Option<String> {
+    let lang = text.trim();
+    matches!(lang, "fr" | "en").then(|| lang.to_string())
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     let context = tauri::generate_context!();
@@ -127,7 +141,8 @@ pub fn run() {
             bench_mode,
             bench_report,
             system_memory,
-            save_launch_prefs
+            save_launch_prefs,
+            installer_language
         ])
         .build(context)
         .expect("impossible de démarrer Poulpe Design");
@@ -183,6 +198,14 @@ mod tests {
                 assert!(bytes[..4] == [0, 1, 0, 0] || &bytes[..4] == b"true");
             }
         }
+    }
+
+    #[test]
+    fn lit_la_langue_de_l_installeur() {
+        assert_eq!(parse_language("fr"), Some("fr".to_string()));
+        assert_eq!(parse_language("en\r\n"), Some("en".to_string()));
+        assert_eq!(parse_language("de"), None);
+        assert_eq!(parse_language(""), None);
     }
 
     #[test]
