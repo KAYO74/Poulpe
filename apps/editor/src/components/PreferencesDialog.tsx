@@ -179,18 +179,18 @@ function useMemory() {
 }
 
 const PROFILES: Record<'saver' | 'balanced' | 'power', Partial<PerfPrefs>> = {
-  saver: { cacheMb: 128, historyLimit: 50, previewQuality: 'low', gpuPreference: 'low-power', threads: 1 },
+  saver: { cacheMb: 128, historyLimit: 50, previewQuality: 'fast', gpuPreference: 'low-power', threads: 1 },
   balanced: {
     cacheMb: DEFAULT_PERF.cacheMb,
     historyLimit: DEFAULT_PERF.historyLimit,
-    previewQuality: 'medium',
+    previewQuality: DEFAULT_PERF.previewQuality,
     gpuPreference: 'default',
     threads: 0,
   },
   power: {
     cacheMb: 2048,
-    historyLimit: 500,
-    previewQuality: 'high',
+    historyLimit: 1000,
+    previewQuality: 'full',
     gpuPreference: 'high-performance',
     threads: 0,
   },
@@ -263,7 +263,10 @@ function PerformancePane() {
             label={t('prefs.cache')}
             value={perf.cacheMb}
             testId="prefs-cache"
-            options={[128, 256, 512, 1024, 2048, 4096].map((m) => ({ value: m, label: formatMb(m) }))}
+            options={[0, 128, 256, 512, 1024, 2048, 4096].map((m) => ({
+              value: m,
+              label: m ? formatMb(m) : t('prefs.cacheOff'),
+            }))}
             onChange={(v) => setPerf({ cacheMb: v })}
           />
           <NumberField
@@ -278,7 +281,7 @@ function PerformancePane() {
             label={t('prefs.preview')}
             value={perf.previewQuality}
             testId="prefs-preview"
-            options={(['low', 'medium', 'high'] as const).map((q) => ({
+            options={(['fast', 'balanced', 'full'] as const).map((q) => ({
               value: q,
               label: t(`prefs.preview.${q}`),
             }))}

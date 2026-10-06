@@ -19,7 +19,8 @@ import { editor, toast } from './store';
  * Les autres modules lisent ces valeurs avec `getPerf` et suivent leurs changements avec `subscribePerf`.
  */
 
-export type PreviewQuality = 'low' | 'medium' | 'high';
+/** Pendant un zoom ou un défilement : image étirée (`fast`, `balanced`) ou redessinée nette (`full`). */
+export type PreviewQuality = 'fast' | 'balanced' | 'full';
 export type GpuPreference = 'default' | 'high-performance' | 'low-power';
 
 export interface PerfPrefs {
@@ -43,9 +44,9 @@ export interface PerfPrefs {
 
 export const DEFAULT_PERF: PerfPrefs = {
   memoryBudgetMb: 0,
-  cacheMb: 512,
-  historyLimit: 200,
-  previewQuality: 'high',
+  cacheMb: 256,
+  historyLimit: 500,
+  previewQuality: 'balanced',
   hardwareAcceleration: true,
   gpuPreference: 'default',
   threads: 0,
@@ -56,7 +57,7 @@ export const DEFAULT_PERF: PerfPrefs = {
 /** Bornes des réglages, partagées par la fenêtre et la lecture des fichiers importés. */
 export const PERF_LIMITS = {
   memoryBudgetMb: [0, 65536],
-  cacheMb: [64, 8192],
+  cacheMb: [0, 8192],
   historyLimit: [0, 2000],
   threads: [0, 64],
   autosaveDelaySec: [0.5, 600],
@@ -74,7 +75,7 @@ function sanitize(raw: unknown): PerfPrefs {
     const v = src[k];
     if (typeof v === 'number' && Number.isFinite(v)) out[k] = Math.min(max, Math.max(min, v));
   }
-  if (src.previewQuality === 'low' || src.previewQuality === 'medium' || src.previewQuality === 'high')
+  if (src.previewQuality === 'fast' || src.previewQuality === 'balanced' || src.previewQuality === 'full')
     out.previewQuality = src.previewQuality;
   if (['default', 'high-performance', 'low-power'].includes(src.gpuPreference as string))
     out.gpuPreference = src.gpuPreference as GpuPreference;
