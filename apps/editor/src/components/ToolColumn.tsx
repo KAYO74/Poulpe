@@ -4,12 +4,13 @@ import { useT } from '../i18n';
 import { importImage } from '../io';
 import { setTool, ui, useEditor, useUi, type Persona, type ToolId } from '../store';
 import { activeWorkspace, useActiveWorkspace } from '../workspaces';
-import { TOOL_CATALOG, toolGroupsFor, toolPersona } from '../toolCatalog';
+import { TOOL_CATALOG, smallGroups, toolGroupsFor, toolPersona } from '../toolCatalog';
 import { setPersona } from '../photo/persona';
 import { findNode, isStyled } from '@poulpe/core';
 import { paintPreview } from './fields';
 import { Icon, type IconName } from './Icon';
-import { useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { FloatingFrame } from '../panels/FloatingFrame';
 import { dockPanel, floatPanel, startPanelDrag, usePanels } from '../panels/panelLayout';
 
@@ -51,7 +52,8 @@ export function ToolColumn() {
   const { doc, selection } = useEditor();
   const photo = persona === 'photo';
   const custom = useActiveWorkspace()?.tools ?? null;
-  const groups = custom ? customGroups(custom) : toolGroupsFor(persona);
+  const grouped = useUi((s) => s.settings.toolsLayout) === 'groups';
+  const groups = custom ? (grouped ? smallGroups : customGroups)(custom) : toolGroupsFor(persona);
   const keyOf = (id: ToolId) => {
     const need = toolPersona(id);
     return (need === 'photo' || (!need && photo) ? PHOTO_KEY_OF : KEY_OF)[id];
@@ -68,7 +70,63 @@ export function ToolColumn() {
   const side = useUi((s) => s.settings.toolsSide);
   const dropping = useUi((s) => s.panelDock === 'tools');
   const ref = useRef<HTMLDivElement>(null);
-  const two = columns === 'two' || (columns === 'auto' && groups.flat().length > TWO_COLUMNS);
+  const shown = grouped ? groups.length : groups.flat().length;
+  const two = columns === 'two' || (columns === 'auto' && shown > TWO_COLUMNS);
+  const [menu, setMenu] = useState<{ group: ToolId[]; rect: DOMRect } | null>(null);
+  useEffect(() => {
+    // Le dernier outil choisi dans un groupe reste celui affiché par son bouton.
+    const g = groups.find((gr) => gr.includes(tool));
+    if (g && g.length > 1) rememberInGroup(g, tool);
+  }, [tool, groups]);
+  const toolButton = (id: ToolId, group?: ToolId[]) => {
+    const key = keyOf(id);
+    const label = `${t(`tool.${id}`)}${key ? ` (${key})` : ''}`;
+    const many = !!group && group.length > 1;
+    let press: number | undefined;
+    const open = (el: HTMLElement) => setMenu({ group: group!, rect: el.getBoundingClientRect() });
+    return (
+      <button
+        key={id}
+        className={`tool${many ? ' has-more' : ''}`}
+        aria-pressed={tool === id}
+        aria-haspopup={many ? 'menu' : undefined}
+        title={many ? `${label}\n${t('tool.groupMore')}` : label}
+        aria-label={label}
+        data-testid={`tool-${id}`}
+        onClick={() => pickTool(id)}
+        onContextMenu={
+          many
+            ? (e) => {
+                e.preventDefault();
+                open(e.currentTarget);
+              }
+            : undefined
+        }
+        onPointerDown={
+          many
+            ? (e) => {
+                const el = e.currentTarget;
+                press = window.setTimeout(() => open(el), 450);
+              }
+            : undefined
+        }
+        onPointerUp={many ? () => clearTimeout(press) : undefined}
+        onPointerLeave={many ? () => clearTimeout(press) : undefined}
+      >
+        <Icon name={id as IconName} />
+        {many && (
+          <span
+            className="tool-more"
+            data-testid={`toolgroup-more-${group![0]}`}
+            onClick={(e) => {
+              e.stopPropagation();
+              open(e.currentTarget.parentElement!);
+            }}
+          />
+        )}
+      </button>
+    );
+  };
   const column = (
     <div
       ref={floating ? undefined : ref}
@@ -92,27 +150,27 @@ export function ToolColumn() {
           <span className="panel-grip" aria-hidden="true" />
         </div>
       )}
-      {groups.map((group, gi) => (
-        <div className="toolgroup" key={gi}>
-          {group.map((id) => {
-            const key = keyOf(id);
-            const label = `${t(`tool.${id}`)}${key ? ` (${key})` : ''}`;
-            return (
-              <button
-                key={id}
-                className="tool"
-                aria-pressed={tool === id}
-                title={label}
-                aria-label={label}
-                data-testid={`tool-${id}`}
-                onClick={() => pickTool(id)}
-              >
-                <Icon name={id as IconName} />
-              </button>
-            );
-          })}
+      {grouped ? (
+        <div className="toolgroup">
+          {groups.map((group) => toolButton(group.includes(tool) ? tool : shownInGroup(group), group))}
         </div>
-      ))}
+      ) : (
+        groups.map((group, gi) => (
+          <div className="toolgroup" key={gi}>
+            {group.map((id) => toolButton(id))}
+          </div>
+        ))
+      )}
+      {menu && (
+        <ToolMenu
+          group={menu.group}
+          rect={menu.rect}
+          side={side}
+          current={tool}
+          keyOf={keyOf}
+          onClose={() => setMenu(null)}
+        />
+      )}
       {photo ? (
         <div className="fillstroke">
           <button
@@ -205,4 +263,96 @@ export function ToolColumn() {
 /** Double-clic sur la poignée : la colonne devient une palette flottante de deux colonnes. */
 function startFloatAt(x: number, y: number, h: number): void {
   floatPanel('tools', { x, y, w: 92, h: Math.min(h, 640) });
+}
+
+/* Outil affiché par chaque groupe (le dernier choisi), retenu d'une session à l'autre. */
+const GROUP_KEY = 'poulpe.toolGroups';
+let lastInGroup: Record<string, ToolId> = (() => {
+  try {
+    return JSON.parse(localStorage.getItem(GROUP_KEY) ?? '{}') as Record<string, ToolId>;
+  } catch {
+    return {};
+  }
+})();
+
+function shownInGroup(group: ToolId[]): ToolId {
+  const last = lastInGroup[group.join(',')];
+  return last && group.includes(last) ? last : group[0];
+}
+
+function rememberInGroup(group: ToolId[], id: ToolId): void {
+  const key = group.join(',');
+  if (lastInGroup[key] === id) return;
+  lastInGroup = { ...lastInGroup, [key]: id };
+  try {
+    localStorage.setItem(GROUP_KEY, JSON.stringify(lastInGroup));
+  } catch {
+    /* stockage indisponible */
+  }
+}
+
+/** Menu des outils d'un groupe, ouvert à côté de son bouton, du côté du document. */
+function ToolMenu({
+  group,
+  rect,
+  side,
+  current,
+  keyOf,
+  onClose,
+}: {
+  group: ToolId[];
+  rect: DOMRect;
+  side: 'left' | 'right';
+  current: ToolId;
+  keyOf: (id: ToolId) => string | undefined;
+  onClose: () => void;
+}) {
+  const t = useT();
+  const ref = useRef<HTMLDivElement>(null);
+  const close = useRef(onClose);
+  close.current = onClose;
+  useEffect(() => {
+    ref.current?.querySelector<HTMLElement>('[aria-checked="true"], button')?.focus();
+    const down = (e: PointerEvent) => {
+      if (!ref.current?.contains(e.target as Node)) close.current();
+    };
+    const key = (e: KeyboardEvent) => {
+      if (e.key !== 'Escape') return;
+      e.stopPropagation();
+      close.current();
+    };
+    // Le clic qui a ouvert le menu ne doit pas le refermer.
+    const id = setTimeout(() => window.addEventListener('pointerdown', down, true), 0);
+    window.addEventListener('keydown', key, true);
+    return () => {
+      clearTimeout(id);
+      window.removeEventListener('pointerdown', down, true);
+      window.removeEventListener('keydown', key, true);
+    };
+  }, []);
+  const style: React.CSSProperties =
+    side === 'right'
+      ? { right: window.innerWidth - rect.left + 4, top: rect.top }
+      : { left: rect.right + 4, top: rect.top };
+  return createPortal(
+    <div className="tool-menu" role="menu" ref={ref} style={style} data-testid="tool-menu">
+      {group.map((id) => (
+        <button
+          key={id}
+          role="menuitemradio"
+          aria-checked={current === id}
+          data-testid={`toolmenu-${id}`}
+          onClick={() => {
+            pickTool(id);
+            onClose();
+          }}
+        >
+          <Icon name={id as IconName} />
+          <span className="tool-menu-label">{t(`tool.${id}`)}</span>
+          <span className="tool-menu-key">{keyOf(id) ?? ''}</span>
+        </button>
+      ))}
+    </div>,
+    document.body,
+  );
 }

@@ -416,6 +416,15 @@ function DisplayPane() {
             onChange={(v) => setSettings({ toolsColumns: v })}
           />
           <Select
+            label={t('view.toolsLayout')}
+            value={s.toolsLayout}
+            options={[
+              { value: 'all', label: t('view.toolsLayout.all') },
+              { value: 'groups', label: t('view.toolsLayout.groups') },
+            ]}
+            onChange={(v) => setSettings({ toolsLayout: v })}
+          />
+          <Select
             label={t('view.studioSide')}
             value={s.studioSide}
             options={[
