@@ -3,7 +3,7 @@
 </p>
 
 <p align="center">
-  <a href="https://github.com/KAYO74/Poulpe/releases/latest"><img src="https://img.shields.io/badge/version-1.0-FF5F86" alt="Version 1.0"></a>
+  <a href="https://github.com/KAYO74/Poulpe/releases/latest"><img src="https://img.shields.io/badge/version-1.1-FF5F86" alt="Version 1.1"></a>
   <a href="https://github.com/KAYO74/Poulpe/actions/workflows/ci.yml"><img src="https://github.com/KAYO74/Poulpe/actions/workflows/ci.yml/badge.svg" alt="Tests"></a>
   <a href="LICENSE"><img src="https://img.shields.io/badge/licence-MPL--2.0-7B61FF" alt="Licence MPL-2.0"></a>
   <img src="https://img.shields.io/badge/Windows%20%C2%B7%20macOS%20%C2%B7%20Linux-2BA59A" alt="Windows, macOS, Linux">
@@ -28,7 +28,7 @@
 </p>
 
 > [!NOTE]
-> Voici la version 1.0 : dessin vectoriel, retouche photo, mise en page, vectorisation d'images, détourage automatique, macros et extensions, dans une appli qui se met à jour toute seule. Le nom est provisoire.
+> Voici la version 1.1 : dessin vectoriel, retouche photo, mise en page, vectorisation d'images, détourage automatique, macros et extensions, dans une appli qui se met à jour toute seule. Nouveau : la langue se choisit à l'installation, une fenêtre Préférences complète, une gestion avancée des calques, une appli plus fluide sur les gros documents et une colonne d'outils à la carte.
 
 > [!TIP]
 > **Fait avec l'IA.** Poulpe Design est un projet de Fred, construit avec l'intelligence artificielle : le code, la documentation et les images de cette page ont été écrits par Claude (Anthropic) à partir de ses demandes, pour offrir à tous une vraie application de design, libre et gratuite. Rien n'est repris de logiciels propriétaires ; voir [Licences et origine du contenu](docs/licences.md).
@@ -47,6 +47,8 @@ Choisissez votre système, le téléchargement démarre directement.
 
 Toutes les versions et l'installeur Windows `.msi` sont sur la page [Versions](https://github.com/KAYO74/Poulpe/releases).
 
+Le français ou l'anglais se choisit au moment de l'installation sur Windows, et au premier lancement sur macOS et Linux. On peut changer d'avis ensuite dans **Édition > Préférences**, où se règle aussi le thème sombre ou clair.
+
 L'appli n'est pas encore signée : au premier lancement, Windows et macOS affichent un avertissement. Le [guide d'installation](docs/installer.md) explique comment l'ouvrir quand même, en deux clics.
 
 ## Fonctionnalités
@@ -62,11 +64,11 @@ L'appli n'est pas encore signée : au premier lancement, Windows et macOS affich
   </tr>
   <tr>
     <td width="50%"><img src="docs/images/mise-en-page.png" alt="La Persona Mise en page : panneau Pages avec pages maîtres et miniatures"></td>
-    <td width="50%"><img src="docs/images/editeur-clair-anglais.png" alt="L'éditeur en thème clair et en anglais, avec un dégradé linéaire sur une carte « Summer Sale »"></td>
+    <td width="50%"><img src="docs/images/choix-langue.png" alt="La fenêtre du premier lancement qui demande la langue : Français ou English"></td>
   </tr>
   <tr>
     <td align="center">Mise en page sur plusieurs pages</td>
-    <td align="center">Thème clair, interface en anglais</td>
+    <td align="center">Français ou anglais, choisi à l'installation</td>
   </tr>
   <tr>
     <td width="50%"><img src="docs/images/vectoriser.png" alt="La fenêtre « Vectoriser l'image » : une illustration de poulpe et son aperçu en tracés de six couleurs"></td>
@@ -119,26 +121,30 @@ Trois espaces de travail, comme dans Affinity, qu'on change d'un clic en haut à
 
 - Format ouvert `.poulpe`, export PNG, JPEG, SVG, PDF et PSD, export par lots.
 - **Ouverture des fichiers Photoshop (.psd), PDF et Illustrator (.ai)**, import SVG.
-- Vos fichiers restent sur votre ordinateur, l'appli fonctionne sans connexion, en français ou en anglais.
+- Vos fichiers restent sur votre ordinateur, l'appli fonctionne sans connexion, en français ou en anglais (choisi à l'installation, modifiable dans les Préférences).
 
 **Gagner du temps**
 
 - **Macros** : on enregistre ses gestes et on les rejoue d'un clic sur une autre image.
 - **Raccourcis clavier** au choix, et **extensions** pour ajouter ses propres commandes.
+- **Préférences** (Édition > Préférences) : langue, thème sombre ou clair, mémoire, historique, carte graphique, sauvegarde automatique, et une page Diagnostic.
+- **Calques avancés** : sélection multiple, glisser-déposer de plusieurs calques, ordre au clavier (Ctrl+] et Ctrl+[), fluide même avec des milliers de calques.
+- **Colonne d'outils** sur une ou deux colonnes, verrouillable, avec outils vectoriels et pixel mélangés dans vos espaces de travail.
 - **Mises à jour automatiques** : l'appli propose elle-même la nouvelle version, sans rien réinstaller.
 
 ## Feuille de route
 
-| Version | Contenu                                                                                       | État          |
-| ------- | --------------------------------------------------------------------------------------------- | ------------- |
-| v0.1    | Moteur d'édition, export, appli de bureau                                                     | ✅ Disponible |
-| v0.2    | Côté Canva : modèles, bibliothèque d'éléments, formats réseaux sociaux                        | ✅ Disponible |
-| v0.3    | Vectoriel pro : plume, nœuds, géométrie, effets (Illustrator, Affinity Designer)              | ✅ Disponible |
-| v0.4    | Retouche photo : pinceaux, sélections, réglages, gomme magique (Photoshop, Affinity Photo)    | ✅ Disponible |
-| v0.5    | Mise en page et impression : pages, CMJN, PDF/X, fichiers PSD, PDF et AI (Affinity Publisher) | ✅ Disponible |
-| v0.6    | Outils Photoshop et Affinity manquants : correcteur, fluidité, cutter, symboles, LUT…         | ✅ Disponible |
-| v1.0    | Vectorisation, détourage par IA locale, macros, extensions, mises à jour automatiques         | ✅ Disponible |
-| v1.x    | Appli signée (Windows, macOS), Flathub, accessibilité, documentation en anglais               | 🚧 À venir    |
+| Version | Contenu                                                                                            | État          |
+| ------- | -------------------------------------------------------------------------------------------------- | ------------- |
+| v0.1    | Moteur d'édition, export, appli de bureau                                                          | ✅ Disponible |
+| v0.2    | Côté Canva : modèles, bibliothèque d'éléments, formats réseaux sociaux                             | ✅ Disponible |
+| v0.3    | Vectoriel pro : plume, nœuds, géométrie, effets (Illustrator, Affinity Designer)                   | ✅ Disponible |
+| v0.4    | Retouche photo : pinceaux, sélections, réglages, gomme magique (Photoshop, Affinity Photo)         | ✅ Disponible |
+| v0.5    | Mise en page et impression : pages, CMJN, PDF/X, fichiers PSD, PDF et AI (Affinity Publisher)      | ✅ Disponible |
+| v0.6    | Outils Photoshop et Affinity manquants : correcteur, fluidité, cutter, symboles, LUT…              | ✅ Disponible |
+| v1.0    | Vectorisation, détourage par IA locale, macros, extensions, mises à jour automatiques              | ✅ Disponible |
+| v1.1    | Langue choisie à l'installation, Préférences, calques avancés, appli plus fluide, colonne d'outils | ✅ Disponible |
+| v1.x    | Appli signée (Windows, macOS), Flathub, accessibilité, documentation en anglais                    | 🚧 À venir    |
 
 Le détail est dans la [feuille de route des fonctionnalités](docs/feuille-de-route.md).
 
@@ -168,7 +174,7 @@ Pour publier une nouvelle version, on change le numéro de version (dans `apps/d
 
 - [Guide d'installation](docs/installer.md)
 - [Licences et origine du contenu](docs/licences.md)
-- [Moteur d'édition v0.1](docs/moteur-v0.1.md), [Côté Canva v0.2](docs/cote-canva-v0.2.md), [Vectoriel pro v0.3](docs/vectoriel-pro-v0.3.md), [Retouche photo v0.4](docs/retouche-photo-v0.4.md), [Mise en page v0.5](docs/mise-en-page-v0.5.md), [Impression v0.5](docs/impression-v0.5.md), [Outils manquants v0.6](docs/outils-manquants-v0.6.md) et [Version 1.0](docs/version-1.0.md) : état et organisation du code
+- [Moteur d'édition v0.1](docs/moteur-v0.1.md), [Côté Canva v0.2](docs/cote-canva-v0.2.md), [Vectoriel pro v0.3](docs/vectoriel-pro-v0.3.md), [Retouche photo v0.4](docs/retouche-photo-v0.4.md), [Mise en page v0.5](docs/mise-en-page-v0.5.md), [Impression v0.5](docs/impression-v0.5.md), [Outils manquants v0.6](docs/outils-manquants-v0.6.md) [Version 1.0](docs/version-1.0.md) et [Version 1.1](docs/version-1.1.md) : état et organisation du code
 - [Panneaux libres et espaces de travail](docs/panneaux-libres.md), [Écrire une extension](docs/extensions.md)
 - [Signature des installeurs et mises à jour automatiques](docs/signature-et-mises-a-jour.md)
 - [Format de fichier `.poulpe`](docs/format-poulpe.md)

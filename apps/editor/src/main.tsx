@@ -3,6 +3,7 @@ import { createRoot } from 'react-dom/client';
 import { App } from './App';
 import { getController } from './components/Viewport';
 import { startDrafts } from './drafts';
+import { chooseStartLanguage } from './startLanguage';
 import { loadSystemFonts } from './fonts';
 import { getLang } from './i18n';
 import { isDesktop, openPath, openPhotoBytes } from './io';
@@ -33,7 +34,8 @@ createRoot(document.getElementById('root')!).render(
 
 prefs.startPreferences();
 void loadSystemFonts();
-void startDrafts();
+// La langue d'abord (installeur ou premier lancement), puis le brouillon ou l'écran d'accueil.
+void chooseStartLanguage().then(startDrafts);
 void import('./updater').then((u) => u.startUpdateChecks());
 void import('./extensions/host').then((x) => x.startExtensions());
 if (isDesktop() || location.search.includes('bench'))

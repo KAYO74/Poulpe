@@ -300,7 +300,9 @@ test('exporte en PNG, JPEG, SVG et PDF, puis enregistre et rouvre un .poulpe', a
 });
 
 test('passe en anglais et déplace la colonne d’outils à gauche', async ({ page }) => {
-  await page.getByRole('button', { name: 'Langue' }).click();
+  await page.keyboard.press('Control+,');
+  await page.getByTestId('prefs-language').selectOption('en');
+  await page.keyboard.press('Escape');
   await expect(page.getByRole('button', { name: 'File' })).toBeVisible();
   await page.getByRole('button', { name: 'Tools column' }).click();
   const tools = (await page.getByTestId('tool-select').boundingBox())!;
