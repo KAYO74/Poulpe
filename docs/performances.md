@@ -31,7 +31,7 @@ Pas de fuite de mémoire : la mesure complète rejouée 4 fois de suite dans la 
 Ce qu'on en retient :
 
 - **Bouger la souris, défiler et zoomer ne font plus ramer**, même sur une machine lente : de 3 à 9 images par seconde avant, plus de 60 après.
-- **Déplacer ou modifier des objets est deux fois plus rapide.** Le reste du temps passe dans le panneau Calques, qui recrée ses 1 000 lignes à chaque image : c'est l'objet du fil « Gestion avancée des calques » (liste virtualisée).
+- **Déplacer ou modifier des objets est 3 à 4 fois plus rapide**, grâce à ce changement et à la liste des calques virtualisée (PR #22), qui ne recrée plus ses 1 000 lignes à chaque image.
 - Le premier affichage d'un document ne change pas : il faut bien tout dessiner une fois.
 
 ## Ce qui ralentissait, et ce qui a changé
@@ -64,6 +64,5 @@ Ils sont appliqués par `apps/editor/src/perf.ts` ; la fenêtre Préférences > 
 
 ## Pistes suivantes
 
-- Panneau Calques virtualisé et lignes mémorisées (fil « Gestion avancée des calques ») : c'est maintenant la plus grosse part du temps pendant un déplacement.
 - Calques de réglage et filtres photo calculés dans un Web Worker, hors du fil de l'interface.
 - Refaire la mesure dans l'appli de bureau sur un vrai poste Linux (`POULPE_BENCH=1 poulpe`).
