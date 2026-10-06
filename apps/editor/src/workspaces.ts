@@ -1,7 +1,15 @@
 import { useSyncExternalStore } from 'react';
 import { setPersona } from './photo/persona';
 import { DEFAULT_PANELS, panels, type PanelLayout } from './panels/panelLayout';
-import { setSettings, ui, type Persona, type Side, type ToolId, type ToolsColumns } from './store';
+import {
+  setSettings,
+  ui,
+  type Persona,
+  type Side,
+  type ToolId,
+  type ToolsColumns,
+  type ToolsLayout,
+} from './store';
 import { toolPersona } from './toolCatalog';
 
 /**
@@ -24,6 +32,7 @@ export interface Workspace {
   library: boolean;
   toolsSide: Side;
   toolsColumns?: ToolsColumns;
+  toolsLayout?: ToolsLayout;
   toolsLocked?: boolean;
   studioSide: Side;
   panels: PanelLayout;
@@ -103,6 +112,7 @@ export function applyWorkspace(id: string): void {
     library: ws.library,
     toolsSide: ws.toolsSide,
     toolsColumns: ws.toolsColumns ?? 'auto',
+    toolsLayout: ws.toolsLayout ?? 'all',
     toolsLocked: ws.toolsLocked ?? false,
     studioSide: ws.studioSide,
   });
@@ -148,6 +158,7 @@ export function createWorkspace(draft: WorkspaceDraft): string {
     ...draft,
     library: s.library,
     toolsSide: s.toolsSide,
+    toolsLayout: s.toolsLayout,
     toolsLocked: s.toolsLocked,
     studioSide: s.studioSide,
     panels: clonePanels(panels.get()),
@@ -193,6 +204,7 @@ ui.subscribe(() => {
     s.toolsSide !== ws.toolsSide ||
     s.studioSide !== ws.studioSide ||
     s.toolsColumns !== (ws.toolsColumns ?? 'auto') ||
+    s.toolsLayout !== (ws.toolsLayout ?? 'all') ||
     s.toolsLocked !== (ws.toolsLocked ?? false)
   )
     update(ws.id, {
@@ -200,6 +212,7 @@ ui.subscribe(() => {
       toolsSide: s.toolsSide,
       studioSide: s.studioSide,
       toolsColumns: s.toolsColumns,
+      toolsLayout: s.toolsLayout,
       toolsLocked: s.toolsLocked,
     });
 });
