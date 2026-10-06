@@ -68,6 +68,7 @@ export interface BrushSettings {
 }
 
 export type Side = 'left' | 'right';
+export type ToolsColumns = 'auto' | 'one' | 'two';
 export type Theme = 'dark' | 'light';
 export type Dialog =
   | null
@@ -101,6 +102,10 @@ export type HelpTab = 'start' | 'faq' | 'performance';
 export interface Settings {
   theme: Theme;
   toolsSide: Side;
+  /** Disposition de la colonne d'outils : automatique (deux colonnes s'il y a beaucoup d'outils), une ou deux colonnes. */
+  toolsColumns: ToolsColumns;
+  /** Colonne d'outils verrouillée : elle ne se détache plus en palette flottante. */
+  toolsLocked: boolean;
   studioSide: Side;
   rulers: boolean;
   grid: boolean;
@@ -192,6 +197,8 @@ function loadSettings(): Settings {
   const fallback: Settings = {
     theme: 'dark',
     toolsSide: 'right',
+    toolsColumns: 'auto',
+    toolsLocked: false,
     studioSide: 'right',
     rulers: true,
     grid: false,

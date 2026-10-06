@@ -341,6 +341,27 @@ export function MenuBar() {
               <span className="menu-label">{t(side === 'left' ? 'view.left' : 'view.right')}</span>
             </Menu.Item>
           ))}
+          <Sep />
+          {(['auto', 'one', 'two'] as const).map((c) => (
+            <Menu.Item
+              key={c}
+              className="menu-item"
+              data-testid={`menu-tools-columns-${c}`}
+              onSelect={() => setSettings({ toolsColumns: c })}
+            >
+              <span className="menu-check">{settings.toolsColumns === c ? '✓' : ''}</span>
+              <span className="menu-label">{t(`view.toolsColumns.${c}`)}</span>
+            </Menu.Item>
+          ))}
+          <Sep />
+          <Menu.Item
+            className="menu-item"
+            data-testid="menu-tools-lock"
+            onSelect={() => setSettings({ toolsLocked: !settings.toolsLocked })}
+          >
+            <span className="menu-check">{settings.toolsLocked ? '✓' : ''}</span>
+            <span className="menu-label">{t('view.toolsLocked')}</span>
+          </Menu.Item>
         </Sub>
         <Sub label={t('view.studioSide')}>
           {(['left', 'right'] as const).map((side) => (

@@ -2291,6 +2291,27 @@ h4.sub .link {
 .link:hover {
   text-decoration: underline;
 }
+.ws-catalog {
+  display: grid;
+  gap: 8px;
+}
+.ws-family {
+  display: grid;
+  grid-template-columns: 150px 1fr;
+  align-items: center;
+  gap: 10px;
+}
+.ws-family-name {
+  color: var(--muted);
+  font-size: 12px;
+}
+.ws-family .ws-toolgroup {
+  flex-wrap: wrap;
+  justify-self: start;
+}
+.ws-catalog .tool[aria-pressed='false'] {
+  opacity: 0.45;
+}
 .ws-tools {
   display: flex;
   flex-wrap: wrap;

@@ -1,7 +1,8 @@
 import { useSyncExternalStore } from 'react';
 import { setPersona } from './photo/persona';
 import { DEFAULT_PANELS, panels, type PanelLayout } from './panels/panelLayout';
-import { setSettings, ui, type Persona, type Side, type ToolId } from './store';
+import { setSettings, ui, type Persona, type Side, type ToolId, type ToolsColumns } from './store';
+import { toolPersona } from './toolCatalog';
 
 /**
  * Espaces de travail personnalisés, comme dans Affinity : on part d'une base (vectoriel, pixel ou
@@ -13,12 +14,17 @@ export interface Workspace {
   id: string;
   name: string;
   base: Persona;
-  /** Outils affichés dans la colonne (null : tous ceux de la base). */
+  /**
+   * Outils de la colonne (null : ceux de la base). Ils peuvent mélanger vectoriel et pixel : choisir
+   * un outil pixel passe en mode Photo, un outil vectoriel revient à la base.
+   */
   tools: ToolId[] | null;
   /** Onglets du Studio affichés (null : tous). */
   tabs: string[] | null;
   library: boolean;
   toolsSide: Side;
+  toolsColumns?: ToolsColumns;
+  toolsLocked?: boolean;
   studioSide: Side;
   panels: PanelLayout;
 }
@@ -93,9 +99,26 @@ export function applyWorkspace(id: string): void {
   const builtinPanels = state.active ? state.builtinPanels : clonePanels(panels.get());
   set({ active: null, builtinPanels });
   setPersona(ws.base);
-  setSettings({ library: ws.library, toolsSide: ws.toolsSide, studioSide: ws.studioSide });
+  setSettings({
+    library: ws.library,
+    toolsSide: ws.toolsSide,
+    toolsColumns: ws.toolsColumns ?? 'auto',
+    toolsLocked: ws.toolsLocked ?? false,
+    studioSide: ws.studioSide,
+  });
   panels.set(clonePanels(ws.panels));
   set({ active: id });
+}
+
+/** Personas qu'un espace peut traverser : sa base, plus celles dont ses outils ont besoin. */
+export function personasOf(ws: Workspace): Persona[] {
+  const list: Persona[] = [ws.base];
+  for (const id of ws.tools ?? []) {
+    const need = toolPersona(id);
+    if (need === 'photo' && !list.includes('photo')) list.push('photo');
+    if (need === 'draw' && ws.base === 'photo' && !list.includes('draw')) list.push('draw');
+  }
+  return list;
 }
 
 /** Revient à une Persona intégrée (Dessin, Photo, Mise en page) et à sa disposition. */
@@ -113,6 +136,7 @@ export interface WorkspaceDraft {
   base: Persona;
   tools: ToolId[] | null;
   tabs: string[] | null;
+  toolsColumns: ToolsColumns;
 }
 
 /** Crée un espace à partir de la disposition actuelle et l'ouvre. */
@@ -124,6 +148,7 @@ export function createWorkspace(draft: WorkspaceDraft): string {
     ...draft,
     library: s.library,
     toolsSide: s.toolsSide,
+    toolsLocked: s.toolsLocked,
     studioSide: s.studioSide,
     panels: clonePanels(panels.get()),
   };
@@ -135,7 +160,10 @@ export function createWorkspace(draft: WorkspaceDraft): string {
 /** Modifie le nom, la base, les outils ou les panneaux d'un espace. */
 export function editWorkspace(id: string, draft: WorkspaceDraft): void {
   update(id, draft);
-  if (state.active === id) setPersona(draft.base);
+  if (state.active === id) {
+    setPersona(draft.base);
+    setSettings({ toolsColumns: draft.toolsColumns });
+  }
 }
 
 export function deleteWorkspace(id: string): void {
@@ -152,13 +180,26 @@ panels.onSave(() => {
 ui.subscribe(() => {
   const ws = activeWorkspace();
   if (!ws) return;
-  // Changer de Persona (raccourci, menu) quitte l'espace personnalisé.
-  if (ui.get().persona !== ws.base) {
+  // Changer de Persona (raccourci, menu) quitte l'espace personnalisé, sauf vers une Persona dont
+  // ses outils ont besoin (espace mixte vectoriel + pixel).
+  if (!personasOf(ws).includes(ui.get().persona)) {
     const persona = ui.get().persona;
     queueMicrotask(() => state.active === ws.id && openPersona(persona));
     return;
   }
   const s = ui.get().settings;
-  if (s.library !== ws.library || s.toolsSide !== ws.toolsSide || s.studioSide !== ws.studioSide)
-    update(ws.id, { library: s.library, toolsSide: s.toolsSide, studioSide: s.studioSide });
+  if (
+    s.library !== ws.library ||
+    s.toolsSide !== ws.toolsSide ||
+    s.studioSide !== ws.studioSide ||
+    s.toolsColumns !== (ws.toolsColumns ?? 'auto') ||
+    s.toolsLocked !== (ws.toolsLocked ?? false)
+  )
+    update(ws.id, {
+      library: s.library,
+      toolsSide: s.toolsSide,
+      studioSide: s.studioSide,
+      toolsColumns: s.toolsColumns,
+      toolsLocked: s.toolsLocked,
+    });
 });
