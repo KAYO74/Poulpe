@@ -29,6 +29,7 @@ import { canVectorize } from './smart/vectorize';
 import { addLutPreset, loadLutFile } from './photo/retouchActions';
 import { resetPanels } from './panels/panelLayout';
 import { openPersona } from './workspaces';
+import { selectAdjacentLayer } from './layers';
 import { LUT_PRESETS, type LutPreset } from '@poulpe/core';
 
 export interface Command {
@@ -334,6 +335,16 @@ export const COMMANDS = {
     shortcut: 'Mod+Shift+[',
     run: () => A.reorder('back'),
     enabled: hasSel,
+  },
+  'layer.selectAbove': {
+    label: 'layer.selectAbove',
+    shortcut: 'Alt+]',
+    run: () => selectAdjacentLayer(-1),
+  },
+  'layer.selectBelow': {
+    label: 'layer.selectBelow',
+    shortcut: 'Alt+[',
+    run: () => selectAdjacentLayer(1),
   },
   'arrange.alignLeft': { label: 'arrange.alignLeft', run: () => A.align('left'), enabled: hasSel },
   'arrange.alignHCenter': { label: 'arrange.alignHCenter', run: () => A.align('hcenter'), enabled: hasSel },
