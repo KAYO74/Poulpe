@@ -149,3 +149,48 @@ test('crée son propre espace de travail et passe de l’un à l’autre', async
   await expect(page.getByTestId('workspace-menu')).not.toContainText('Retouche rapide');
   await expect(page.getByTestId('persona-photo')).toHaveAttribute('aria-pressed', 'true');
 });
+
+test('mélange outils vectoriels et pixel dans un espace, une colonne ou deux, verrouillage', async ({
+  page,
+}) => {
+  await page.getByTestId('workspace-menu').click();
+  await page.getByTestId('workspace-new').click();
+  await page.getByTestId('workspace-name').fill('Mixte');
+  // Base vectorielle, plus le pinceau et la gomme.
+  await page.getByTestId('workspace-tool-brush').click();
+  await page.getByTestId('workspace-tool-eraser').click();
+  await page.getByTestId('workspace-columns-one').click();
+  await page.getByTestId('workspace-save').click();
+
+  const col = page.getByTestId('toolcol');
+  await expect(col.getByTestId('tool-pen')).toBeVisible();
+  await expect(col.getByTestId('tool-brush')).toBeVisible();
+  await expect(col).not.toHaveClass(/\btwo\b/);
+
+  // Un outil pixel passe en mode Photo sans quitter l'espace.
+  await page.getByTestId('tool-brush').click();
+  await expect(page.getByTestId('tool-brush')).toHaveAttribute('aria-pressed', 'true');
+  expect(await page.evaluate(() => (window as any).poulpe.ui.get().persona)).toBe('photo');
+  await expect(page.getByTestId('workspace-menu')).toContainText('Mixte');
+  await expect(col.getByTestId('tool-pen')).toBeVisible();
+
+  // Un outil vectoriel revient en Dessin.
+  await page.getByTestId('tool-pen').click();
+  expect(await page.evaluate(() => (window as any).poulpe.ui.get().persona)).toBe('draw');
+  await expect(page.getByTestId('workspace-menu')).toContainText('Mixte');
+
+  // Deux colonnes, puis verrouillage depuis le menu Affichage.
+  await page.getByRole('button', { name: 'Affichage' }).click();
+  await page.getByRole('menuitem', { name: 'Colonne d’outils' }).hover();
+  await page.getByTestId('menu-tools-columns-two').click();
+  await expect(col).toHaveClass(/\btwo\b/);
+  await page.getByRole('button', { name: 'Affichage' }).click();
+  await page.getByRole('menuitem', { name: 'Colonne d’outils' }).hover();
+  await page.getByTestId('menu-tools-lock').click();
+  await expect(page.getByTestId('toolcol-grip')).toHaveCount(0);
+
+  // Le réglage est retenu par l'espace.
+  await page.reload();
+  await expect(page.getByTestId('toolcol')).toHaveClass(/\btwo\b/);
+  await expect(page.getByTestId('toolcol-grip')).toHaveCount(0);
+});

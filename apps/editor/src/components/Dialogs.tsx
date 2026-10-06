@@ -34,10 +34,10 @@ import { updateLayout } from '../layoutActions';
 import { setSettings, ui, useEditor, useUi } from '../store';
 import { NumberField, Select } from './fields';
 import { Icon, type IconName } from './Icon';
-import { toolGroupsFor } from './ToolColumn';
-import { studioTabsFor } from '../panels/Studio';
+import { TOOL_CATALOG, toolGroupsFor, toolPersona } from '../toolCatalog';
+import { studioTabsAll } from '../panels/Studio';
 import { createWorkspace, deleteWorkspace, editWorkspace, workspaces } from '../workspaces';
-import type { Persona, ToolId } from '../store';
+import type { Persona, ToolId, ToolsColumns } from '../store';
 import { ShortcutsDialog } from './ShortcutsDialog';
 import { UpdateDialog } from './UpdateDialog';
 import { PreferencesDialog } from './PreferencesDialog';
@@ -1104,26 +1104,32 @@ function WorkspaceDialog() {
   const editId = useUi((s) => s.workspaceEdit);
   const existing = workspaces.get().list.find((w) => w.id === editId) ?? null;
   const persona = useUi((s) => s.persona);
+  const columnsNow = useUi((s) => s.settings.toolsColumns);
   const [name, setName] = useState(existing?.name ?? t('workspace.defaultName'));
   const [base, setBase] = useState<Persona>(existing?.base ?? persona);
-  const all = toolGroupsFor(base).flat();
-  const allTabs = studioTabsFor(base).map((tab) => tab.id);
-  const [tools, setTools] = useState<ToolId[]>(existing?.tools ?? all);
+  const all = TOOL_CATALOG.flatMap((c) => c.tools);
+  const allTabs = studioTabsAll().map((tab) => tab.id);
+  const baseTools = (b: Persona) => toolGroupsFor(b).flat();
+  const [tools, setTools] = useState<ToolId[]>(existing?.tools ?? baseTools(existing?.base ?? persona));
   const [tabs, setTabs] = useState<string[]>(existing?.tabs ?? allTabs);
+  const [columns, setColumns] = useState<ToolsColumns>(existing?.toolsColumns ?? columnsNow);
   const toggle = <T,>(list: T[], v: T) => (list.includes(v) ? list.filter((x) => x !== v) : [...list, v]);
   const changeBase = (b: Persona) => {
     setBase(b);
-    setTools(toolGroupsFor(b).flat());
-    setTabs(studioTabsFor(b).map((tab) => tab.id));
+    setTools(baseTools(b));
   };
+  const mixed =
+    tools.some((id) => toolPersona(id) === 'photo') && tools.some((id) => toolPersona(id) === 'draw');
   const save = () => {
     const keptTools = all.filter((id) => tools.includes(id));
     const keptTabs = allTabs.filter((id) => tabs.includes(id));
+    const same = (a: ToolId[], b: ToolId[]) => a.length === b.length && a.every((id) => b.includes(id));
     const draft = {
       name: name.trim() || t('workspace.defaultName'),
       base,
-      tools: keptTools.length === all.length ? null : keptTools,
+      tools: same(keptTools, baseTools(base)) ? null : keptTools,
       tabs: keptTabs.length === allTabs.length ? null : keptTabs,
+      toolsColumns: columns,
     };
     if (existing) editWorkspace(existing.id, draft);
     else createWorkspace(draft);
@@ -1161,8 +1167,11 @@ function WorkspaceDialog() {
       <h4 className="sub">
         {t('workspace.tools')}
         <span className="ws-count">
-          {all.filter((id) => tools.includes(id)).length} / {all.length}
+          {tools.length} / {all.length}
         </span>
+        <button className="link" onClick={() => setTools(baseTools(base))}>
+          {t('workspace.baseTools')}
+        </button>
         <button className="link" onClick={() => setTools(all)}>
           {t('workspace.all')}
         </button>
@@ -1170,28 +1179,46 @@ function WorkspaceDialog() {
           {t('workspace.none')}
         </button>
       </h4>
-      <div className="ws-tools">
-        {toolGroupsFor(base).map((group, gi) => (
-          <div className="ws-toolgroup" key={gi}>
-            {group.map((id) => (
-              <button
-                key={id}
-                className="tool"
-                aria-pressed={tools.includes(id)}
-                title={t(`tool.${id}`)}
-                aria-label={t(`tool.${id}`)}
-                data-testid={`workspace-tool-${id}`}
-                onClick={() => setTools(toggle(tools, id))}
-              >
-                <Icon name={id as IconName} />
-              </button>
-            ))}
+      <p className="note small">{t('workspace.toolsHint')}</p>
+      <div className="ws-catalog">
+        {TOOL_CATALOG.map((family) => (
+          <div className="ws-family" key={family.id}>
+            <span className="ws-family-name">{t(`workspace.family.${family.id}`)}</span>
+            <div className="ws-toolgroup">
+              {family.tools.map((id) => (
+                <button
+                  key={id}
+                  className="tool"
+                  aria-pressed={tools.includes(id)}
+                  title={t(`tool.${id}`)}
+                  aria-label={t(`tool.${id}`)}
+                  data-testid={`workspace-tool-${id}`}
+                  onClick={() => setTools(toggle(tools, id))}
+                >
+                  <Icon name={id as IconName} />
+                </button>
+              ))}
+            </div>
           </div>
+        ))}
+      </div>
+      {mixed && <p className="note small">{t('workspace.mixedHint')}</p>}
+      <h4 className="sub">{t('view.toolsColumns')}</h4>
+      <div className="seg" role="group" aria-label={t('view.toolsColumns')}>
+        {(['auto', 'one', 'two'] as const).map((c) => (
+          <button
+            key={c}
+            aria-pressed={columns === c}
+            data-testid={`workspace-columns-${c}`}
+            onClick={() => setColumns(c)}
+          >
+            {t(`view.toolsColumns.${c}`)}
+          </button>
         ))}
       </div>
       <h4 className="sub">{t('workspace.panels')}</h4>
       <div className="ws-tabs">
-        {studioTabsFor(base).map((tab) => (
+        {studioTabsAll().map((tab) => (
           <label className="check" key={tab.id}>
             <input
               type="checkbox"
