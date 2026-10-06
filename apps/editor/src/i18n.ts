@@ -1862,6 +1862,16 @@ function initialLang(): Lang {
 }
 
 let lang: Lang = initialLang();
+
+/** Vrai si une langue a déjà été choisie (installeur, premier lancement ou Préférences). */
+export function hasSavedLang(): boolean {
+  try {
+    const saved = localStorage.getItem('poulpe.lang');
+    return saved === 'fr' || saved === 'en';
+  } catch {
+    return false;
+  }
+}
 const listeners = new Set<() => void>();
 
 export function getLang(): Lang {

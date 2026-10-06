@@ -388,6 +388,7 @@ function DisplayPane() {
         <div className="prefs-grid">
           <Select
             label={t('prefs.theme')}
+            testId="prefs-theme"
             value={s.theme}
             options={[
               { value: 'dark', label: t('view.themeDark') },

@@ -252,10 +252,6 @@ svg.i {
   min-width: 22px;
   height: 22px;
 }
-.ib.lang {
-  font-weight: 700;
-  font-size: 11px;
-}
 .ib:hover:not(:disabled) {
   background: var(--panel-2);
   color: var(--fg);

@@ -135,3 +135,24 @@ test('les préférences pilotent le moteur de rendu', async ({ page }) => {
   await page.getByTestId('prefs-tab-diagnostic').click();
   await expect(page.getByTestId('diag-render')).toContainText('1024');
 });
+
+test('la langue et le thème se règlent seulement dans les Préférences', async ({ page }) => {
+  // Plus de boutons dans la barre d'outils, ni de sous-menus dans Affichage.
+  await expect(page.getByRole('button', { name: 'Langue' })).toHaveCount(0);
+  await expect(page.getByRole('button', { name: 'Thème' })).toHaveCount(0);
+  await page.getByRole('navigation', { name: 'Menu' }).getByText('Affichage', { exact: true }).click();
+  await expect(page.getByRole('menuitem', { name: 'Langue' })).toHaveCount(0);
+  await expect(page.getByRole('menuitem', { name: 'Thème' })).toHaveCount(0);
+  await page.keyboard.press('Escape');
+
+  await page.keyboard.press('Control+,');
+  await page.getByTestId('prefs-tab-display').click();
+  await page.getByTestId('prefs-theme').selectOption('light');
+  await expect(page.locator('html')).toHaveAttribute('data-theme', 'light');
+  await page.getByTestId('prefs-tab-general').click();
+  await page.getByTestId('prefs-language').selectOption('en');
+  await expect(page.getByRole('dialog', { name: 'Preferences' })).toBeVisible();
+  await page.reload();
+  await expect(page.getByRole('button', { name: 'File' })).toBeVisible();
+  await expect(page.locator('html')).toHaveAttribute('data-theme', 'light');
+});
