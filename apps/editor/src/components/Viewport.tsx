@@ -46,11 +46,22 @@ export function Viewport() {
       drawRulers();
     });
     ro.observe(area);
+    // Les règles ne changent qu'avec la vue (ou le thème), et une fois par image au plus.
+    let frame = 0;
     const drawRulers = () => {
+      cancelAnimationFrame(frame);
+      frame = 0;
       if (rulerX.current && rulerY.current) paintRulers(rulerX.current, rulerY.current, c);
     };
-    const unsub = ui.subscribe(drawRulers);
+    let last = ui.get();
+    const unsub = ui.subscribe(() => {
+      const s = ui.get();
+      if (s.view === last.view && s.settings.theme === last.settings.theme) return;
+      last = s;
+      frame ||= requestAnimationFrame(drawRulers);
+    });
     return () => {
+      cancelAnimationFrame(frame);
       ro.disconnect();
       unsub();
       c.dispose();
@@ -125,12 +136,17 @@ function paintRulers(cx: HTMLCanvasElement, cy: HTMLCanvasElement, c: CanvasCont
   const steps = [1, 2, 5, 10, 20, 50, 100, 200, 500, 1000, 2000, 5000];
   const step = steps.find((s) => s * zoom >= 60) ?? 10000;
   const draw = (canvas: HTMLCanvasElement, length: number, pan: number, vertical: boolean) => {
-    canvas.width = Math.round((vertical ? RULER : length) * dpr);
-    canvas.height = Math.round((vertical ? length : RULER) * dpr);
-    canvas.style.width = `${vertical ? RULER : length}px`;
-    canvas.style.height = `${vertical ? length : RULER}px`;
+    const w = Math.round((vertical ? RULER : length) * dpr);
+    const h = Math.round((vertical ? length : RULER) * dpr);
+    // Changer la taille d'une toile la réalloue : seulement quand la fenêtre change de taille.
+    if (canvas.width !== w || canvas.height !== h) {
+      canvas.width = w;
+      canvas.height = h;
+      canvas.style.width = `${vertical ? RULER : length}px`;
+      canvas.style.height = `${vertical ? length : RULER}px`;
+    }
     const ctx = canvas.getContext('2d')!;
-    ctx.scale(dpr, dpr);
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
     ctx.fillStyle = bg;
     ctx.fillRect(0, 0, vertical ? RULER : length, vertical ? length : RULER);
     ctx.strokeStyle = tick;
@@ -209,6 +225,11 @@ function wordAt(text: string, i: number): [number, number] {
  */
 function TextEditor() {
   const editingId = useUi((s) => s.editingTextId);
+  // Sans texte en édition, rien à suivre : pas de mise à jour à chaque changement du document.
+  return editingId ? <EditingText editingId={editingId} /> : null;
+}
+
+function EditingText({ editingId }: { editingId: string }) {
   const state = useEditor();
   useUi((s) => s.view);
   const ref = useRef<HTMLTextAreaElement | null>(null);
@@ -227,7 +248,7 @@ function TextEditor() {
     });
   }, [editingId]);
 
-  if (!editingId || !controller) return null;
+  if (!controller) return null;
   const node = findNode(state.doc, editingId)?.node as TextNode | undefined;
   const fallback = ui.get().defaults;
   const style = node?.style ?? fallback.text;

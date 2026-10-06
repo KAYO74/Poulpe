@@ -55,6 +55,10 @@ export class Editor {
    */
   private normalizer: ((draft: PoulpeDocument) => void) | null = null;
   private extra: ExtraState | null = null;
+  /** Nombre maximal d'étapes d'annulation gardées (0 : illimité). */
+  private historyLimit = 0;
+  /** Libellés de l'historique déjà calculés, réutilisés tant que l'historique ne change pas. */
+  private labels: { key: unknown[]; list: string[] } | null = null;
 
   constructor(doc: PoulpeDocument = createDocument()) {
     const frozen = freeze(doc, true);
@@ -88,13 +92,46 @@ export class Editor {
       dirty: doc !== this.savedDoc,
       canUndo: this.past.length > 0,
       canRedo: this.future.length > 0,
-      history: [
-        ...this.past.map((e) => e.label),
-        this.currentLabel,
-        ...[...this.future].reverse().map((e) => e.label),
-      ],
+      history: this.historyLabels(),
       historyIndex: this.past.length,
     };
+  }
+
+  /**
+   * Libellés de l'historique. Pendant un geste, l'état change à chaque image sans que
+   * l'historique change : la liste est alors réutilisée au lieu d'être recopiée.
+   */
+  private historyLabels(): string[] {
+    const key = [
+      this.past.length,
+      this.past.at(-1),
+      this.past[0],
+      this.future.length,
+      this.future.at(-1),
+      this.currentLabel,
+    ];
+    const hit = this.labels;
+    if (hit && hit.key.every((v, i) => v === key[i])) return hit.list;
+    const list = [
+      ...this.past.map((e) => e.label),
+      this.currentLabel,
+      ...[...this.future].reverse().map((e) => e.label),
+    ];
+    this.labels = { key, list };
+    return list;
+  }
+
+  /** Limite le nombre d'étapes d'annulation (0 : illimité). Les plus anciennes sont oubliées. */
+  setHistoryLimit(limit: number): void {
+    this.historyLimit = Math.max(0, Math.floor(limit));
+    if (this.trimHistory()) this.set(this.state.doc, this.state.selection);
+  }
+
+  private trimHistory(): boolean {
+    const extra = this.historyLimit > 0 ? this.past.length - this.historyLimit : 0;
+    if (extra <= 0) return false;
+    this.past.splice(0, extra);
+    return true;
   }
 
   private set(doc: PoulpeDocument, selection: string[], activeArtboardId = this.state.activeArtboardId) {
@@ -139,6 +176,7 @@ export class Editor {
     });
     this.future = [];
     this.currentLabel = label;
+    this.trimHistory();
   }
 
   /** Début d'un geste (glisser, redimensionner…) : les aperçus partent tous de cet état. */
@@ -171,6 +209,7 @@ export class Editor {
     });
     this.future = [];
     this.currentLabel = label;
+    this.trimHistory();
     this.set(this.state.doc, this.state.selection);
   }
 
@@ -238,6 +277,7 @@ export class Editor {
     });
     this.future = [];
     this.currentLabel = label;
+    this.trimHistory();
     this.set(this.state.doc, this.state.selection);
   }
 
