@@ -1,4 +1,4 @@
-Poulpe est distribué sous licence MPL-2.0. Il embarque notamment les composants suivants.
+Poulpe Design est distribué sous licence MPL-2.0. Il embarque notamment les composants suivants.
 
 ONNX Runtime Web — Copyright (c) Microsoft Corporation. Licence MIT.
   https://github.com/microsoft/onnxruntime

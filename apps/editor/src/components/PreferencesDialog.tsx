@@ -439,6 +439,8 @@ const LAYER_COMMANDS = [
   'arrange.forward',
   'arrange.backward',
   'arrange.back',
+  'layer.selectAbove',
+  'layer.selectBelow',
   'layer.group',
   'layer.ungroup',
   'layer.lock',

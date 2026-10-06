@@ -45,19 +45,19 @@ const exportImages = new ImageCache();
 export type FileKind =
   'poulpe' | 'png' | 'jpeg' | 'svg' | 'pdf' | 'psd' | 'zip' | 'macro' | 'extension' | 'prefs';
 const KINDS: Record<FileKind, { ext: string; mime: string; label: string }> = {
-  poulpe: { ext: POULPE_EXTENSION, mime: 'application/x-poulpe', label: 'Poulpe' },
+  poulpe: { ext: POULPE_EXTENSION, mime: 'application/x-poulpe', label: 'Poulpe Design' },
   png: { ext: 'png', mime: 'image/png', label: 'PNG' },
   jpeg: { ext: 'jpg', mime: 'image/jpeg', label: 'JPEG' },
   svg: { ext: 'svg', mime: 'image/svg+xml', label: 'SVG' },
   pdf: { ext: 'pdf', mime: 'application/pdf', label: 'PDF' },
   psd: { ext: 'psd', mime: 'image/vnd.adobe.photoshop', label: 'Photoshop' },
   zip: { ext: 'zip', mime: 'application/zip', label: 'ZIP' },
-  macro: { ext: 'poulpemacro', mime: 'application/json', label: 'Macro Poulpe' },
-  extension: { ext: 'js', mime: 'text/javascript', label: 'Extension Poulpe' },
-  prefs: { ext: 'poulpeprefs', mime: 'application/json', label: 'Préférences Poulpe' },
+  macro: { ext: 'poulpemacro', mime: 'application/json', label: 'Macro Poulpe Design' },
+  extension: { ext: 'js', mime: 'text/javascript', label: 'Extension Poulpe Design' },
+  prefs: { ext: 'poulpeprefs', mime: 'application/json', label: 'Préférences Poulpe Design' },
 };
 
-/** Formats que « Ouvrir » sait lire, en plus des documents Poulpe. */
+/** Formats que « Ouvrir » sait lire, en plus des documents Poulpe Design. */
 export const OPEN_EXTENSIONS = [POULPE_EXTENSION, 'psd', 'pdf', 'ai'];
 
 export function baseName(path: string): string {
@@ -181,7 +181,7 @@ export async function openDocument(): Promise<void> {
   if (file) await openBytes(file.name, file.bytes);
 }
 
-/** Ouvre un document Poulpe, Photoshop, PDF ou Illustrator d'après son extension. */
+/** Ouvre un document Poulpe Design, Photoshop, PDF ou Illustrator d'après son extension. */
 export async function openBytes(name: string, bytes: Uint8Array): Promise<void> {
   const ext = name.split('.').pop()!.toLowerCase();
   if (ext !== 'psd' && ext !== 'pdf' && ext !== 'ai') return loadBytes(name, bytes);
@@ -241,7 +241,7 @@ export async function saveDocument(saveAs = false): Promise<void> {
   const doc = await materialize(live);
   const bytes = encodePoulpe(doc, {
     thumbnail: await thumbnail(live),
-    generator: `Poulpe ${__APP_VERSION__}`,
+    generator: `Poulpe Design ${__APP_VERSION__}`,
   });
   // Dans le navigateur, on ne peut pas réécrire le fichier ouvert : chaque enregistrement redemande où l'écrire.
   const existing = !saveAs && isDesktop() ? ui.get().filePath : null;
@@ -536,13 +536,13 @@ async function svgToPdf(
   } finally {
     host.remove();
   }
-  pdf.setProperties({ title: doc.name, creator: `Poulpe ${__APP_VERSION__}` });
+  pdf.setProperties({ title: doc.name, creator: `Poulpe Design ${__APP_VERSION__}` });
   const bytes = new Uint8Array(pdf.output('arraybuffer'));
   if (!cmyk) return { bytes, missingFonts, rgbImages: 0 };
   const res = preparePrintPdf(bytes, {
     pdfx: opts.pdfx,
     title: doc.name,
-    creator: `Poulpe ${__APP_VERSION__}`,
+    creator: `Poulpe Design ${__APP_VERSION__}`,
     doc,
   });
   return {

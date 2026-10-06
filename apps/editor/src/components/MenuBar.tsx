@@ -21,7 +21,7 @@ import { Icon } from './Icon';
 import { WorkspaceItems } from './WorkspaceMenu';
 import { useActiveWorkspace } from '../workspaces';
 
-function Item({ id, checked }: { id: CommandId | (string & {}); checked?: boolean }) {
+export function Item({ id, checked }: { id: CommandId | (string & {}); checked?: boolean }) {
   useT();
   useShortcuts();
   const cmd = findCommand(id);
@@ -50,7 +50,7 @@ function Top({ label, children }: { label: string; children: React.ReactNode }) 
   );
 }
 
-const Sep = () => <Menu.Separator className="menu-sep" />;
+export const Sep = () => <Menu.Separator className="menu-sep" />;
 
 /** Menu Extensions : les commandes des extensions installées, puis la gestion. */
 function ExtensionsMenu() {
@@ -78,7 +78,7 @@ function ExtensionsMenu() {
   );
 }
 
-function Sub({ label, children }: { label: string; children: React.ReactNode }) {
+export function Sub({ label, children }: { label: string; children: React.ReactNode }) {
   return (
     <Menu.Sub>
       <Menu.SubTrigger className="menu-item">
@@ -168,6 +168,15 @@ export function MenuBar() {
         <Item id="image.vectorize" />
         <Item id="layer.mergeVisible" />
         <Sep />
+        <Sub label={t('menu.order')}>
+          <Item id="arrange.front" />
+          <Item id="arrange.forward" />
+          <Item id="arrange.backward" />
+          <Item id="arrange.back" />
+          <Sep />
+          <Item id="layer.selectAbove" />
+          <Item id="layer.selectBelow" />
+        </Sub>
         <Item id="layer.group" />
         <Item id="layer.ungroup" />
         <Item id="layer.clip" />

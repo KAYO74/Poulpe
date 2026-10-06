@@ -96,7 +96,7 @@ export async function runDiagnostic(): Promise<DiagnosticReport> {
   const kind = document.createElement('canvas').getContext('webgl2') ? 'webgl2' : 'webgl';
   const p = getPerf();
   return {
-    app: `Poulpe ${__APP_VERSION__}`,
+    app: `Poulpe Design ${__APP_VERSION__}`,
     platform: platformName(),
     userAgent: navigator.userAgent,
     webgl1: !!document.createElement('canvas').getContext('webgl'),
@@ -144,6 +144,6 @@ export function reportText(r: DiagnosticReport): string {
     `Carte graphique (performances) : ${g(r.gpuHighPerformance)}`,
     `Carte graphique (économie) : ${g(r.gpuLowPower)}`,
     `Processeur : ${r.cores} cœurs · threads de calcul : ${r.threads}${r.multithreading ? '' : ' (multi-thread indisponible)'}`,
-    `Mémoire : ordinateur ${mb(r.systemMemoryMb)}, libre ${mb(r.availableMemoryMb)}, utilisée par Poulpe ${mb(r.usedMemoryMb)}, budget ${mb(r.memoryBudgetMb)}`,
+    `Mémoire : ordinateur ${mb(r.systemMemoryMb)}, libre ${mb(r.availableMemoryMb)}, utilisée par Poulpe Design ${mb(r.usedMemoryMb)}, budget ${mb(r.memoryBudgetMb)}`,
   ].join('\n');
 }

@@ -1,4 +1,4 @@
-# Écrire une extension Poulpe
+# Écrire une extension Poulpe Design
 
 Une extension est un fichier JavaScript (`.js`) qui ajoute des commandes au menu **Extensions**. On l'installe depuis Extensions > Gérer les extensions… > Installer depuis un fichier…. Trois exemples complets sont dans [`apps/editor/src/extensions/examples/`](../apps/editor/src/extensions/examples/).
 
@@ -56,7 +56,7 @@ Toutes les modifications d'une commande forment **une seule étape d'historique*
 
 ### Réglages d'une commande
 
-Avec `params`, Poulpe demande les réglages dans une fenêtre avant d'appeler `run(réglages)`. Chaque réglage : `{ id, label, type, default, … }` avec `type` :
+Avec `params`, Poulpe Design demande les réglages dans une fenêtre avant d'appeler `run(réglages)`. Chaque réglage : `{ id, label, type, default, … }` avec `type` :
 
 - `number` (`min`, `max`, `step`),
 - `text`,
@@ -68,6 +68,6 @@ Les commandes d'extension s'enregistrent dans les macros avec leurs réglages, e
 
 ---
 
-# Writing a Poulpe extension (English summary)
+# Writing a Poulpe Design extension (English summary)
 
-An extension is a single JavaScript file that adds commands to the **Extensions** menu. It runs in an isolated QuickJS interpreter (no `window`, network or file access; 5 s and 64 MB limits) and talks to Poulpe only through the `poulpe` object above: declare it with `poulpe.extension({ id, name, version })`, add commands with `poulpe.command({ id, title, params, run })`, then read the document (`document`, `artboard`, `selection`, `find`) and change it (`create`, `update`, `remove`, `group`, `select`). All changes made by one command are a single undo step. See the examples in `apps/editor/src/extensions/examples/`.
+An extension is a single JavaScript file that adds commands to the **Extensions** menu. It runs in an isolated QuickJS interpreter (no `window`, network or file access; 5 s and 64 MB limits) and talks to Poulpe Design only through the `poulpe` object above: declare it with `poulpe.extension({ id, name, version })`, add commands with `poulpe.command({ id, title, params, run })`, then read the document (`document`, `artboard`, `selection`, `find`) and change it (`create`, `update`, `remove`, `group`, `select`). All changes made by one command are a single undo step. See the examples in `apps/editor/src/extensions/examples/`.

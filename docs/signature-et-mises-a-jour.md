@@ -1,6 +1,6 @@
 # Signature des installeurs et mises à jour automatiques
 
-Ce qui est prêt dans Poulpe, et ce qu'il reste à faire de votre côté, partie par partie. Chaque partie est indépendante : le workflow « Installeurs de bureau » l'active dès que ses secrets existent (dépôt GitHub > Settings > Secrets and variables > Actions), et continue sinon à produire des installeurs non signés, comme avant.
+Ce qui est prêt dans Poulpe Design, et ce qu'il reste à faire de votre côté, partie par partie. Chaque partie est indépendante : le workflow « Installeurs de bureau » l'active dès que ses secrets existent (dépôt GitHub > Settings > Secrets and variables > Actions), et continue sinon à produire des installeurs non signés, comme avant.
 
 ## 1. Mises à jour automatiques (gratuit)
 
