@@ -378,6 +378,32 @@ export function moveNodeTo(doc: PoulpeDocument, id: string, parentId: string, in
   return true;
 }
 
+/**
+ * Déplace plusieurs objets vers un parent, à l'index donné (compté dans les enfants actuels du
+ * parent), en gardant leur ordre d'empilement. Sert au glisser-déposer de plusieurs calques.
+ */
+export function moveNodesTo(doc: PoulpeDocument, ids: string[], parentId: string, index: number): boolean {
+  const target = findParent(doc, parentId);
+  if (!target || !Array.isArray(target.children)) return false;
+  const targetId = (target as SceneNode).id;
+  // On ne peut pas glisser un groupe dans lui-même ni dans un de ses descendants.
+  const inside =
+    'type' in target && target.type === 'group'
+      ? new Set([targetId, ...ancestors(doc, targetId).map((g) => g.id)])
+      : new Set<string>();
+  const top = topLevelIds(doc, ids).filter((id) => !inside.has(id));
+  if (!top.length) return false;
+  const set = new Set(top);
+  const ordered = [...walkDocument(doc)].filter((l) => set.has(l.node.id)).map((l) => l.node.id);
+  const before = target.children.slice(0, index).filter((n) => set.has(n.id)).length;
+  const nodes = removeNodesKeepOrder(doc, ordered);
+  const at = Math.max(0, Math.min(index - before, target.children.length));
+  target.children.splice(at, 0, ...nodes);
+  pruneEmptyGroups(doc);
+  fitGroups(doc);
+  return true;
+}
+
 /** Plan de travail sous un point du monde (le plus haut s'ils se chevauchent). */
 export function artboardAt(doc: PoulpeDocument, p: Vec): Artboard | null {
   for (let i = doc.artboards.length - 1; i >= 0; i--) {
