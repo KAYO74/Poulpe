@@ -1,4 +1,4 @@
-# Manifeste Flatpak de Poulpe, pour Flathub. Il reprend le paquet .deb de la version GitHub
+# Manifeste Flatpak de Poulpe Design, pour Flathub. Il reprend le paquet .deb de la version GitHub
 # (même méthode que d'autres applis Tauri sur Flathub). À chaque version : mettre à jour l'url
 # et le sha256 du .deb. Voir docs/signature-et-mises-a-jour.md.
 app-id: io.github.kayo74.Poulpe

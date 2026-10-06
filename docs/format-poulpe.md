@@ -1,6 +1,6 @@
 # Format de fichier `.poulpe` (version 4)
 
-Un document Poulpe est une archive ZIP. Tout y est lisible avec des outils standard : un logiciel de décompression suffit pour récupérer les images d'origine et le document en JSON.
+Un document Poulpe Design est une archive ZIP. Tout y est lisible avec des outils standard : un logiciel de décompression suffit pour récupérer les images d'origine et le document en JSON.
 
 ```
 affiche.poulpe (ZIP)
@@ -18,7 +18,7 @@ Le code de lecture et d'écriture est dans [`packages/core/src/file.ts`](../pack
 {
   "format": "poulpe",
   "version": 4,
-  "generator": "Poulpe 0.2.0",
+  "generator": "Poulpe Design 0.2.0",
   "created": "2026-10-04T09:43:00.000Z",
   "files": ["document.json", "assets/images/img_1a2b3c.png", "thumbnail.png"]
 }
@@ -29,7 +29,7 @@ Le code de lecture et d'écriture est dans [`packages/core/src/file.ts`](../pack
 | Champ        | Type              | Contenu                                                                                                                                |
 | ------------ | ----------------- | -------------------------------------------------------------------------------------------------------------------------------------- |
 | `format`     | `"poulpe"`        | Toujours `poulpe`.                                                                                                                     |
-| `version`    | entier            | Version du format. Poulpe migre les anciennes versions et refuse proprement une version plus récente que la sienne.                    |
+| `version`    | entier            | Version du format. Poulpe Design migre les anciennes versions et refuse proprement une version plus récente que la sienne.             |
 | `id`, `name` | texte             | Identifiant stable et nom du document.                                                                                                 |
 | `artboards`  | liste             | Plans de travail, chacun avec `x`, `y`, `width`, `height`, `background` (peinture) et `children`.                                      |
 | `swatches`   | liste de couleurs | Nuancier du document.                                                                                                                  |
@@ -202,10 +202,10 @@ Les objets d'un symbole sont exprimés dans sa `box`. Chaque objet `symbol` du d
 
 ## Versions
 
-- **1** (Poulpe 0.1) : version initiale.
-- **2** (Poulpe 0.2) : ajout des objets `path`. Un fichier de version 1 s'ouvre sans changement ; un fichier de version 2 ne s'ouvre pas dans Poulpe 0.1.
-- **3** (Poulpe 0.3) : contours avancés (`cap`, `join`, `dash`, `start`, `end`), `effects` sur tous les objets, `path` sur les textes. Tous ces champs sont facultatifs : un fichier de version 1 ou 2 s'ouvre sans changement ; un fichier de version 3 ne s'ouvre pas dans Poulpe 0.2.
-- **4** (Poulpe 0.4) : objets `adjustment` (calques de réglage et filtres dynamiques) et `mask` sur tous les objets. Un fichier des versions 1 à 3 s'ouvre sans changement ; un fichier de version 4 ne s'ouvre pas dans Poulpe 0.3.
-- **5** (Poulpe 0.5, mise en page) : `layout` du document, `master` et `masterId` des plans de travail, `frame` et `next` des textes, champs `{page}` et `{pages}`. Tous facultatifs : les fichiers des versions 1 à 4 s'ouvrent sans changement ; un fichier de version 5 ne s'ouvre pas dans Poulpe 0.4.
-- **7** (Poulpe 0.6, outils vectoriels) : objets `symbol`, `symbols` et `styles` du document, peintures `conic` et `pattern`, `align`, `profile` et `strokes` des contours, effet `bevel`, `features` et `columns` des textes. Tous facultatifs : les fichiers des versions 1 à 6 s'ouvrent sans changement ; un fichier de version 7 ne s'ouvre pas dans Poulpe 0.5.
-- **6** (Poulpe 0.5, impression) : `colorMode` et `cmyk` dans `layout`. Facultatifs : les fichiers des versions 1 à 5 s'ouvrent sans changement ; un fichier de version 6 ne s'ouvre pas dans une version de Poulpe qui ne connaît que la version 5.
+- **1** (Poulpe Design 0.1) : version initiale.
+- **2** (Poulpe Design 0.2) : ajout des objets `path`. Un fichier de version 1 s'ouvre sans changement ; un fichier de version 2 ne s'ouvre pas dans Poulpe Design 0.1.
+- **3** (Poulpe Design 0.3) : contours avancés (`cap`, `join`, `dash`, `start`, `end`), `effects` sur tous les objets, `path` sur les textes. Tous ces champs sont facultatifs : un fichier de version 1 ou 2 s'ouvre sans changement ; un fichier de version 3 ne s'ouvre pas dans Poulpe Design 0.2.
+- **4** (Poulpe Design 0.4) : objets `adjustment` (calques de réglage et filtres dynamiques) et `mask` sur tous les objets. Un fichier des versions 1 à 3 s'ouvre sans changement ; un fichier de version 4 ne s'ouvre pas dans Poulpe Design 0.3.
+- **5** (Poulpe Design 0.5, mise en page) : `layout` du document, `master` et `masterId` des plans de travail, `frame` et `next` des textes, champs `{page}` et `{pages}`. Tous facultatifs : les fichiers des versions 1 à 4 s'ouvrent sans changement ; un fichier de version 5 ne s'ouvre pas dans Poulpe Design 0.4.
+- **7** (Poulpe Design 0.6, outils vectoriels) : objets `symbol`, `symbols` et `styles` du document, peintures `conic` et `pattern`, `align`, `profile` et `strokes` des contours, effet `bevel`, `features` et `columns` des textes. Tous facultatifs : les fichiers des versions 1 à 6 s'ouvrent sans changement ; un fichier de version 7 ne s'ouvre pas dans Poulpe Design 0.5.
+- **6** (Poulpe Design 0.5, impression) : `colorMode` et `cmyk` dans `layout`. Facultatifs : les fichiers des versions 1 à 5 s'ouvrent sans changement ; un fichier de version 6 ne s'ouvre pas dans une version de Poulpe Design qui ne connaît que la version 5.
