@@ -1,6 +1,6 @@
 # Poulpe Design — Feuille de route des fonctionnalités
 
-4 octobre 2026 · Fred
+4 octobre 2026
 
 Poulpe Design atteint l'essentiel d'Illustrator, Photoshop et Affinity en v1.0, en cinq jalons qui ajoutent chacun un métier : dessin de base, création rapide type Canva, vectoriel pro, retouche photo, mise en page et export pro.
 
