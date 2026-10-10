@@ -1,6 +1,6 @@
 # Poulpe Design : cadrage et architecture
 
-4 octobre 2026 · Fred
+4 octobre 2026
 
 ## Vision et principes
 
@@ -93,7 +93,7 @@ Le code est publié sous licence MPL-2.0, celle de Penpot : toute modification d
 - **Contenus** : modèles, icônes et illustrations fournis sous CC0 ou CC-BY 4.0, polices sous OFL, pour que tout ce qui est créé avec l'appli soit utilisable librement, y compris commercialement.
 - **Contributions** : signature DCO (une ligne dans chaque commit) plutôt qu'un accord de cession, pour que le code reste à la communauté.
 - **Communauté** : code de conduite Contributor Covenant, guide de contribution, tickets étiquetés « première contribution », discussions publiques sur GitHub.
-- **Décisions** : Fred tranche au départ ; une fois des contributeurs réguliers arrivés, les choix structurants passent par des propositions écrites (RFC) dans le dépôt.
+- **Décisions** : le créateur du projet tranche au départ ; une fois des contributeurs réguliers arrivés, les choix structurants passent par des propositions écrites (RFC) dans le dépôt.
 
 ## Feuille de route
 
