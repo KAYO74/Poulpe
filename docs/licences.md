@@ -1,6 +1,6 @@
 # Licences et origine du contenu
 
-Poulpe Design est construit avec l'intelligence artificielle : Fred décrit ce qu'il veut, Claude (Anthropic) écrit le code, la documentation et les images. Cette page dit d'où vient chaque partie et sous quelle licence, pour qu'on puisse vérifier qu'aucun élément n'est repris d'un logiciel propriétaire comme Photoshop, Illustrator ou Affinity.
+Poulpe Design est construit avec l'intelligence artificielle : le créateur du projet décrit ce qu'il veut, Claude (Anthropic) écrit le code, la documentation et les images. Cette page dit d'où vient chaque partie et sous quelle licence, pour qu'on puisse vérifier qu'aucun élément n'est repris d'un logiciel propriétaire comme Photoshop, Illustrator ou Affinity.
 
 Dernière vérification : 5 octobre 2026, sur la version 1.0.
 

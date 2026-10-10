@@ -31,7 +31,7 @@
 > Voici la version 1.1 : dessin vectoriel, retouche photo, mise en page, vectorisation d'images, détourage automatique, macros et extensions, dans une appli qui se met à jour toute seule. Nouveau : la langue se choisit à l'installation, une fenêtre Préférences complète, une gestion avancée des calques, une appli plus fluide sur les gros documents et une colonne d'outils à la carte.
 
 > [!TIP]
-> **Fait avec l'IA.** Poulpe Design est un projet de Fred, construit avec l'intelligence artificielle : le code, la documentation et les images de cette page ont été écrits par Claude (Anthropic) à partir de ses demandes, pour offrir à tous une vraie application de design, libre et gratuite. Rien n'est repris de logiciels propriétaires ; voir [Licences et origine du contenu](docs/licences.md).
+> **Fait avec l'IA.** Poulpe Design est un projet personnel, construit avec l'intelligence artificielle : le code, la documentation et les images de cette page ont été écrits par Claude (Anthropic) à partir des demandes de son créateur, pour offrir à tous une vraie application de design, libre et gratuite. Rien n'est repris de logiciels propriétaires ; voir [Licences et origine du contenu](docs/licences.md).
 
 ## Installer Poulpe Design
 
